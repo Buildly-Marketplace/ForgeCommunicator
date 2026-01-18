@@ -1,25 +1,42 @@
 /**
  * Forge Communicator - Client-side JavaScript
- * Minimal vanilla JS for keyboard shortcuts and command palette
+ * Theme toggle, keyboard shortcuts, command palette, and @mentions
  */
 
 (function() {
     'use strict';
 
-    // Command palette
+    // ============================================
+    // Theme Management
+    // ============================================
+    
+    window.toggleTheme = function() {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.theme = 'light';
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.theme = 'dark';
+        }
+    };
+
+    // ============================================
+    // Command Palette
+    // ============================================
+    
     const palette = document.getElementById('command-palette');
     const paletteInput = document.getElementById('command-input');
     const paletteResults = document.getElementById('command-results');
 
     // Open command palette
-    function openCommandPalette() {
+    window.openCommandPalette = function() {
         if (palette) {
             palette.classList.remove('hidden');
             paletteInput.value = '';
             paletteInput.focus();
             updatePaletteResults('');
         }
-    }
+    };
 
     // Close command palette
     window.closeCommandPalette = function() {
@@ -33,31 +50,38 @@
         if (!paletteResults) return;
 
         const commands = [
-            { name: 'Create Decision', shortcut: '/decision', icon: '⚖️' },
-            { name: 'Create Feature', shortcut: '/feature', icon: '✨' },
-            { name: 'Create Issue', shortcut: '/issue', icon: '🐛' },
-            { name: 'Create Task', shortcut: '/task', icon: '✅' },
-            { name: 'Join Channel', shortcut: '/join #', icon: '#' },
-            { name: 'Leave Channel', shortcut: '/leave', icon: '👋' },
-            { name: 'Set Topic', shortcut: '/topic', icon: '📝' },
+            { name: 'Create Decision', shortcut: '/decision', icon: '⚖️', desc: 'Record an architectural decision' },
+            { name: 'Create Feature', shortcut: '/feature', icon: '✨', desc: 'Track a feature request' },
+            { name: 'Create Issue', shortcut: '/issue', icon: '🐛', desc: 'Report a bug or issue' },
+            { name: 'Create Task', shortcut: '/task', icon: '✅', desc: 'Create a todo task' },
+            { name: 'Mention User', shortcut: '@', icon: '👤', desc: 'Mention someone in the channel' },
+            { name: 'Direct Message', shortcut: '/dm @', icon: '✉️', desc: 'Send a direct message' },
+            { name: 'Join Channel', shortcut: '/join #', icon: '#️⃣', desc: 'Join another channel' },
+            { name: 'Leave Channel', shortcut: '/leave', icon: '👋', desc: 'Leave current channel' },
+            { name: 'Set Topic', shortcut: '/topic', icon: '📝', desc: 'Set the channel topic' },
+            { name: 'Toggle Theme', shortcut: '', icon: '🌓', desc: 'Switch light/dark mode', action: 'toggleTheme' },
         ];
 
         const filtered = query 
             ? commands.filter(c => 
                 c.name.toLowerCase().includes(query.toLowerCase()) ||
-                c.shortcut.toLowerCase().includes(query.toLowerCase())
+                c.shortcut.toLowerCase().includes(query.toLowerCase()) ||
+                c.desc.toLowerCase().includes(query.toLowerCase())
             )
             : commands;
 
+        const isDark = document.documentElement.classList.contains('dark');
+        
         paletteResults.innerHTML = filtered.map(cmd => `
             <button type="button" 
-                    onclick="insertCommand('${cmd.shortcut}')"
-                    class="w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none">
+                    onclick="${cmd.action ? cmd.action + '(); closeCommandPalette();' : "insertCommand('" + cmd.shortcut + " ')"}"
+                    class="w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none">
                 <span class="text-xl mr-3">${cmd.icon}</span>
                 <div class="flex-1">
-                    <div class="text-sm font-medium text-gray-900">${cmd.name}</div>
-                    <div class="text-xs text-gray-500">${cmd.shortcut}</div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">${cmd.name}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${cmd.desc}</div>
                 </div>
+                ${cmd.shortcut ? `<kbd class="ml-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-300 rounded">${cmd.shortcut}</kbd>` : ''}
             </button>
         `).join('');
     }
@@ -66,8 +90,12 @@
     window.insertCommand = function(command) {
         const messageInput = document.getElementById('message-input');
         if (messageInput) {
-            messageInput.value = command + ' ';
+            messageInput.value = command;
             messageInput.focus();
+            // Place cursor at end
+            messageInput.selectionStart = messageInput.selectionEnd = messageInput.value.length;
+            // Trigger input event for @mention detection
+            messageInput.dispatchEvent(new Event('input'));
         }
         closeCommandPalette();
     };

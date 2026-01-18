@@ -284,6 +284,22 @@ async def channel_view(
     )
     artifacts = result.scalars().all()
     
+    # Get workspace members for @mentions
+    from app.models.user import User
+    result = await db.execute(
+        select(User)
+        .join(Membership, Membership.user_id == User.id)
+        .where(Membership.workspace_id == workspace_id)
+        .order_by(User.display_name)
+    )
+    members = result.scalars().all()
+    
+    import json
+    members_json = json.dumps([
+        {"id": m.id, "display_name": m.display_name, "email": m.email}
+        for m in members
+    ])
+    
     from app.settings import settings
     
     return templates.TemplateResponse(
@@ -298,6 +314,7 @@ async def channel_view(
             "messages": messages,
             "artifacts": artifacts,
             "membership": membership,
+            "members_json": members_json,
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,
         },
