@@ -6,7 +6,7 @@ All secrets and configuration via environment variables.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, computed_field
+from pydantic import Field, PostgresDsn, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +40,24 @@ class Settings(BaseSettings):
     )
     database_pool_size: int = 5
     database_max_overflow: int = 10
+    
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def transform_database_url(cls, v: str) -> str:
+        """Transform database URL to use asyncpg driver.
+        
+        Many deployment platforms provide postgres:// URLs that need
+        to be converted to postgresql+asyncpg:// for SQLAlchemy async.
+        """
+        if not v:
+            return v
+        # Handle postgres:// -> postgresql+asyncpg://
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        # Handle postgresql:// without driver -> postgresql+asyncpg://
+        elif v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
     
     # For sync operations (Alembic)
     @computed_field
