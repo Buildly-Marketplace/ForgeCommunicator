@@ -2,6 +2,7 @@
 Channel management router.
 """
 
+import json
 import re
 from typing import Annotated
 
@@ -17,6 +18,7 @@ from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership, MembershipRole
 from app.models.message import Message
 from app.models.product import Product
+from app.models.user import User
 from app.models.workspace import Workspace
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/channels", tags=["channels"])
@@ -275,6 +277,63 @@ async def channel_view(
     )
     messages = list(reversed(result.scalars().all()))
     
+    # Update last read message for this channel
+    if messages:
+        last_message_id = messages[-1].id
+        # Get or create channel membership for tracking reads
+        result = await db.execute(
+            select(ChannelMembership).where(
+                ChannelMembership.channel_id == channel_id,
+                ChannelMembership.user_id == user.id,
+            )
+        )
+        channel_membership = result.scalar_one_or_none()
+        if channel_membership:
+            channel_membership.last_read_message_id = last_message_id
+        elif not channel.is_private:
+            # For public channels, create membership record for read tracking
+            channel_membership = ChannelMembership(
+                channel_id=channel_id,
+                user_id=user.id,
+                last_read_message_id=last_message_id,
+            )
+            db.add(channel_membership)
+        await db.commit()
+    
+    # Get unread counts for all channels
+    # First get user's channel memberships with last_read_message_id
+    result = await db.execute(
+        select(ChannelMembership)
+        .where(ChannelMembership.user_id == user.id)
+    )
+    user_channel_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
+    
+    # Get latest message ID for each channel
+    from sqlalchemy import func as sqlfunc
+    result = await db.execute(
+        select(Message.channel_id, sqlfunc.max(Message.id).label("max_id"))
+        .where(
+            Message.channel_id.in_([ch.id for ch in channels]),
+            Message.deleted_at == None,
+        )
+        .group_by(Message.channel_id)
+    )
+    latest_messages = {row[0]: row[1] for row in result.fetchall()}
+    
+    # Calculate unread status for each channel
+    unread_channels = {}
+    for ch in channels:
+        latest_msg_id = latest_messages.get(ch.id)
+        last_read_id = user_channel_memberships.get(ch.id)
+        
+        if latest_msg_id:
+            if last_read_id is None or latest_msg_id > last_read_id:
+                unread_channels[ch.id] = True
+            else:
+                unread_channels[ch.id] = False
+        else:
+            unread_channels[ch.id] = False
+    
     # Get recent artifacts for channel
     result = await db.execute(
         select(Artifact)
@@ -315,6 +374,7 @@ async def channel_view(
             "artifacts": artifacts,
             "membership": membership,
             "members_json": members_json,
+            "unread_channels": unread_channels,
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,
         },
@@ -427,5 +487,131 @@ async def leave_channel(
     
     return RedirectResponse(
         url=f"/workspaces/{workspace_id}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/dm/new")
+async def create_dm_channel(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    user_ids: Annotated[str, Form()],  # JSON array of user IDs
+):
+    """Create a DM channel with selected users.
+    
+    If a DM already exists with the exact same participants, return that channel.
+    """
+    workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
+    
+    try:
+        selected_user_ids = json.loads(user_ids)
+        if not isinstance(selected_user_ids, list):
+            raise ValueError("Invalid format")
+        selected_user_ids = [int(uid) for uid in selected_user_ids]
+    except (json.JSONDecodeError, ValueError, TypeError):
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-red-500">Invalid user selection</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="Invalid user selection")
+    
+    # Always include current user
+    if user.id not in selected_user_ids:
+        selected_user_ids.append(user.id)
+    
+    # Must have at least 2 participants
+    if len(selected_user_ids) < 2:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-red-500">Please select at least one user</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="Please select at least one user")
+    
+    # Verify all users are members of the workspace
+    result = await db.execute(
+        select(Membership.user_id)
+        .where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id.in_(selected_user_ids)
+        )
+    )
+    valid_user_ids = set(row[0] for row in result.fetchall())
+    
+    if len(valid_user_ids) != len(selected_user_ids):
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-red-500">One or more users not in workspace</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="One or more users not in workspace")
+    
+    # Check for existing DM with same participants
+    # Find DM channels where user is a member
+    result = await db.execute(
+        select(Channel)
+        .where(
+            Channel.workspace_id == workspace_id,
+            Channel.is_dm == True,
+            Channel.id.in_(
+                select(ChannelMembership.channel_id)
+                .where(ChannelMembership.user_id == user.id)
+            )
+        )
+        .options(selectinload(Channel.memberships))
+    )
+    dm_channels = result.scalars().all()
+    
+    # Check if any existing DM has exact same participants
+    for dm in dm_channels:
+        dm_member_ids = set(m.user_id for m in dm.memberships)
+        if dm_member_ids == set(selected_user_ids):
+            # Found existing DM channel
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse("")
+                response.headers["HX-Redirect"] = f"/workspaces/{workspace_id}/channels/{dm.id}"
+                return response
+            return RedirectResponse(
+                url=f"/workspaces/{workspace_id}/channels/{dm.id}",
+                status_code=status.HTTP_302_FOUND,
+            )
+    
+    # Get user display names for the channel name
+    result = await db.execute(
+        select(User)
+        .where(User.id.in_(selected_user_ids), User.id != user.id)
+    )
+    other_users = result.scalars().all()
+    
+    if len(other_users) == 1:
+        channel_name = other_users[0].display_name
+    else:
+        names = sorted([u.display_name for u in other_users])
+        if len(names) > 3:
+            channel_name = f"{', '.join(names[:2])}, +{len(names) - 2} more"
+        else:
+            channel_name = ", ".join(names)
+    
+    # Create new DM channel
+    channel = Channel(
+        workspace_id=workspace_id,
+        name=channel_name,
+        is_private=True,
+        is_dm=True,
+    )
+    db.add(channel)
+    await db.flush()
+    
+    # Add all participants as members
+    for uid in selected_user_ids:
+        channel_membership = ChannelMembership(
+            channel_id=channel.id,
+            user_id=uid,
+        )
+        db.add(channel_membership)
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = f"/workspaces/{workspace_id}/channels/{channel.id}"
+        return response
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/channels/{channel.id}",
         status_code=status.HTTP_302_FOUND,
     )

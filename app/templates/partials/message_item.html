@@ -2,19 +2,21 @@
 <div id="message-{{ message.id }}" class="message-item group flex space-x-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 -mx-2">
     <!-- Avatar -->
     <div class="flex-shrink-0">
-        {% if message.user.avatar_url %}
-        <img src="{{ message.user.avatar_url }}" alt="" class="h-10 w-10 rounded-full">
-        {% else %}
-        <div class="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-            <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ message.user.display_name[0] }}</span>
-        </div>
-        {% endif %}
+        <a href="/profile/user/{{ message.user.id }}" class="block">
+            {% if message.user.avatar_url %}
+            <img src="{{ message.user.avatar_url }}" alt="" class="h-10 w-10 rounded-full hover:ring-2 hover:ring-indigo-400">
+            {% else %}
+            <div class="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center hover:ring-2 hover:ring-indigo-400">
+                <span class="text-indigo-600 dark:text-indigo-300 font-medium">{{ message.user.display_name[0] }}</span>
+            </div>
+            {% endif %}
+        </a>
     </div>
     
     <!-- Content -->
     <div class="flex-1 min-w-0">
         <div class="flex items-baseline space-x-2">
-            <span class="font-medium text-gray-900 dark:text-white">{{ message.user.display_name }}</span>
+            <a href="/profile/user/{{ message.user.id }}" class="font-medium text-gray-900 dark:text-white hover:underline">{{ message.user.display_name }}</a>
             <span class="text-xs text-gray-500 dark:text-gray-400">{{ message.created_at.strftime('%H:%M') }}</span>
             {% if message.is_edited %}
             <span class="text-xs text-gray-400 dark:text-gray-500">(edited)</span>

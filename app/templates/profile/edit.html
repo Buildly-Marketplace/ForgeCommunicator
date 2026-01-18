@@ -1,0 +1,202 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Profile - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <a href="/workspaces" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back to Workspaces
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Your Profile</h1>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Manage your personal information and preferences</p>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <!-- Avatar Section -->
+            <div class="p-6 border-b dark:border-gray-700">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile Photo</h2>
+                <div class="flex items-center space-x-6">
+                    <div id="avatar-preview">
+                        {% if profile_user.avatar_url %}
+                        <img src="{{ profile_user.avatar_url }}" alt="Avatar" class="w-24 h-24 rounded-full object-cover">
+                        {% else %}
+                        <div class="w-24 h-24 rounded-full bg-indigo-500 flex items-center justify-center">
+                            <span class="text-white text-3xl font-medium">{{ profile_user.display_name[0] }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <form hx-post="/profile/avatar" 
+                              hx-target="#avatar-preview" 
+                              hx-swap="innerHTML"
+                              class="space-y-3">
+                            <div>
+                                <label for="avatar_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Avatar URL
+                                </label>
+                                <input type="url" name="avatar_url" id="avatar_url" 
+                                       value="{{ profile_user.avatar_url or '' }}"
+                                       placeholder="https://example.com/your-avatar.jpg"
+                                       class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            </div>
+                            <button type="submit"
+                                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Update Avatar
+                            </button>
+                        </form>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Use a URL to an image (e.g., Gravatar, GitHub avatar)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Form -->
+            <form hx-post="/profile" hx-target="#form-status" hx-swap="innerHTML" class="p-6 space-y-6">
+                <div id="form-status"></div>
+                
+                <!-- Basic Info -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="display_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Display Name *
+                        </label>
+                        <input type="text" name="display_name" id="display_name" 
+                               value="{{ profile_user.display_name }}"
+                               required
+                               class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Email
+                        </label>
+                        <input type="email" id="email" 
+                               value="{{ profile_user.email }}"
+                               disabled
+                               class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 dark:text-gray-300 shadow-sm cursor-not-allowed">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Email cannot be changed</p>
+                    </div>
+                    
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Job Title
+                        </label>
+                        <input type="text" name="title" id="title" 
+                               value="{{ profile_user.title or '' }}"
+                               placeholder="e.g. Software Engineer"
+                               class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Phone Number
+                        </label>
+                        <input type="tel" name="phone" id="phone" 
+                               value="{{ profile_user.phone or '' }}"
+                               placeholder="+1 (555) 123-4567"
+                               class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label for="timezone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Timezone
+                        </label>
+                        <select name="timezone" id="timezone" 
+                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="UTC" {% if profile_user.timezone == 'UTC' %}selected{% endif %}>UTC</option>
+                            <option value="America/New_York" {% if profile_user.timezone == 'America/New_York' %}selected{% endif %}>Eastern Time (US)</option>
+                            <option value="America/Chicago" {% if profile_user.timezone == 'America/Chicago' %}selected{% endif %}>Central Time (US)</option>
+                            <option value="America/Denver" {% if profile_user.timezone == 'America/Denver' %}selected{% endif %}>Mountain Time (US)</option>
+                            <option value="America/Los_Angeles" {% if profile_user.timezone == 'America/Los_Angeles' %}selected{% endif %}>Pacific Time (US)</option>
+                            <option value="Europe/London" {% if profile_user.timezone == 'Europe/London' %}selected{% endif %}>London</option>
+                            <option value="Europe/Paris" {% if profile_user.timezone == 'Europe/Paris' %}selected{% endif %}>Paris</option>
+                            <option value="Europe/Berlin" {% if profile_user.timezone == 'Europe/Berlin' %}selected{% endif %}>Berlin</option>
+                            <option value="Asia/Tokyo" {% if profile_user.timezone == 'Asia/Tokyo' %}selected{% endif %}>Tokyo</option>
+                            <option value="Asia/Shanghai" {% if profile_user.timezone == 'Asia/Shanghai' %}selected{% endif %}>Shanghai</option>
+                            <option value="Australia/Sydney" {% if profile_user.timezone == 'Australia/Sydney' %}selected{% endif %}>Sydney</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Bio -->
+                <div>
+                    <label for="bio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Bio
+                    </label>
+                    <textarea name="bio" id="bio" rows="3"
+                              placeholder="Tell others a bit about yourself..."
+                              class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ profile_user.bio or '' }}</textarea>
+                </div>
+                
+                <!-- Status -->
+                <div class="border-t dark:border-gray-700 pt-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Status</h3>
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Current Status
+                            </label>
+                            <select name="status" id="status" 
+                                    class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="active" {% if profile_user.status.value == 'active' %}selected{% endif %}>🟢 Active</option>
+                                <option value="away" {% if profile_user.status.value == 'away' %}selected{% endif %}>🟡 Away</option>
+                                <option value="dnd" {% if profile_user.status.value == 'dnd' %}selected{% endif %}>🔴 Do Not Disturb</option>
+                                <option value="offline" {% if profile_user.status.value == 'offline' %}selected{% endif %}>⚫ Appear Offline</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="status_message" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Status Message
+                            </label>
+                            <input type="text" name="status_message" id="status_message" 
+                                   value="{{ profile_user.status_message or '' }}"
+                                   placeholder="What are you working on?"
+                                   class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit -->
+                <div class="flex justify-end pt-6 border-t dark:border-gray-700">
+                    <button type="submit"
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Workspaces -->
+        <div class="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Your Workspaces</h2>
+                {% if workspaces %}
+                <ul class="divide-y dark:divide-gray-700">
+                    {% for ws in workspaces %}
+                    <li class="py-3">
+                        <a href="/workspaces/{{ ws.id }}" class="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700 -mx-3 px-3 py-2 rounded-md">
+                            <div class="flex-shrink-0 w-10 h-10 rounded bg-indigo-500 flex items-center justify-center">
+                                <span class="text-white font-medium">{{ ws.name[0] }}</span>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ ws.name }}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ ws.description or 'No description' }}</p>
+                            </div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-gray-500 dark:text-gray-400">You haven't joined any workspaces yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

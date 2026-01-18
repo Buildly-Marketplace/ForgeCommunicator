@@ -249,6 +249,67 @@ async def send_message(
     )
     message = result.scalar_one()
     
+    # Send push notifications for DMs and @mentions
+    try:
+        from app.services.push import push_service
+        from app.models.user import User
+        import re
+        
+        # Check if this is a DM channel
+        if channel.is_dm:
+            # Get all members of the DM except the sender
+            result = await db.execute(
+                select(ChannelMembership.user_id)
+                .where(
+                    ChannelMembership.channel_id == channel_id,
+                    ChannelMembership.user_id != user.id,
+                )
+            )
+            recipient_ids = [row[0] for row in result.fetchall()]
+            
+            for recipient_id in recipient_ids:
+                await push_service.notify_dm(
+                    db=db,
+                    recipient_user_id=recipient_id,
+                    sender_name=user.display_name,
+                    workspace_id=workspace_id,
+                    channel_id=channel_id,
+                    message_preview=body[:100],
+                )
+        
+        # Check for @mentions in regular channels
+        mention_pattern = re.compile(r'@(\w+(?:\s+\w+)?)', re.IGNORECASE)
+        mentions = mention_pattern.findall(body)
+        
+        if mentions:
+            for mention_name in mentions:
+                # Find user by display name
+                result = await db.execute(
+                    select(User)
+                    .join(Membership, Membership.user_id == User.id)
+                    .where(
+                        Membership.workspace_id == workspace_id,
+                        User.display_name.ilike(f"%{mention_name}%"),
+                        User.id != user.id,  # Don't notify yourself
+                    )
+                )
+                mentioned_user = result.scalar_one_or_none()
+                
+                if mentioned_user:
+                    await push_service.notify_mention(
+                        db=db,
+                        mentioned_user_id=mentioned_user.id,
+                        sender_name=user.display_name,
+                        channel_name=channel.display_name,
+                        workspace_id=workspace_id,
+                        channel_id=channel_id,
+                        message_preview=body[:100],
+                    )
+    except Exception as e:
+        # Don't fail the message send if push notification fails
+        import logging
+        logging.getLogger(__name__).error(f"Push notification error: {e}")
+    
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse(
             "partials/message_item.html",

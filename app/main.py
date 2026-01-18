@@ -111,7 +111,7 @@ async def root(request: Request):
 
 
 # Import and include routers
-from app.routers import artifacts, auth, channels, messages, realtime, workspaces
+from app.routers import artifacts, auth, channels, messages, profile, push, realtime, workspaces
 
 app.include_router(auth.router)
 app.include_router(workspaces.router)
@@ -119,6 +119,8 @@ app.include_router(channels.router)
 app.include_router(messages.router)
 app.include_router(artifacts.router)
 app.include_router(realtime.router)
+app.include_router(profile.router)
+app.include_router(push.router)
 
 
 # Error handlers

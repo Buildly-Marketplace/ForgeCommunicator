@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     rate_limit_auth_per_minute: int = 10
     rate_limit_api_per_minute: int = 60
     
+    # Push notifications (VAPID)
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_contact_email: str = "admin@buildly.io"
+    
     # CORS (for API access if needed)
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
     
@@ -87,6 +92,10 @@ class Settings(BaseSettings):
     @property
     def buildly_oauth_enabled(self) -> bool:
         return bool(self.buildly_client_id and self.buildly_client_secret)
+    
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key)
 
 
 @lru_cache

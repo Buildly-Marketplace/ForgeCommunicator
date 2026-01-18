@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -20,6 +20,13 @@ class AuthProvider(str, Enum):
     BUILDLY = "buildly"
 
 
+class UserStatus(str, Enum):
+    ACTIVE = "active"
+    AWAY = "away"
+    DND = "dnd"  # Do not disturb
+    OFFLINE = "offline"
+
+
 class User(Base, TimestampMixin):
     """User account model."""
     
@@ -28,6 +35,14 @@ class User(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    
+    # Profile fields
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Job title
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True, default="UTC")
+    status: Mapped[UserStatus] = mapped_column(String(20), default=UserStatus.ACTIVE, nullable=False)
+    status_message: Mapped[str | None] = mapped_column(String(100), nullable=True)
     
     # Local auth
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -54,6 +69,7 @@ class User(Base, TimestampMixin):
     # Relationships
     memberships = relationship("Membership", back_populates="user", lazy="selectin")
     messages = relationship("Message", back_populates="user", lazy="noload")
+    push_subscriptions = relationship("PushSubscription", back_populates="user", lazy="noload")
     
     def generate_session_token(self) -> str:
         """Generate a new session token and set expiry."""
