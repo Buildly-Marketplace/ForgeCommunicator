@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}Workspaces - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold text-gray-900">🔧 Forge Communicator</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">{{ user.display_name }}</span>
+                    <a href="/auth/logout" class="text-sm text-gray-500 hover:text-gray-700">Sign out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">Your Workspaces</h1>
+            <div class="flex space-x-3">
+                <a href="/workspaces/join" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Join Workspace
+                </a>
+                <a href="/workspaces/new" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    Create Workspace
+                </a>
+            </div>
+        </div>
+        
+        {% if workspaces %}
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for workspace in workspaces %}
+                <li>
+                    <a href="/workspaces/{{ workspace.id }}" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    {% if workspace.icon_url %}
+                                    <img src="{{ workspace.icon_url }}" alt="" class="w-10 h-10 rounded-lg mr-3">
+                                    {% else %}
+                                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mr-3">
+                                        <span class="text-indigo-600 font-semibold text-lg">{{ workspace.name[0] }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="text-sm font-medium text-indigo-600">{{ workspace.name }}</p>
+                                        <p class="text-sm text-gray-500">{{ workspace.description or workspace.slug }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <span>{{ workspace.memberships|length }} member{% if workspace.memberships|length != 1 %}s{% endif %}</span>
+                                    <svg class="ml-2 w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="text-center py-12 bg-white rounded-lg shadow">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No workspaces</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating a new workspace or joining an existing one.</p>
+            <div class="mt-6 flex justify-center space-x-3">
+                <a href="/workspaces/join" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Join Workspace
+                </a>
+                <a href="/workspaces/new" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    Create Workspace
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

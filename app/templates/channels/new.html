@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block title %}New Channel - {{ workspace.name }} - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces/{{ workspace.id }}" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <span class="text-xl font-bold text-gray-900">{{ workspace.name }}</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-lg mx-auto py-10 px-4">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h1 class="text-xl font-bold text-gray-900 mb-6">Create a new channel</h1>
+            
+            <form hx-post="/workspaces/{{ workspace.id }}/channels/new" 
+                  hx-target="#error-message" 
+                  class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Channel name</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                            #
+                        </span>
+                        <input type="text" name="name" id="name" required
+                               class="flex-1 block w-full rounded-none rounded-r-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                               placeholder="general">
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">Lowercase letters, numbers, and hyphens only.</p>
+                </div>
+                
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Description (optional)</label>
+                    <textarea name="description" id="description" rows="2"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              placeholder="What's this channel about?"></textarea>
+                </div>
+                
+                {% if products %}
+                <div>
+                    <label for="product_id" class="block text-sm font-medium text-gray-700">Link to Product (optional)</label>
+                    <select name="product_id" id="product_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">No product</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_private" id="is_private" value="true"
+                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <label for="is_private" class="ml-2 block text-sm text-gray-700">
+                        Make this channel private
+                    </label>
+                </div>
+                
+                <div id="error-message"></div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <a href="/workspaces/{{ workspace.id }}" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        Create Channel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

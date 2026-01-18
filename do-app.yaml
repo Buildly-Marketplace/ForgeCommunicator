@@ -1,0 +1,53 @@
+name: forge-communicator
+region: nyc
+services:
+  - name: web
+    github:
+      repo: buildly-release-management/forge-communicator
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: REALTIME_MODE
+        scope: RUN_TIME
+        value: "ws"
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GOOGLE_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: BUILDLY_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: BUILDLY_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: BUILDLY_API_URL
+        scope: RUN_TIME
+        value: "https://api.buildly.io"
+    routes:
+      - path: /
+
+databases:
+  - name: forge-db
+    engine: PG
+    version: "16"
+    size: db-s-dev-database
+    num_nodes: 1

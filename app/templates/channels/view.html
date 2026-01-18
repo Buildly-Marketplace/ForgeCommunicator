@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ channel.display_name }} - {{ workspace.name }} - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="h-screen flex overflow-hidden bg-gray-100">
+    <!-- Sidebar -->
+    <div class="hidden md:flex md:flex-shrink-0">
+        <div class="flex flex-col w-64 bg-gray-800">
+            <!-- Workspace header -->
+            <div class="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
+                <a href="/workspaces" class="text-gray-400 hover:text-white mr-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <span class="text-white font-semibold truncate">{{ workspace.name }}</span>
+            </div>
+            
+            <!-- Channel list -->
+            <div class="flex-1 flex flex-col overflow-y-auto scrollbar-thin">
+                {% include "partials/channel_sidebar.html" %}
+            </div>
+            
+            <!-- User footer -->
+            <div class="flex-shrink-0 flex bg-gray-700 p-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">{{ user.display_name[0] }}</span>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-white">{{ user.display_name }}</p>
+                        <a href="/auth/logout" class="text-xs text-gray-300 hover:text-white">Sign out</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main content -->
+    <div class="flex flex-col w-0 flex-1 overflow-hidden">
+        <!-- Channel header -->
+        <div class="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
+            <div class="flex-1 px-4 flex items-center justify-between">
+                <div class="flex-1">
+                    <h1 class="text-xl font-semibold text-gray-900">{{ channel.display_name }}</h1>
+                    <p id="channel-topic" class="text-sm text-gray-500">{{ channel.topic or "No topic set" }}</p>
+                </div>
+                <div class="ml-4 flex items-center md:ml-6 space-x-2">
+                    <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/artifacts"
+                       class="p-2 text-gray-400 hover:text-gray-500 rounded-md hover:bg-gray-100"
+                       title="View artifacts">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </a>
+                    <a href="/workspaces/{{ workspace.id }}/settings"
+                       class="p-2 text-gray-400 hover:text-gray-500 rounded-md hover:bg-gray-100"
+                       title="Workspace settings">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages area -->
+        <main class="flex-1 relative overflow-hidden flex flex-col"
+              {% if realtime_mode == 'ws' %}
+              hx-ext="ws"
+              ws-connect="/ws/workspaces/{{ workspace.id }}/channels/{{ channel.id }}"
+              {% endif %}>
+            
+            <!-- Message list -->
+            <div id="message-list" 
+                 class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin"
+                 {% if realtime_mode == 'poll' %}
+                 hx-get="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages{% if messages %}?after={{ messages[-1].id }}{% endif %}"
+                 hx-trigger="every {{ poll_interval }}s"
+                 hx-swap="beforeend"
+                 {% endif %}>
+                {% include "partials/message_list.html" %}
+            </div>
+            
+            <!-- Message input -->
+            <div class="flex-shrink-0 border-t bg-white p-4">
+                <form hx-post="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages"
+                      hx-target="#message-list"
+                      hx-swap="beforeend"
+                      hx-on::after-request="this.reset(); scrollToBottom();"
+                      class="flex space-x-4">
+                    <input type="text" 
+                           name="body" 
+                           id="message-input"
+                           class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                           placeholder="Message {{ channel.display_name }} (try /decision, /feature, /issue, /task)"
+                           autocomplete="off"
+                           required>
+                    <button type="submit"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Send
+                    </button>
+                </form>
+                <p class="mt-2 text-xs text-gray-500">
+                    <kbd class="px-1 bg-gray-100 rounded">Ctrl+Enter</kbd> to send • 
+                    <kbd class="px-1 bg-gray-100 rounded">Ctrl+K</kbd> command palette •
+                    <kbd class="px-1 bg-gray-100 rounded">/</kbd> for slash commands
+                </p>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Right sidebar (artifacts) -->
+    {% if artifacts %}
+    <div class="hidden lg:flex lg:flex-shrink-0">
+        <div class="flex flex-col w-72 border-l border-gray-200 bg-white">
+            <div class="flex-shrink-0 px-4 py-4 border-b">
+                <h3 class="text-sm font-semibold text-gray-900">Recent Artifacts</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                {% include "partials/artifact_panel.html" %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block scripts %}
+<script>
+    // Auto-scroll to bottom on load
+    function scrollToBottom() {
+        const messageList = document.getElementById('message-list');
+        messageList.scrollTop = messageList.scrollHeight;
+    }
+    scrollToBottom();
+    
+    // Keyboard shortcuts
+    document.getElementById('message-input').addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            this.closest('form').requestSubmit();
+        }
+    });
+    
+    // WebSocket message handling
+    {% if realtime_mode == 'ws' %}
+    document.body.addEventListener('htmx:wsAfterMessage', function(e) {
+        try {
+            const data = JSON.parse(e.detail.message);
+            if (data.type === 'new_message') {
+                const messageList = document.getElementById('message-list');
+                messageList.insertAdjacentHTML('beforeend', data.html);
+                scrollToBottom();
+            } else if (data.type === 'message_deleted') {
+                const msg = document.getElementById('message-' + data.message_id);
+                if (msg) msg.remove();
+            }
+        } catch (err) {
+            console.error('WS message error:', err);
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}
+{% endblock %}

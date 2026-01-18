@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block title %}New {{ artifact_type.value|capitalize }} - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <span class="text-xl font-bold text-gray-900">New {{ artifact_type.value|capitalize }}</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-2xl mx-auto py-10 px-4">
+        <div class="bg-white shadow rounded-lg p-6">
+            <form hx-post="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts"
+                  hx-target="#error-message"
+                  class="space-y-4">
+                
+                <input type="hidden" name="type" value="{{ artifact_type.value }}">
+                
+                <!-- Type selector -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                    <div class="flex space-x-2">
+                        {% for atype in artifact_types %}
+                        <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts/new?type={{ atype.value }}"
+                           class="px-3 py-2 rounded-md text-sm font-medium border
+                                  {% if artifact_type.value == atype.value %}border-indigo-500 bg-indigo-50 text-indigo-700{% else %}border-gray-300 text-gray-700 hover:bg-gray-50{% endif %}">
+                            {% if atype.value == 'decision' %}⚖️{% elif atype.value == 'feature' %}✨{% elif atype.value == 'issue' %}🐛{% else %}✅{% endif %}
+                            {{ atype.value|capitalize }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" name="title" id="title" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                           placeholder="Brief description of the {{ artifact_type.value }}">
+                </div>
+                
+                <div>
+                    <label for="body" class="block text-sm font-medium text-gray-700">Details (optional)</label>
+                    <textarea name="body" id="body" rows="6"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              placeholder="Add more context, requirements, or notes..."></textarea>
+                </div>
+                
+                <div>
+                    <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                    <input type="text" name="tags" id="tags"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                           placeholder="frontend, urgent, v2.0">
+                </div>
+                
+                <div id="error-message"></div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts"
+                       class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        Create {{ artifact_type.value|capitalize }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+
+{% block title %}Artifacts - {{ channel.display_name }} - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <span class="text-xl font-bold text-gray-900">{{ channel.display_name }} - Artifacts</span>
+                </div>
+                <div class="flex items-center">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts/new"
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                        New Artifact
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Type filters -->
+        <div class="mb-6 flex space-x-2">
+            <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts"
+               class="px-3 py-1.5 rounded-md text-sm font-medium {% if not filter_type %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+                All
+            </a>
+            {% for atype in artifact_types %}
+            <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts?type={{ atype.value }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium {% if filter_type and filter_type.value == atype.value %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+                {{ atype.value|capitalize }}s
+            </a>
+            {% endfor %}
+        </div>
+        
+        <!-- Artifact list -->
+        <div id="artifact-list">
+            {% include "partials/artifact_list.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}

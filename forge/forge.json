@@ -1,0 +1,126 @@
+{
+  "$schema": "https://forge.buildly.io/schemas/forge-manifest-v1.json",
+  "id": "forge-communicator",
+  "name": "Forge Communicator",
+  "version": "1.0.0",
+  "description": "Lightweight Slack-style chat for product teams with built-in artifact tracking",
+  "author": {
+    "name": "Buildly Labs",
+    "email": "hello@buildly.io",
+    "url": "https://buildly.io"
+  },
+  "repository": "https://github.com/buildly-release-management/forge-communicator",
+  "license": "MIT",
+  "keywords": [
+    "chat",
+    "collaboration",
+    "slack-alternative",
+    "team-communication",
+    "artifact-tracking",
+    "product-management"
+  ],
+  "categories": [
+    "Communication",
+    "Productivity",
+    "Team Collaboration"
+  ],
+  "icon": "docs/icon.png",
+  "screenshots": [
+    {
+      "path": "docs/screenshots/channel-view.png",
+      "caption": "Channel view with real-time messaging"
+    },
+    {
+      "path": "docs/screenshots/slash-commands.png",
+      "caption": "Slash commands for creating artifacts"
+    },
+    {
+      "path": "docs/screenshots/artifact-panel.png",
+      "caption": "Artifact tracking panel"
+    }
+  ],
+  "runtime": {
+    "type": "docker",
+    "image": "ghcr.io/buildly-release-management/forge-communicator:latest",
+    "port": 8000,
+    "healthcheck": "/health"
+  },
+  "config": {
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "description": "PostgreSQL connection string (asyncpg)",
+        "required": true,
+        "secret": true
+      },
+      {
+        "name": "SECRET_KEY",
+        "description": "Secret key for JWT signing",
+        "required": true,
+        "secret": true,
+        "generate": "random:32"
+      },
+      {
+        "name": "REALTIME_MODE",
+        "description": "Real-time mode: 'ws' for WebSocket, 'poll' for HTTP polling",
+        "required": false,
+        "default": "ws"
+      },
+      {
+        "name": "GOOGLE_CLIENT_ID",
+        "description": "Google OAuth client ID",
+        "required": false,
+        "secret": false
+      },
+      {
+        "name": "GOOGLE_CLIENT_SECRET",
+        "description": "Google OAuth client secret",
+        "required": false,
+        "secret": true
+      },
+      {
+        "name": "BUILDLY_CLIENT_ID",
+        "description": "Buildly Labs OAuth client ID",
+        "required": false,
+        "secret": false
+      },
+      {
+        "name": "BUILDLY_CLIENT_SECRET",
+        "description": "Buildly Labs OAuth client secret",
+        "required": false,
+        "secret": true
+      },
+      {
+        "name": "BUILDLY_API_URL",
+        "description": "Buildly API URL for integration",
+        "required": false,
+        "default": "https://api.buildly.io"
+      }
+    ]
+  },
+  "services": {
+    "database": {
+      "type": "postgresql",
+      "version": ">=14",
+      "required": true
+    }
+  },
+  "integrations": {
+    "buildly": {
+      "oauth": true,
+      "products": true,
+      "artifacts": true
+    }
+  },
+  "features": [
+    "Multi-tenant workspaces",
+    "Public and private channels",
+    "Direct messages",
+    "Real-time messaging (WebSocket + polling fallback)",
+    "Slash commands for artifact creation",
+    "Artifact types: decisions, features, issues, tasks",
+    "Google OAuth support",
+    "Buildly Labs OAuth support",
+    "Mobile-friendly responsive UI"
+  ]
+}

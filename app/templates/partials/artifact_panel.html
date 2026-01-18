@@ -1,0 +1,48 @@
+<!-- Artifact Panel Partial (Right Sidebar) -->
+<div class="space-y-4">
+    {% for artifact in artifacts %}
+    <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/artifacts/{{ artifact.id }}"
+       class="block p-3 rounded-lg border hover:border-indigo-300 hover:shadow-sm transition-all">
+        <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-2">
+                <!-- Type icon -->
+                {% if artifact.type.value == 'decision' %}
+                <span class="text-purple-500" title="Decision">⚖️</span>
+                {% elif artifact.type.value == 'feature' %}
+                <span class="text-blue-500" title="Feature">✨</span>
+                {% elif artifact.type.value == 'issue' %}
+                <span class="text-red-500" title="Issue">🐛</span>
+                {% elif artifact.type.value == 'task' %}
+                <span class="text-green-500" title="Task">✅</span>
+                {% endif %}
+                
+                <span class="text-xs font-medium uppercase text-gray-400">{{ artifact.type.value }}</span>
+            </div>
+            
+            <!-- Status badge -->
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                         {% if artifact.status in ['done', 'shipped', 'accepted', 'closed'] %}bg-green-100 text-green-800
+                         {% elif artifact.status in ['in_progress', 'planned'] %}bg-blue-100 text-blue-800
+                         {% elif artifact.status in ['blocked', 'rejected'] %}bg-red-100 text-red-800
+                         {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ artifact.status }}
+            </span>
+        </div>
+        
+        <h4 class="mt-2 text-sm font-medium text-gray-900 line-clamp-2">{{ artifact.title }}</h4>
+        
+        <div class="mt-2 flex items-center text-xs text-gray-500">
+            <span>{{ artifact.created_at.strftime('%b %d') }}</span>
+            {% if artifact.assignee %}
+            <span class="ml-2">→ {{ artifact.assignee.display_name }}</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+    
+    {% if not artifacts %}
+    <p class="text-sm text-gray-500 text-center py-4">
+        No artifacts yet. Use slash commands like <code class="bg-gray-100 px-1 rounded">/decision</code> to create one.
+    </p>
+    {% endif %}
+</div>

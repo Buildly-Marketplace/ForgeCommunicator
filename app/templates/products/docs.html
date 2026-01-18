@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ product.name }} Docs - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces/{{ workspace_id }}" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded {% if product.color %}{% else %}bg-indigo-500{% endif %}"
+                             {% if product.color %}style="background-color: {{ product.color }}"{% endif %}></div>
+                        <span class="text-xl font-bold text-gray-900">{{ product.name }} - Docs</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Type filters -->
+        <div class="mb-6 flex space-x-2">
+            <a href="/workspaces/{{ workspace_id }}/products/{{ product.id }}/docs"
+               class="px-3 py-1.5 rounded-md text-sm font-medium {% if not filter_type %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+                All
+            </a>
+            {% for atype in artifact_types %}
+            <a href="/workspaces/{{ workspace_id }}/products/{{ product.id }}/docs?type={{ atype.value }}"
+               class="px-3 py-1.5 rounded-md text-sm font-medium {% if filter_type and filter_type.value == atype.value %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+                {{ atype.value|capitalize }}s
+            </a>
+            {% endfor %}
+        </div>
+        
+        <!-- Grouped artifacts -->
+        {% if not filter_type %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Decisions -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                    <span class="mr-2">⚖️</span> Decisions
+                </h2>
+                <div class="space-y-3">
+                    {% for artifact in grouped_artifacts[artifact_types.DECISION][:5] %}
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
+                       class="block p-3 rounded border hover:border-indigo-300">
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'accepted' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {{ artifact.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">{{ artifact.created_at.strftime('%b %d') }}</p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm text-gray-500">No decisions yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Features -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                    <span class="mr-2">✨</span> Features
+                </h2>
+                <div class="space-y-3">
+                    {% for artifact in grouped_artifacts[artifact_types.FEATURE][:5] %}
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
+                       class="block p-3 rounded border hover:border-indigo-300">
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'shipped' %}bg-green-100 text-green-800{% elif artifact.status == 'in_progress' %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {{ artifact.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">{{ artifact.created_at.strftime('%b %d') }}</p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm text-gray-500">No features yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Issues -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                    <span class="mr-2">🐛</span> Issues
+                </h2>
+                <div class="space-y-3">
+                    {% for artifact in grouped_artifacts[artifact_types.ISSUE][:5] %}
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
+                       class="block p-3 rounded border hover:border-indigo-300">
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'closed' %}bg-green-100 text-green-800{% elif artifact.status == 'new' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {{ artifact.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">{{ artifact.created_at.strftime('%b %d') }}</p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm text-gray-500">No issues yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Tasks -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                    <span class="mr-2">✅</span> Tasks
+                </h2>
+                <div class="space-y-3">
+                    {% for artifact in grouped_artifacts[artifact_types.TASK][:5] %}
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
+                       class="block p-3 rounded border hover:border-indigo-300">
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'done' %}bg-green-100 text-green-800{% elif artifact.status == 'in_progress' %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {{ artifact.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">{{ artifact.created_at.strftime('%b %d') }}</p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm text-gray-500">No tasks yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Filtered list -->
+        <div class="space-y-3">
+            {% set filtered_artifacts = grouped_artifacts[filter_type] %}
+            {% for artifact in filtered_artifacts %}
+            <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
+               class="block bg-white rounded-lg border p-4 hover:border-indigo-300">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-900">{{ artifact.title }}</h3>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Created by {{ artifact.author.display_name }} on {{ artifact.created_at.strftime('%b %d, %Y') }}
+                        </p>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {{ artifact.status }}
+                    </span>
+                </div>
+            </a>
+            {% else %}
+            <p class="text-center text-gray-500 py-8">No {{ filter_type.value }}s found</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

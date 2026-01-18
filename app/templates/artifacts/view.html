@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ artifact.title }} - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <div class="flex items-center space-x-2">
+                        {% if artifact.type.value == 'decision' %}
+                        <span class="text-xl">⚖️</span>
+                        {% elif artifact.type.value == 'feature' %}
+                        <span class="text-xl">✨</span>
+                        {% elif artifact.type.value == 'issue' %}
+                        <span class="text-xl">🐛</span>
+                        {% elif artifact.type.value == 'task' %}
+                        <span class="text-xl">✅</span>
+                        {% endif %}
+                        <span class="text-sm font-medium text-gray-500 uppercase">{{ artifact.type.value }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="flex items-start justify-between">
+                    <h1 class="text-xl font-bold text-gray-900">{{ artifact.title }}</h1>
+                    
+                    <!-- Status dropdown -->
+                    <div class="relative">
+                        <select hx-post="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts/{{ artifact.id }}/status"
+                                hx-target="this"
+                                hx-swap="outerHTML"
+                                name="status"
+                                class="rounded-full text-sm font-medium px-3 py-1 border-0 focus:ring-2 focus:ring-indigo-500
+                                       {% if artifact.status in ['done', 'shipped', 'accepted', 'closed'] %}bg-green-100 text-green-800
+                                       {% elif artifact.status in ['in_progress', 'planned'] %}bg-blue-100 text-blue-800
+                                       {% elif artifact.status in ['blocked', 'rejected'] %}bg-red-100 text-red-800
+                                       {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {% if artifact.type.value == 'decision' %}
+                            <option value="proposed" {% if artifact.status == 'proposed' %}selected{% endif %}>Proposed</option>
+                            <option value="accepted" {% if artifact.status == 'accepted' %}selected{% endif %}>Accepted</option>
+                            <option value="rejected" {% if artifact.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                            <option value="superseded" {% if artifact.status == 'superseded' %}selected{% endif %}>Superseded</option>
+                            {% elif artifact.type.value == 'feature' %}
+                            <option value="idea" {% if artifact.status == 'idea' %}selected{% endif %}>Idea</option>
+                            <option value="planned" {% if artifact.status == 'planned' %}selected{% endif %}>Planned</option>
+                            <option value="in_progress" {% if artifact.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="shipped" {% if artifact.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                            {% elif artifact.type.value == 'issue' %}
+                            <option value="new" {% if artifact.status == 'new' %}selected{% endif %}>New</option>
+                            <option value="triaged" {% if artifact.status == 'triaged' %}selected{% endif %}>Triaged</option>
+                            <option value="in_progress" {% if artifact.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="closed" {% if artifact.status == 'closed' %}selected{% endif %}>Closed</option>
+                            <option value="wont_fix" {% if artifact.status == 'wont_fix' %}selected{% endif %}>Won't Fix</option>
+                            {% elif artifact.type.value == 'task' %}
+                            <option value="todo" {% if artifact.status == 'todo' %}selected{% endif %}>To Do</option>
+                            <option value="in_progress" {% if artifact.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="blocked" {% if artifact.status == 'blocked' %}selected{% endif %}>Blocked</option>
+                            <option value="done" {% if artifact.status == 'done' %}selected{% endif %}>Done</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mt-2 flex items-center text-sm text-gray-500 space-x-4">
+                    <span>Created by {{ artifact.author.display_name }}</span>
+                    <span>{{ artifact.created_at.strftime('%B %d, %Y at %H:%M') }}</span>
+                </div>
+            </div>
+            
+            <!-- Body -->
+            <div class="px-6 py-5">
+                {% if artifact.body %}
+                <div class="prose max-w-none">
+                    <p class="whitespace-pre-wrap">{{ artifact.body }}</p>
+                </div>
+                {% else %}
+                <p class="text-gray-500 italic">No description provided.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Metadata -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% if artifact.tags %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Tags</dt>
+                        <dd class="mt-1 flex flex-wrap gap-1">
+                            {% for tag in artifact.tags %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                {{ tag }}
+                            </span>
+                            {% endfor %}
+                        </dd>
+                    </div>
+                    {% endif %}
+                    
+                    {% if artifact.assignee %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Assignee</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ artifact.assignee.display_name }}</dd>
+                    </div>
+                    {% endif %}
+                    
+                    {% if artifact.due_date %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Due Date</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ artifact.due_date.strftime('%B %d, %Y') }}</dd>
+                    </div>
+                    {% endif %}
+                    
+                    {% if artifact.github_issue_url %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">GitHub Issue</dt>
+                        <dd class="mt-1">
+                            <a href="{{ artifact.github_issue_url }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-500">
+                                {{ artifact.github_issue_url }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
