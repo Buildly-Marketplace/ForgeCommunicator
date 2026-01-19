@@ -68,6 +68,7 @@ class User(Base, TimestampMixin):
     
     # Status
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    is_platform_admin: Mapped[bool] = mapped_column(default=False, nullable=False)  # Platform-wide admin
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Relationships

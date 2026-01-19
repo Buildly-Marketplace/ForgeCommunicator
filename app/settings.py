@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = Field(default="change-me-in-production-use-openssl-rand-hex-32")
     
+    # Registration mode: 'open' (anyone), 'invite_only' (workspace invite required), 'closed' (no new users)
+    registration_mode: Literal["open", "invite_only", "closed"] = "open"
+    
+    # Platform admin emails (comma-separated) - these users get admin access
+    platform_admin_emails: str = ""  # e.g. "admin@example.com,support@example.com"
+    
     # White-label branding - customize per customer deployment
     brand_name: str = "Communicator"  # Display name in UI
     brand_logo_url: str | None = None  # URL to logo image (uses default if not set)
@@ -173,6 +179,17 @@ class Settings(BaseSettings):
     @property
     def push_enabled(self) -> bool:
         return bool(self.vapid_public_key and self.vapid_private_key)
+    
+    @property
+    def admin_emails_list(self) -> list[str]:
+        """Parse platform admin emails into a list."""
+        if not self.platform_admin_emails:
+            return []
+        return [e.strip().lower() for e in self.platform_admin_emails.split(",") if e.strip()]
+    
+    def is_admin_email(self, email: str) -> bool:
+        """Check if email is a platform admin."""
+        return email.lower() in self.admin_emails_list
 
 
 @lru_cache

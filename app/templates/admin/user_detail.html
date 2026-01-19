@@ -1,0 +1,134 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ target_user.display_name }} - Admin - {{ brand.full_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/admin/users" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <span class="text-xl font-bold text-gray-900">{{ target_user.display_name }}</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <!-- User Info -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-start justify-between">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
+                        {% if target_user.avatar_url %}
+                        <img src="{{ target_user.avatar_url }}" alt="" class="w-16 h-16 rounded-full">
+                        {% else %}
+                        <span class="text-2xl font-medium text-indigo-600">{{ target_user.display_name[0] }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="ml-4">
+                        <h2 class="text-xl font-bold text-gray-900">{{ target_user.display_name }}</h2>
+                        <p class="text-gray-500">{{ target_user.email }}</p>
+                        {% if target_user.title %}
+                        <p class="text-sm text-gray-400">{{ target_user.title }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex flex-col items-end space-y-2">
+                    <span id="user-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        {% if target_user.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ 'Active' if target_user.is_active else 'Inactive' }}
+                    </span>
+                    <span id="user-admin">
+                        {% if target_user.is_platform_admin %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Platform Admin</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <dl class="mt-6 grid grid-cols-2 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Auth Provider</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ target_user.auth_provider.value | capitalize }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Joined</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ target_user.created_at.strftime('%Y-%m-%d %H:%M UTC') if target_user.created_at else '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Last Seen</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ target_user.last_seen_at.strftime('%Y-%m-%d %H:%M UTC') if target_user.last_seen_at else 'Never' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Timezone</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ target_user.timezone or 'UTC' }}</dd>
+                </div>
+                {% if target_user.labs_user_id %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Labs User ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ target_user.labs_user_id }}</dd>
+                </div>
+                {% endif %}
+                {% if target_user.labs_org_uuid %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Labs Org UUID</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono text-xs">{{ target_user.labs_org_uuid }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+            
+            <!-- Actions -->
+            <div class="mt-6 pt-6 border-t flex space-x-4">
+                {% if target_user.id != user.id %}
+                <button hx-post="/admin/users/{{ target_user.id }}/toggle-active"
+                        hx-target="#user-status"
+                        hx-swap="outerHTML"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    {% if target_user.is_active %}Deactivate{% else %}Activate{% endif %} User
+                </button>
+                <button hx-post="/admin/users/{{ target_user.id }}/toggle-admin"
+                        hx-target="#user-admin"
+                        hx-swap="innerHTML"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    {% if target_user.is_platform_admin %}Remove Admin{% else %}Make Admin{% endif %}
+                </button>
+                {% else %}
+                <p class="text-sm text-gray-500">You cannot modify your own account status.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Workspaces -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Workspaces ({{ memberships | length }})</h3>
+            
+            {% if memberships %}
+            <ul class="divide-y divide-gray-200">
+                {% for m in memberships %}
+                <li class="py-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{{ m.workspace.name }}</p>
+                        <p class="text-sm text-gray-500">Joined {{ m.joined_at.strftime('%Y-%m-%d') if m.joined_at else '—' }}</p>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        {% if m.role.value == 'owner' %}bg-purple-100 text-purple-800
+                        {% elif m.role.value == 'admin' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ m.role.value }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500">User is not a member of any workspaces.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

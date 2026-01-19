@@ -136,6 +136,8 @@ async def init_db() -> None:
                     # Labs SSO columns (added 2026-01-19)
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_user_id INTEGER",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_org_uuid VARCHAR(36)",
+                    # Platform admin column (added 2026-01-19)
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_platform_admin BOOLEAN DEFAULT FALSE",
                 ]
                 
                 for migration in migrations:

@@ -152,6 +152,7 @@ async def register_page(
             "request": request,
             "error": error,
             "oauth_providers": get_available_providers(),
+            "registration_mode": settings.registration_mode,
         },
     )
 
@@ -167,6 +168,16 @@ async def register(
 ):
     """Handle local registration."""
     client_ip = get_client_ip(request)
+    
+    # Check registration mode
+    if settings.registration_mode == "closed":
+        error = "Registration is currently closed"
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(f'<div class="text-red-500">{error}</div>', status_code=403)
+        return RedirectResponse(
+            url=f"/auth/register?error={error.replace(' ', '+')}",
+            status_code=status.HTTP_302_FOUND,
+        )
     
     # Rate limiting
     if not auth_rate_limiter.is_allowed(f"register:{client_ip}"):
@@ -218,6 +229,7 @@ async def register(
         display_name=display_name.strip(),
         hashed_password=hash_password(password),
         auth_provider=AuthProvider.LOCAL,
+        is_platform_admin=settings.is_admin_email(email),
     )
     session_token = user.generate_session_token()
     db.add(user)
