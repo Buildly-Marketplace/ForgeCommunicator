@@ -138,16 +138,35 @@ class LabsSyncService:
         
         try:
             response = await self.get_products()
-            labs_products = response.get("data", [])
+            # Labs API may return data in different formats
+            # Try "data" key first, then "results", then treat response as list
+            labs_products = response.get("data") or response.get("results") or []
+            if isinstance(response, list):
+                labs_products = response
+            print(f"[Labs Sync] Products API returned {len(labs_products)} products")
+            print(f"[Labs Sync] Response structure: {list(response.keys()) if isinstance(response, dict) else 'list'}")
         except httpx.HTTPError as e:
             raise Exception(f"Failed to fetch products from Labs API: {e}")
         
         for labs_product in labs_products:
-            labs_uuid = str(labs_product.get("id") or labs_product.get("uuid", ""))
+            # Log the product structure for debugging
+            if labs_products.index(labs_product) == 0:
+                print(f"[Labs Sync] First product keys: {list(labs_product.keys()) if isinstance(labs_product, dict) else 'not a dict'}")
+            
+            # Try multiple possible UUID field names
+            labs_uuid = str(
+                labs_product.get("product_uuid") or 
+                labs_product.get("uuid") or 
+                labs_product.get("id") or 
+                ""
+            )
             
             if not labs_uuid:
+                print(f"[Labs Sync] Skipping product with no UUID: {labs_product}")
                 stats["skipped"] += 1
                 continue
+            
+            print(f"[Labs Sync] Processing product: {labs_product.get('name', 'unnamed')} (uuid={labs_uuid})")
             
             # Check if product already exists
             result = await db.execute(

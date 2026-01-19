@@ -139,20 +139,38 @@ async def sync_all(
             access_token=token,
         )
         
-        total_created = sum(r.get("created", 0) for r in results.values())
-        total_updated = sum(r.get("updated", 0) for r in results.values())
+        # Build detailed stats
+        products = results.get("products", {})
+        backlog = results.get("backlog", {})
+        team = results.get("team", {})
+        
+        products_created = products.get("created", 0)
+        products_updated = products.get("updated", 0)
+        channels_created = products.get("channels_created", 0)
+        backlog_created = backlog.get("created", 0)
+        backlog_updated = backlog.get("updated", 0)
+        team_invited = team.get("invited", 0)
         
         if is_htmx:
-            return HTMLResponse(
-                f'<div class="text-green-600 p-2 bg-green-50 rounded">✓ Sync complete: {total_created} created, {total_updated} updated</div>'
-            )
+            # Show detailed breakdown
+            lines = ['<div class="text-green-600 p-2 bg-green-50 rounded">']
+            lines.append('✓ Sync complete:<br>')
+            lines.append(f'• Products: {products_created} new, {products_updated} updated<br>')
+            lines.append(f'• Channels: {channels_created} created<br>')
+            lines.append(f'• Backlog: {backlog_created} new, {backlog_updated} updated<br>')
+            lines.append(f'• Team invites: {team_invited} created')
+            lines.append('</div>')
+            return HTMLResponse(''.join(lines))
         
         return {
             "success": True,
-            "message": f"Full sync complete: {total_created} created, {total_updated} updated",
+            "message": "Full sync complete",
             "results": results,
         }
     except Exception as e:
+        import traceback
+        error_detail = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"Sync error: {error_detail}")  # Log to server
         if is_htmx:
             return HTMLResponse(
                 f'<div class="text-red-600 p-2 bg-red-50 rounded">❌ Sync failed: {str(e)}</div>'
@@ -168,11 +186,13 @@ async def list_labs_products(
     current_user: User = Depends(get_current_user),
 ):
     """List products directly from Labs API (preview before sync)."""
-    if not settings.labs_api_key:
-        raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
+    # Use user's OAuth token if available, otherwise API key
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
+        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
     
     try:
-        service = LabsSyncService()
+        service = LabsSyncService(access_token=token)
         return await service.get_products(limit=limit, offset=offset)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch: {str(e)}")
