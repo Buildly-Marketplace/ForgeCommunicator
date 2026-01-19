@@ -14,8 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.artifact import Artifact, ArtifactType, ArtifactStatus
 from app.models.channel import Channel
+from app.models.membership import Membership
 from app.models.message import Message
 from app.models.product import Product
+from app.models.team_invite import TeamInvite, InviteStatus
+from app.models.user import User
 from app.settings import settings
 
 
@@ -98,6 +101,17 @@ class LabsSyncService:
         if product_id:
             params["product_id"] = product_id
         return await self._request("GET", "/milestones", params=params)
+    
+    async def get_team_members(self, org_uuid: str | None = None) -> dict:
+        """Get team members for the current organization or specified org."""
+        params = {}
+        if org_uuid:
+            params["organization_uuid"] = org_uuid
+        return await self._request("GET", "/team", params=params)
+    
+    async def get_organization(self) -> dict:
+        """Get current user's organization info."""
+        return await self._request("GET", "/organization")
     
     async def get_insights(self, product_id: int | None = None) -> dict:
         """Get product insights."""
@@ -348,6 +362,105 @@ class LabsSyncService:
         
         # Default to type-specific default
         return Artifact.get_default_status(artifact_type)
+    
+    async def sync_team(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        invited_by_id: int,
+    ) -> dict[str, int]:
+        """
+        Sync team members from Labs and create invites.
+        
+        Args:
+            db: Database session
+            workspace_id: Workspace to create invites for
+            invited_by_id: User ID who is inviting
+            
+        Returns dict with counts: {"invited": N, "already_member": N, "already_invited": N, "skipped": N}
+        """
+        stats = {"invited": 0, "already_member": 0, "already_invited": 0, "skipped": 0}
+        
+        try:
+            response = await self.get_team_members()
+            team_members = response.get("data", [])
+        except httpx.HTTPError as e:
+            # Team endpoint might not exist or user might not have access
+            # Just return empty stats rather than failing the whole sync
+            return stats
+        
+        if not team_members:
+            return stats
+        
+        # Get current inviting user's email to skip
+        inviter_result = await db.execute(
+            select(User).where(User.id == invited_by_id)
+        )
+        inviter = inviter_result.scalar_one_or_none()
+        inviter_email = inviter.email.lower() if inviter else None
+        
+        # Get existing workspace members
+        members_result = await db.execute(
+            select(User.email)
+            .join(Membership, Membership.user_id == User.id)
+            .where(Membership.workspace_id == workspace_id)
+        )
+        existing_member_emails = {row[0].lower() for row in members_result.all()}
+        
+        # Get existing pending invites
+        invites_result = await db.execute(
+            select(TeamInvite.email)
+            .where(
+                TeamInvite.workspace_id == workspace_id,
+                TeamInvite.status == InviteStatus.PENDING,
+            )
+        )
+        existing_invite_emails = {row[0].lower() for row in invites_result.all()}
+        
+        for member in team_members:
+            email = member.get("email", "").lower().strip()
+            
+            if not email or "@" not in email:
+                stats["skipped"] += 1
+                continue
+            
+            # Skip the person doing the inviting
+            if inviter_email and email == inviter_email:
+                stats["skipped"] += 1
+                continue
+            
+            # Skip if already a workspace member
+            if email in existing_member_emails:
+                stats["already_member"] += 1
+                continue
+            
+            # Skip if already has pending invite
+            if email in existing_invite_emails:
+                stats["already_invited"] += 1
+                continue
+            
+            # Create invite
+            name = member.get("name") or member.get("display_name") or member.get("first_name", "")
+            if member.get("last_name"):
+                name = f"{name} {member.get('last_name')}".strip()
+            
+            labs_user_uuid = str(member.get("id") or member.get("uuid", "")) or None
+            
+            invite = TeamInvite.create(
+                workspace_id=workspace_id,
+                email=email,
+                name=name if name else None,
+                role="member",
+                invited_by_id=invited_by_id,
+                labs_user_uuid=labs_user_uuid,
+                expires_in_days=14,  # 2 week expiry for synced invites
+            )
+            db.add(invite)
+            existing_invite_emails.add(email)  # Prevent duplicates in same batch
+            stats["invited"] += 1
+        
+        await db.commit()
+        return stats
 
 
 async def sync_all_from_labs(
@@ -395,6 +508,9 @@ async def sync_all_from_labs(
         backlog_stats["skipped"] += product_stats["skipped"]
     
     results["backlog"] = backlog_stats
+    
+    # Sync team members and create invites
+    results["team"] = await service.sync_team(db, workspace_id, invited_by_id=user_id)
     
     return results
 

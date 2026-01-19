@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.deps import CurrentUser, DBSession
 from app.models.channel import Channel
 from app.models.membership import Membership, MembershipRole
+from app.models.team_invite import TeamInvite, InviteStatus
 from app.models.workspace import Workspace
 from app.templates_config import templates
 
@@ -300,6 +301,17 @@ async def workspace_settings(
     if not workspace:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     
+    # Get pending invites
+    result = await db.execute(
+        select(TeamInvite)
+        .where(
+            TeamInvite.workspace_id == workspace_id,
+            TeamInvite.status == InviteStatus.PENDING,
+        )
+        .order_by(TeamInvite.created_at.desc())
+    )
+    pending_invites = result.scalars().all()
+    
     return templates.TemplateResponse(
         "workspaces/settings.html",
         {
@@ -307,6 +319,7 @@ async def workspace_settings(
             "user": user,
             "workspace": workspace,
             "membership": membership,
+            "pending_invites": pending_invites,
         },
     )
 
@@ -345,6 +358,141 @@ async def regenerate_invite(
         return HTMLResponse(
             f'<span id="invite-code" class="font-mono bg-gray-100 px-2 py-1 rounded">{workspace.invite_code}</span>',
         )
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/{workspace_id}/invites")
+async def create_team_invite(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    email: Annotated[str, Form()],
+    name: Annotated[str | None, Form()] = None,
+):
+    """Create a new team invite (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    email = email.lower().strip()
+    
+    # Check if already a member
+    from app.models.user import User
+    result = await db.execute(
+        select(Membership)
+        .join(User, User.id == Membership.user_id)
+        .where(
+            Membership.workspace_id == workspace_id,
+            User.email == email,
+        )
+    )
+    if result.scalar_one_or_none():
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-red-500 text-sm">This user is already a member</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="User is already a member")
+    
+    # Check for existing pending invite
+    result = await db.execute(
+        select(TeamInvite).where(
+            TeamInvite.workspace_id == workspace_id,
+            TeamInvite.email == email,
+            TeamInvite.status == InviteStatus.PENDING,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-yellow-600 text-sm">Invite already pending for this email</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="Invite already pending")
+    
+    # Create invite
+    invite = TeamInvite.create(
+        workspace_id=workspace_id,
+        email=email,
+        name=name.strip() if name else None,
+        invited_by_id=user.id,
+    )
+    db.add(invite)
+    await db.commit()
+    await db.refresh(invite)
+    
+    if request.headers.get("HX-Request"):
+        # Return the new invite row HTML
+        return HTMLResponse(f'''
+            <li class="py-3 flex items-center justify-between" id="invite-{invite.id}">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">{invite.name or invite.email}</p>
+                        <p class="text-sm text-gray-500">{invite.email}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-gray-400">Expires {invite.expires_at.strftime('%b %d')}</span>
+                    <button onclick="copyInviteLink('{invite.token}')" class="text-xs text-indigo-600 hover:text-indigo-500">Copy Link</button>
+                    <button hx-delete="/workspaces/{workspace_id}/invites/{invite.id}" hx-target="#invite-{invite.id}" hx-swap="outerHTML" class="text-xs text-red-600 hover:text-red-500">Cancel</button>
+                </div>
+            </li>
+        ''')
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}/invites/{invite_id}")
+async def cancel_team_invite(
+    request: Request,
+    workspace_id: int,
+    invite_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Cancel a pending invite (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get and cancel invite
+    result = await db.execute(
+        select(TeamInvite).where(
+            TeamInvite.id == invite_id,
+            TeamInvite.workspace_id == workspace_id,
+        )
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+    
+    invite.status = InviteStatus.CANCELLED
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse("")  # Remove the row
     
     return RedirectResponse(
         url=f"/workspaces/{workspace_id}/settings",
