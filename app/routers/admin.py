@@ -8,8 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 
-from app.db import DBSession
-from app.deps import CurrentUser
+from app.deps import CurrentUser, DBSession
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.membership import Membership
