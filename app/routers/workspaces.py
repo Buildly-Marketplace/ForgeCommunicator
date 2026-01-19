@@ -312,6 +312,18 @@ async def workspace_settings(
     )
     pending_invites = result.scalars().all()
     
+    # Get channels for management
+    result = await db.execute(
+        select(Channel)
+        .where(
+            Channel.workspace_id == workspace_id,
+            Channel.is_archived == False,
+        )
+        .options(selectinload(Channel.product))
+        .order_by(Channel.name)
+    )
+    channels = result.scalars().all()
+    
     return templates.TemplateResponse(
         "workspaces/settings.html",
         {
@@ -320,6 +332,7 @@ async def workspace_settings(
             "workspace": workspace,
             "membership": membership,
             "pending_invites": pending_invites,
+            "channels": channels,
         },
     )
 

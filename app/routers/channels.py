@@ -614,3 +614,95 @@ async def create_dm_channel(
         url=f"/workspaces/{workspace_id}/channels/{channel.id}",
         status_code=status.HTTP_302_FOUND,
     )
+
+
+@router.delete("/{channel_id}")
+async def delete_channel(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete a channel (admin only). Cannot delete the last channel."""
+    workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
+    
+    # Only admins/owners can delete channels
+    if membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get the channel
+    result = await db.execute(
+        select(Channel).where(
+            Channel.id == channel_id,
+            Channel.workspace_id == workspace_id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    
+    # Don't delete if it's the only non-archived channel
+    result = await db.execute(
+        select(Channel).where(
+            Channel.workspace_id == workspace_id,
+            Channel.is_archived == False,
+            Channel.id != channel_id,
+        )
+    )
+    other_channels = result.scalars().all()
+    if not other_channels:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                '<div class="text-red-500 text-sm">Cannot delete the last channel</div>',
+                status_code=400,
+            )
+        raise HTTPException(status_code=400, detail="Cannot delete the last channel")
+    
+    # Delete the channel (messages cascade delete)
+    await db.delete(channel)
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse("")  # Remove the row
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/{channel_id}/archive")
+async def archive_channel(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Archive a channel (admin only)."""
+    workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
+    
+    if membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    result = await db.execute(
+        select(Channel).where(
+            Channel.id == channel_id,
+            Channel.workspace_id == workspace_id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    
+    channel.is_archived = True
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse("")
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
