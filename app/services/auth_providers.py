@@ -128,7 +128,13 @@ class GoogleOAuthProvider(OAuthProvider):
 
 
 class BuildlyOAuthProvider(OAuthProvider):
-    """Buildly Labs OAuth provider."""
+    """Buildly Labs OAuth provider.
+    
+    Labs acts as the identity provider for all Buildly apps:
+    - labs.buildly.io (identity provider)
+    - comms.buildly.io (this app)
+    - collab.buildly.io
+    """
     
     name = "buildly"
     
@@ -136,20 +142,20 @@ class BuildlyOAuthProvider(OAuthProvider):
         self.client_id = settings.buildly_client_id
         self.client_secret = settings.buildly_client_secret
         self.redirect_uri = settings.buildly_redirect_uri
-        self.auth_url = settings.buildly_auth_url
+        self.oauth_url = settings.buildly_oauth_url
         self.api_url = settings.buildly_api_url
     
     @property
     def authorization_url(self) -> str:
-        return f"{self.auth_url}/oauth/authorize"
+        return f"{self.oauth_url}/oauth/authorize"
     
     @property
     def token_url(self) -> str:
-        return f"{self.auth_url}/oauth/token"
+        return f"{self.oauth_url}/oauth/token"
     
     @property
     def userinfo_url(self) -> str:
-        return f"{self.api_url}/coreuser/me/"
+        return f"{self.api_url}/me"
     
     def get_authorization_params(self, state: str) -> dict[str, str]:
         """Get Buildly OAuth authorization parameters."""
@@ -178,23 +184,46 @@ class BuildlyOAuthProvider(OAuthProvider):
             return response.json()
     
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
-        """Get user info from Buildly Labs."""
+        """Get user info from Buildly Labs.
+        
+        Labs /me endpoint returns:
+        {
+            "data": {
+                "id": 123,
+                "uuid": "...",
+                "email": "user@example.com",
+                "first_name": "John",
+                "last_name": "Doe",
+                "avatar_url": "...",
+                "organization_uuid": "..."
+            }
+        }
+        """
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 self.userinfo_url,
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             response.raise_for_status()
-            data = response.json()
+            result = response.json()
+        
+        # Handle both direct response and wrapped response
+        data = result.get("data", result)
+        
+        # Build display name from first/last or fall back to email
+        first = data.get("first_name", "")
+        last = data.get("last_name", "")
+        name = f"{first} {last}".strip() or data["email"].split("@")[0]
         
         return OAuthUserInfo(
             provider="buildly",
-            sub=str(data.get("core_user_uuid", data.get("id"))),
+            sub=str(data.get("uuid", data.get("id"))),
             email=data["email"],
-            name=data.get("first_name", "") + " " + data.get("last_name", ""),
-            picture=data.get("avatar"),
+            name=name,
+            picture=data.get("avatar_url") or data.get("avatar"),
             extra={
-                "organization_uuid": data.get("organization", {}).get("organization_uuid"),
+                "organization_uuid": data.get("organization_uuid"),
+                "labs_user_id": data.get("id"),
             },
         )
 

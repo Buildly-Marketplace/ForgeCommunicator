@@ -125,12 +125,12 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = None
     google_allowed_domain: str | None = None  # Restrict to this Google Workspace domain
     
-    # Auth - Buildly Labs OAuth
+    # Auth - Buildly Labs OAuth (Labs is the identity provider)
     buildly_client_id: str | None = None
     buildly_client_secret: str | None = None
-    buildly_redirect_uri: str | None = None
-    buildly_api_url: str = "https://api.buildly.io"
-    buildly_auth_url: str = "https://auth.buildly.io"
+    buildly_redirect_uri: str = "https://comms.buildly.io/auth/oauth/buildly/callback"
+    buildly_oauth_url: str = "https://labs.buildly.io"  # OAuth endpoints
+    buildly_api_url: str = "https://labs.buildly.io/api/v1"  # User info API
     
     # Buildly Labs API (for syncing)
     labs_api_key: str | None = None

@@ -55,6 +55,10 @@ class User(Base, TimestampMixin):
     )
     provider_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)  # OAuth subject ID
     
+    # Buildly Labs SSO - for cross-app identity sync
+    labs_user_id: Mapped[int | None] = mapped_column(nullable=True)  # Labs numeric user ID
+    labs_org_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)  # Labs organization UUID
+    
     # Avatar
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     

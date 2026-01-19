@@ -372,6 +372,15 @@ async def oauth_callback(
             user.provider_sub = user_info.sub
             if user_info.picture:
                 user.avatar_url = user_info.picture
+            # Sync display name on each login for Buildly users
+            if provider == "buildly" and user_info.name:
+                user.display_name = user_info.name
+            # Store Buildly-specific data for cross-app identity
+            if provider == "buildly" and user_info.extra:
+                if user_info.extra.get("labs_user_id"):
+                    user.labs_user_id = user_info.extra["labs_user_id"]
+                if user_info.extra.get("organization_uuid"):
+                    user.labs_org_uuid = user_info.extra["organization_uuid"]
         else:
             # Create new user
             user = User(
@@ -381,6 +390,12 @@ async def oauth_callback(
                 provider_sub=user_info.sub,
                 avatar_url=user_info.picture,
             )
+            # Store Buildly-specific data for new users
+            if provider == "buildly" and user_info.extra:
+                if user_info.extra.get("labs_user_id"):
+                    user.labs_user_id = user_info.extra["labs_user_id"]
+                if user_info.extra.get("organization_uuid"):
+                    user.labs_org_uuid = user_info.extra["organization_uuid"]
             db.add(user)
         
         # Create session
