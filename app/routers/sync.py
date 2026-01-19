@@ -149,6 +149,7 @@ async def sync_all(
         channels_created = products.get("channels_created", 0)
         backlog_created = backlog.get("created", 0)
         backlog_updated = backlog.get("updated", 0)
+        backlog_messages = backlog.get("messages", 0)
         team_invited = team.get("invited", 0)
         
         if is_htmx:
@@ -166,7 +167,9 @@ async def sync_all(
             
             lines.append(f'<span class="text-gray-700">• Products: {products_created} new, {products_updated} updated</span><br>')
             lines.append(f'<span class="text-gray-700">• Channels: {channels_created} created</span><br>')
-            lines.append(f'<span class="text-gray-700">• Backlog: {backlog_created} new, {backlog_updated} updated')
+            lines.append(f'<span class="text-gray-700">• Backlog items: {backlog_created} new, {backlog_updated} updated')
+            if backlog_messages:
+                lines.append(f' ({backlog_messages} threads)')
             if backlog_errors:
                 lines.append(f' <span class="text-orange-600">({backlog_errors} errors)</span>')
             lines.append('</span><br>')

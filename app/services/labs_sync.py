@@ -198,28 +198,46 @@ class LabsSyncService:
                 db.add(new_product)
                 await db.flush()  # Get the product ID
                 
-                # Create a channel for this product
-                channel_name = product_name.lower().replace(" ", "-")[:80]
-                channel = Channel(
-                    workspace_id=workspace_id,
-                    product_id=new_product.id,
-                    name=channel_name,
-                    description=f"Discussion channel for {product_name}",
-                    topic=labs_product.get("description", "")[:250] if labs_product.get("description") else None,
-                    is_default=True,
-                )
-                db.add(channel)
-                stats["channels_created"] += 1
+                # Create structured channels for this product
+                base_name = product_name.lower().replace(" ", "-")[:40]
+                channel_configs = [
+                    ("general", f"{base_name}", f"General discussion for {product_name}", True),
+                    ("features", f"{base_name}-features", f"Features and user stories for {product_name}", False),
+                    ("issues", f"{base_name}-issues", f"Bugs and issues for {product_name}", False),
+                    ("punchlist", f"{base_name}-punchlist", f"Punchlist items for {product_name}", False),
+                    ("releases", f"{base_name}-releases", f"Releases and milestones for {product_name}", False),
+                ]
                 
-                # Create a welcome message if we have a user
-                if user_id:
-                    await db.flush()  # Get the channel ID
-                    welcome_msg = Message(
-                        channel_id=channel.id,
-                        user_id=user_id,
-                        body=f"📦 **{product_name}** synced from Buildly Labs\n\n{labs_product.get('description', '')}",
+                for channel_type, channel_name, description, is_default in channel_configs:
+                    channel = Channel(
+                        workspace_id=workspace_id,
+                        product_id=new_product.id,
+                        name=channel_name,
+                        description=description,
+                        topic=labs_product.get("description", "")[:250] if labs_product.get("description") and is_default else None,
+                        is_default=is_default,
                     )
-                    db.add(welcome_msg)
+                    db.add(channel)
+                    stats["channels_created"] += 1
+                
+                # Create a welcome message in the general channel if we have a user
+                if user_id:
+                    await db.flush()  # Get the channel IDs
+                    # Find the general channel we just created
+                    result = await db.execute(
+                        select(Channel).where(
+                            Channel.product_id == new_product.id,
+                            Channel.is_default == True,
+                        )
+                    )
+                    general_channel = result.scalar_one_or_none()
+                    if general_channel:
+                        welcome_msg = Message(
+                            channel_id=general_channel.id,
+                            user_id=user_id,
+                            body=f"📦 **{product_name}** synced from Buildly Labs\n\n{labs_product.get('description', '')}\n\n**Channels created:**\n• #{base_name} - General discussion\n• #{base_name}-features - Features & stories\n• #{base_name}-issues - Bugs & issues\n• #{base_name}-punchlist - Punchlist items\n• #{base_name}-releases - Releases & milestones",
+                        )
+                        db.add(welcome_msg)
                 
                 stats["created"] += 1
         
@@ -236,7 +254,8 @@ class LabsSyncService:
     ) -> dict[str, int]:
         """
         Sync backlog items from Labs to artifacts.
-        Links artifacts to the product's channel.
+        Posts items to appropriate channels (features, issues, punchlist, releases).
+        Creates threads for item discussions.
         
         Args:
             db: Database session
@@ -245,9 +264,9 @@ class LabsSyncService:
             local_product_id: Local product ID to link artifacts to
             user_id: User ID to set as creator for new items
             
-        Returns dict with counts: {"created": N, "updated": N, "skipped": N}
+        Returns dict with counts: {"created": N, "updated": N, "skipped": N, "messages": N}
         """
-        stats = {"created": 0, "updated": 0, "skipped": 0}
+        stats = {"created": 0, "updated": 0, "skipped": 0, "messages": 0}
         
         if not product_uuid:
             # Can't fetch backlog without a product - Labs API requires it
@@ -259,20 +278,40 @@ class LabsSyncService:
         except httpx.HTTPError as e:
             raise Exception(f"Failed to fetch backlog from Labs API: {e}")
         
-        # Find the product's default channel
-        channel_id = None
+        # Get all channels for this product, keyed by type
+        channels_by_type = {}
         if local_product_id:
             result = await db.execute(
-                select(Channel).where(
-                    Channel.product_id == local_product_id,
-                    Channel.is_default == True,
-                )
+                select(Channel).where(Channel.product_id == local_product_id)
             )
-            channel = result.scalar_one_or_none()
-            if channel:
-                channel_id = channel.id
+            channels = result.scalars().all()
+            for ch in channels:
+                # Determine channel type from name suffix
+                if ch.name.endswith("-features"):
+                    channels_by_type["features"] = ch
+                elif ch.name.endswith("-issues"):
+                    channels_by_type["issues"] = ch
+                elif ch.name.endswith("-punchlist"):
+                    channels_by_type["punchlist"] = ch
+                elif ch.name.endswith("-releases"):
+                    channels_by_type["releases"] = ch
+                elif ch.is_default:
+                    channels_by_type["general"] = ch
         
-        new_items = []
+        # Map item types to channels
+        type_to_channel = {
+            "feature": "features",
+            "story": "features",
+            "epic": "features",
+            "bug": "issues",
+            "issue": "issues",
+            "task": "punchlist",
+            "punchlist": "punchlist",
+            "release": "releases",
+            "milestone": "releases",
+        }
+        
+        new_items_by_channel = {}  # channel_id -> list of items
         
         for item in backlog_items:
             labs_uuid = str(item.get("id") or item.get("uuid", ""))
@@ -290,8 +329,14 @@ class LabsSyncService:
             )
             existing = result.scalar_one_or_none()
             
+            # Determine which channel this item belongs to
+            item_type = item.get("type", "feature").lower()
+            channel_type = type_to_channel.get(item_type, "features")
+            target_channel = channels_by_type.get(channel_type) or channels_by_type.get("general")
+            channel_id = target_channel.id if target_channel else None
+            
             # Map Labs item type to artifact type
-            artifact_type = self._map_item_type(item.get("type", "feature"))
+            artifact_type = self._map_item_type(item_type)
             artifact_status = self._map_item_status(item.get("status", "open"), artifact_type)
             
             if existing:
@@ -300,7 +345,7 @@ class LabsSyncService:
                 existing.body = item.get("description", existing.body)
                 existing.status = artifact_status
                 existing.tags = item.get("tags", existing.tags)
-                # Link to channel if not already linked
+                # Update channel if not set
                 if channel_id and not existing.channel_id:
                     existing.channel_id = channel_id
                 stats["updated"] += 1
@@ -309,7 +354,7 @@ class LabsSyncService:
                     stats["skipped"] += 1
                     continue
                 
-                # Create new artifact linked to the channel
+                # Create new artifact linked to the appropriate channel
                 new_artifact = Artifact(
                     workspace_id=workspace_id,
                     product_id=local_product_id,
@@ -323,25 +368,34 @@ class LabsSyncService:
                     buildly_item_uuid=labs_uuid,
                 )
                 db.add(new_artifact)
-                new_items.append(item)
+                
+                # Track for posting messages
+                if channel_id:
+                    if channel_id not in new_items_by_channel:
+                        new_items_by_channel[channel_id] = []
+                    new_items_by_channel[channel_id].append(item)
+                
                 stats["created"] += 1
         
-        # Post a summary message to the channel with the new backlog items
-        if channel_id and user_id and new_items:
-            summary_lines = [f"📋 **{len(new_items)} backlog items synced from Labs:**\n"]
-            for item in new_items[:10]:  # Limit to first 10
-                item_type = item.get("type", "feature")
-                emoji = {"feature": "✨", "bug": "🐛", "task": "📝", "story": "📖"}.get(item_type, "📌")
-                summary_lines.append(f"- {emoji} {item.get('title', 'Untitled')}")
-            if len(new_items) > 10:
-                summary_lines.append(f"- ... and {len(new_items) - 10} more")
+        # Post messages for new items in each channel
+        if user_id:
+            await db.flush()  # Ensure artifacts are created
             
-            summary_msg = Message(
-                channel_id=channel_id,
-                user_id=user_id,
-                body="\n".join(summary_lines),
-            )
-            db.add(summary_msg)
+            for channel_id, items in new_items_by_channel.items():
+                # Create a parent message for each new item (becomes thread starter)
+                for item in items:
+                    item_type = item.get("type", "feature").lower()
+                    emoji = {"feature": "✨", "bug": "🐛", "issue": "🐛", "task": "📝", "story": "📖", "release": "🚀", "milestone": "🏁"}.get(item_type, "📌")
+                    status = item.get("status", "open")
+                    
+                    # Create the main item message (thread starter)
+                    item_msg = Message(
+                        channel_id=channel_id,
+                        user_id=user_id,
+                        body=f"{emoji} **{item.get('title', 'Untitled')}**\n\n{item.get('description', '') or '_No description_'}\n\n`Status: {status}` | `Type: {item_type}`",
+                    )
+                    db.add(item_msg)
+                    stats["messages"] += 1
         
         await db.commit()
         return stats
