@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     
     # Buildly Labs API (for syncing)
     labs_api_key: str | None = None
-    labs_api_url: str = "http://labs.buildly.io/api/v1"
+    labs_api_url: str = "https://labs.buildly.io/api/v1"
     
     # Rate limiting
     rate_limit_auth_per_minute: int = 10
