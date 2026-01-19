@@ -142,6 +142,12 @@ async def init_db() -> None:
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_access_token TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_refresh_token TEXT",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_token_expires_at TIMESTAMP WITH TIME ZONE",
+                    # Workspace-level Labs integration columns (added 2026-01-19)
+                    "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_api_token TEXT",
+                    "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_access_token TEXT",
+                    "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_refresh_token TEXT",
+                    "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_token_expires_at TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_connected_by_id INTEGER",
                 ]
                 
                 for migration in migrations:

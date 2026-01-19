@@ -797,3 +797,112 @@ async def delete_workspace(
         url="/workspaces",
         status_code=status.HTTP_302_FOUND,
     )
+
+
+@router.post("/{workspace_id}/labs/api-token")
+async def configure_labs_api_token(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    api_token: Annotated[str, Form()],
+    org_uuid: Annotated[str | None, Form()] = None,
+):
+    """Configure Labs API token for workspace (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    
+    # Validate token by making a test API call
+    try:
+        from app.services.labs_sync import LabsSyncService
+        service = LabsSyncService(api_key=api_token.strip())
+        me = await service.get_me()
+        labs_email = me.get("data", {}).get("email", "unknown")
+    except Exception as e:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(f'<div class="text-red-600 text-sm">❌ Invalid API token: {str(e)}</div>')
+        raise HTTPException(status_code=400, detail=f"Invalid API token: {str(e)}")
+    
+    # Update workspace
+    workspace.labs_api_token = api_token.strip()
+    workspace.labs_connected_by_id = user.id
+    if org_uuid:
+        workspace.buildly_org_uuid = org_uuid.strip()
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(f'''
+            <div class="text-green-600 text-sm">✓ Labs API token configured successfully! Connected as {labs_email}</div>
+            <script>setTimeout(() => location.reload(), 1500);</script>
+        ''')
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}/labs/disconnect")
+async def disconnect_labs(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Disconnect Labs integration from workspace (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    
+    # Clear Labs integration
+    workspace.labs_api_token = None
+    workspace.labs_access_token = None
+    workspace.labs_refresh_token = None
+    workspace.labs_token_expires_at = None
+    workspace.labs_connected_by_id = None
+    workspace.buildly_org_uuid = None
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse('''
+            <div class="text-green-600 text-sm">✓ Labs integration disconnected</div>
+            <script>setTimeout(() => location.reload(), 1500);</script>
+        ''')
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )

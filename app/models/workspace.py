@@ -6,7 +6,7 @@ import secrets
 import string
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -35,6 +35,11 @@ class Workspace(Base, TimestampMixin):
     
     # Buildly Labs integration
     buildly_org_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    labs_api_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # API token for Labs
+    labs_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth access token
+    labs_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth refresh token
+    labs_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    labs_connected_by_id: Mapped[int | None] = mapped_column(nullable=True)  # User who connected the integration
     
     # Invite system
     invite_code: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)

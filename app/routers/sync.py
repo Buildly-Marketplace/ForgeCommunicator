@@ -6,16 +6,63 @@ Endpoints for syncing data from Buildly Labs.
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_user
 from app.models.user import User
+from app.models.workspace import Workspace
+from app.models.membership import Membership, MembershipRole
 from app.services.labs_sync import LabsSyncService, sync_all_from_labs
 from app.settings import settings
 
 
 router = APIRouter(prefix="/sync", tags=["sync"])
+
+
+async def get_workspace_labs_token(
+    db: AsyncSession,
+    workspace_id: int,
+    user: User,
+) -> tuple[str | None, str]:
+    """
+    Get the Labs API token for a workspace.
+    
+    Priority:
+    1. Workspace's API token (if configured)
+    2. Workspace's OAuth token (if connected)
+    3. User's personal OAuth token (fallback)
+    4. Global API key (fallback)
+    
+    Returns (token, auth_method) tuple.
+    """
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    if not workspace:
+        return None, "none"
+    
+    # Priority 1: Workspace API token
+    if workspace.labs_api_token:
+        return workspace.labs_api_token, "workspace_api_token"
+    
+    # Priority 2: Workspace OAuth token
+    if workspace.labs_access_token:
+        return workspace.labs_access_token, "workspace_oauth"
+    
+    # Priority 3: User's personal OAuth token
+    if user.labs_access_token:
+        return user.labs_access_token, "user_oauth"
+    
+    # Priority 4: Global API key
+    if settings.labs_api_key:
+        return settings.labs_api_key, "global_api_key"
+    
+    return None, "none"
 
 
 @router.get("/status")
@@ -63,10 +110,10 @@ async def sync_products(
 ):
     """Sync products from Labs API to current workspace."""
     
-    # Get auth token - prefer user's OAuth token
-    token = current_user.labs_access_token or settings.labs_api_key
+    # Get auth token for this workspace
+    token, auth_method = await get_workspace_labs_token(db, workspace_id, current_user)
     if not token:
-        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
+        raise HTTPException(status_code=400, detail="Configure Labs integration in workspace settings to enable sync")
     
     try:
         service = LabsSyncService(access_token=token)
@@ -75,6 +122,7 @@ async def sync_products(
             "success": True,
             "message": f"Synced products: {stats['created']} created, {stats['updated']} updated",
             "stats": stats,
+            "auth_method": auth_method,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
@@ -90,10 +138,10 @@ async def sync_backlog(
 ):
     """Sync backlog items from Labs API to artifacts."""
     
-    # Get auth token - prefer user's OAuth token
-    token = current_user.labs_access_token or settings.labs_api_key
+    # Get auth token for this workspace
+    token, auth_method = await get_workspace_labs_token(db, workspace_id, current_user)
     if not token:
-        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
+        raise HTTPException(status_code=400, detail="Configure Labs integration in workspace settings to enable sync")
     
     try:
         service = LabsSyncService(access_token=token)
@@ -122,14 +170,14 @@ async def sync_all(
     """Sync all data from Labs API (products and backlog)."""
     is_htmx = request.headers.get("HX-Request") == "true"
     
-    # Get auth token - prefer user's OAuth token
-    token = current_user.labs_access_token or settings.labs_api_key
+    # Get auth token for this workspace
+    token, auth_method = await get_workspace_labs_token(db, workspace_id, current_user)
     if not token:
         if is_htmx:
             return HTMLResponse(
-                '<div class="text-yellow-600 p-2 bg-yellow-50 rounded">⚠️ Sign in with Buildly Labs to enable sync</div>'
+                '<div class="text-yellow-600 p-2 bg-yellow-50 rounded">⚠️ Configure Labs integration in workspace settings to enable sync</div>'
             )
-        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
+        raise HTTPException(status_code=400, detail="Configure Labs integration in workspace settings to enable sync")
     
     try:
         results = await sync_all_from_labs(
