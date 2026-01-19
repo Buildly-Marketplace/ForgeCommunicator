@@ -217,7 +217,7 @@ class LabsSyncService:
                     welcome_msg = Message(
                         channel_id=channel.id,
                         user_id=user_id,
-                        content=f"📦 **{product_name}** synced from Buildly Labs\n\n{labs_product.get('description', '')}",
+                        body=f"📦 **{product_name}** synced from Buildly Labs\n\n{labs_product.get('description', '')}",
                     )
                     db.add(welcome_msg)
                 
@@ -339,7 +339,7 @@ class LabsSyncService:
             summary_msg = Message(
                 channel_id=channel_id,
                 user_id=user_id,
-                content="\n".join(summary_lines),
+                body="\n".join(summary_lines),
             )
             db.add(summary_msg)
         
