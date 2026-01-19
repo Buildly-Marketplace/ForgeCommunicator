@@ -96,9 +96,9 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize database (create tables if needed) with retry logic."""
-    import os
     import sys
     from urllib.parse import urlparse
+    from sqlalchemy import text
     
     # More retries for managed databases that may take time to be ready
     max_retries = 10
@@ -128,6 +128,24 @@ async def init_db() -> None:
                     workspace,
                 )
                 await conn.run_sync(Base.metadata.create_all)
+                print(f"Database tables initialized", file=sys.stderr)
+                
+                # Run safe migrations for columns that may be missing
+                # These use IF NOT EXISTS so they're safe to run multiple times
+                migrations = [
+                    # Labs SSO columns (added 2026-01-19)
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_user_id INTEGER",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_org_uuid VARCHAR(36)",
+                ]
+                
+                for migration in migrations:
+                    try:
+                        await conn.execute(text(migration))
+                        print(f"Migration OK: {migration[:50]}...", file=sys.stderr)
+                    except Exception as e:
+                        # Log but don't fail - column might already exist or syntax differs
+                        print(f"Migration skipped: {e}", file=sys.stderr)
+                
                 print(f"Database initialized successfully", file=sys.stderr)
                 return
         except Exception as e:
