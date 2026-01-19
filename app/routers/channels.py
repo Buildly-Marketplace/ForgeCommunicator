@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -20,9 +19,9 @@ from app.models.message import Message
 from app.models.product import Product
 from app.models.user import User
 from app.models.workspace import Workspace
+from app.templates_config import templates
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/channels", tags=["channels"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 async def get_workspace_and_membership(

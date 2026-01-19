@@ -7,7 +7,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 
 from app.db import get_db
@@ -17,9 +16,9 @@ from app.services.auth_providers import get_available_providers, get_oauth_provi
 from app.services.password import hash_password, validate_password, verify_password
 from app.services.rate_limiter import auth_rate_limiter
 from app.settings import settings
+from app.templates_config import templates
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 def get_client_ip(request: Request) -> str:

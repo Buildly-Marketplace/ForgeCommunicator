@@ -10,7 +10,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from app.db import close_db, init_db
 from app.settings import settings
@@ -65,13 +64,8 @@ async def add_request_id(request: Request, call_next):
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Templates with brand context
-from app.brand import get_brand
-
-templates = Jinja2Templates(directory="app/templates")
-
-# Add brand to all template contexts
-templates.env.globals["brand"] = get_brand()
+# Use shared templates with brand context
+from app.templates_config import templates
 
 
 # Health check endpoint

@@ -6,7 +6,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -16,9 +15,9 @@ from app.models.channel import Channel
 from app.models.membership import Membership
 from app.models.product import Product
 from app.models.user import User
+from app.templates_config import templates
 
 router = APIRouter(tags=["artifacts"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 async def verify_workspace_access(workspace_id: int, user_id: int, db) -> Membership:

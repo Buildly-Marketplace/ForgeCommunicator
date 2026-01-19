@@ -6,16 +6,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 
 from app.deps import CurrentUser, DBSession
 from app.models.user import User, UserStatus
 from app.models.membership import Membership
 from app.models.workspace import Workspace
+from app.templates_config import templates
 
 router = APIRouter(prefix="/profile", tags=["profile"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("", response_class=HTMLResponse)

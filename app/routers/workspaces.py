@@ -7,7 +7,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -15,9 +14,9 @@ from app.deps import CurrentUser, DBSession
 from app.models.channel import Channel
 from app.models.membership import Membership, MembershipRole
 from app.models.workspace import Workspace
+from app.templates_config import templates
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 def slugify(name: str) -> str:

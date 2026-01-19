@@ -7,7 +7,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -17,9 +16,9 @@ from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership
 from app.models.message import Message
 from app.services.slash_commands import SlashCommandParser
+from app.templates_config import templates
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/channels/{channel_id}/messages", tags=["messages"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 async def verify_channel_access(
