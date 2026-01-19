@@ -677,3 +677,123 @@ async def delete_all_products(
         url=f"/workspaces/{workspace_id}/settings",
         status_code=status.HTTP_302_FOUND,
     )
+
+
+@router.put("/{workspace_id}")
+async def update_workspace(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    name: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+):
+    """Update workspace name and description (owner only)."""
+    # Check owner
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role != MembershipRole.OWNER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    
+    # Update workspace
+    workspace.name = name.strip()
+    workspace.slug = slugify(name)
+    workspace.description = description.strip() if description else None
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(f'''
+            <div class="text-green-600 text-sm mb-2">Workspace updated successfully!</div>
+            <script>
+                setTimeout(() => {{
+                    document.querySelector('.text-green-600')?.remove();
+                }}, 3000);
+            </script>
+        ''')
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}")
+async def delete_workspace(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete workspace (owner only). This deletes EVERYTHING in the workspace."""
+    # Check owner
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role != MembershipRole.OWNER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    
+    # Delete all related data (in order due to foreign keys)
+    # Artifacts
+    await db.execute(
+        Artifact.__table__.delete().where(Artifact.workspace_id == workspace_id)
+    )
+    
+    # Team invites
+    await db.execute(
+        TeamInvite.__table__.delete().where(TeamInvite.workspace_id == workspace_id)
+    )
+    
+    # Channels (this will cascade delete messages)
+    await db.execute(
+        Channel.__table__.delete().where(Channel.workspace_id == workspace_id)
+    )
+    
+    # Products
+    await db.execute(
+        Product.__table__.delete().where(Product.workspace_id == workspace_id)
+    )
+    
+    # Memberships
+    await db.execute(
+        Membership.__table__.delete().where(Membership.workspace_id == workspace_id)
+    )
+    
+    # Finally delete the workspace
+    await db.delete(workspace)
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = "/workspaces"
+        return response
+    
+    return RedirectResponse(
+        url="/workspaces",
+        status_code=status.HTTP_302_FOUND,
+    )
