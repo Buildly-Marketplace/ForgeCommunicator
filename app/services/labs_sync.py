@@ -13,6 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.artifact import Artifact, ArtifactType, ArtifactStatus
+from app.models.channel import Channel
+from app.models.message import Message
 from app.models.product import Product
 from app.settings import settings
 
@@ -106,13 +108,19 @@ class LabsSyncService:
     
     # Sync methods
     
-    async def sync_products(self, db: AsyncSession, workspace_id: int) -> dict[str, int]:
+    async def sync_products(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        user_id: int | None = None,
+    ) -> dict[str, int]:
         """
         Sync all products from Labs to the workspace.
+        Creates a channel for each new product.
         
-        Returns dict with counts: {"created": N, "updated": N, "skipped": N}
+        Returns dict with counts: {"created": N, "updated": N, "skipped": N, "channels_created": N}
         """
-        stats = {"created": 0, "updated": 0, "skipped": 0}
+        stats = {"created": 0, "updated": 0, "skipped": 0, "channels_created": 0}
         
         try:
             response = await self.get_products()
@@ -145,15 +153,41 @@ class LabsSyncService:
                 stats["updated"] += 1
             else:
                 # Create new product
+                product_name = labs_product.get("name", "Untitled Product")
                 new_product = Product(
                     workspace_id=workspace_id,
-                    name=labs_product.get("name", "Untitled Product"),
+                    name=product_name,
                     description=labs_product.get("description"),
                     buildly_product_uuid=labs_uuid,
                     icon_url=labs_product.get("icon_url"),
                     is_active=labs_product.get("is_active", True),
                 )
                 db.add(new_product)
+                await db.flush()  # Get the product ID
+                
+                # Create a channel for this product
+                channel_name = product_name.lower().replace(" ", "-")[:80]
+                channel = Channel(
+                    workspace_id=workspace_id,
+                    product_id=new_product.id,
+                    name=channel_name,
+                    description=f"Discussion channel for {product_name}",
+                    topic=labs_product.get("description", "")[:250] if labs_product.get("description") else None,
+                    is_default=True,
+                )
+                db.add(channel)
+                stats["channels_created"] += 1
+                
+                # Create a welcome message if we have a user
+                if user_id:
+                    await db.flush()  # Get the channel ID
+                    welcome_msg = Message(
+                        channel_id=channel.id,
+                        user_id=user_id,
+                        content=f"📦 **{product_name}** synced from Buildly Labs\n\n{labs_product.get('description', '')}",
+                    )
+                    db.add(welcome_msg)
+                
                 stats["created"] += 1
         
         await db.commit()
@@ -169,6 +203,7 @@ class LabsSyncService:
     ) -> dict[str, int]:
         """
         Sync backlog items from Labs to artifacts.
+        Links artifacts to the product's channel.
         
         Args:
             db: Database session
@@ -190,6 +225,21 @@ class LabsSyncService:
             backlog_items = response.get("data", [])
         except httpx.HTTPError as e:
             raise Exception(f"Failed to fetch backlog from Labs API: {e}")
+        
+        # Find the product's default channel
+        channel_id = None
+        if local_product_id:
+            result = await db.execute(
+                select(Channel).where(
+                    Channel.product_id == local_product_id,
+                    Channel.is_default == True,
+                )
+            )
+            channel = result.scalar_one_or_none()
+            if channel:
+                channel_id = channel.id
+        
+        new_items = []
         
         for item in backlog_items:
             labs_uuid = str(item.get("id") or item.get("uuid", ""))
@@ -217,16 +267,20 @@ class LabsSyncService:
                 existing.body = item.get("description", existing.body)
                 existing.status = artifact_status
                 existing.tags = item.get("tags", existing.tags)
+                # Link to channel if not already linked
+                if channel_id and not existing.channel_id:
+                    existing.channel_id = channel_id
                 stats["updated"] += 1
             else:
                 if not user_id:
                     stats["skipped"] += 1
                     continue
                 
-                # Create new artifact
+                # Create new artifact linked to the channel
                 new_artifact = Artifact(
                     workspace_id=workspace_id,
                     product_id=local_product_id,
+                    channel_id=channel_id,
                     type=artifact_type,
                     title=item.get("title", "Untitled Item"),
                     body=item.get("description"),
@@ -236,7 +290,25 @@ class LabsSyncService:
                     buildly_item_uuid=labs_uuid,
                 )
                 db.add(new_artifact)
+                new_items.append(item)
                 stats["created"] += 1
+        
+        # Post a summary message to the channel with the new backlog items
+        if channel_id and user_id and new_items:
+            summary_lines = [f"📋 **{len(new_items)} backlog items synced from Labs:**\n"]
+            for item in new_items[:10]:  # Limit to first 10
+                item_type = item.get("type", "feature")
+                emoji = {"feature": "✨", "bug": "🐛", "task": "📝", "story": "📖"}.get(item_type, "📌")
+                summary_lines.append(f"- {emoji} {item.get('title', 'Untitled')}")
+            if len(new_items) > 10:
+                summary_lines.append(f"- ... and {len(new_items) - 10} more")
+            
+            summary_msg = Message(
+                channel_id=channel_id,
+                user_id=user_id,
+                content="\n".join(summary_lines),
+            )
+            db.add(summary_msg)
         
         await db.commit()
         return stats
@@ -287,6 +359,7 @@ async def sync_all_from_labs(
 ) -> dict[str, dict[str, int]]:
     """
     Sync all data from Labs API for a workspace.
+    Creates channels for products and links artifacts to them.
     
     Returns dict with sync stats for each entity type.
     """
@@ -294,8 +367,8 @@ async def sync_all_from_labs(
     
     results = {}
     
-    # Sync products first
-    results["products"] = await service.sync_products(db, workspace_id)
+    # Sync products first (creates channels for new products)
+    results["products"] = await service.sync_products(db, workspace_id, user_id=user_id)
     
     # Sync backlog items for each product (Labs API requires product_uuid)
     backlog_stats = {"created": 0, "updated": 0, "skipped": 0}
