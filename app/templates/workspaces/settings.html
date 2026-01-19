@@ -91,7 +91,7 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm font-medium text-gray-900">Buildly Labs</p>
-                            <p class="text-sm text-gray-500">
+                            <p class="text-sm text-gray-500" id="buildly-status">
                                 {% if workspace.buildly_org_uuid %}
                                 Connected to organization
                                 {% else %}
@@ -100,10 +100,23 @@
                             </p>
                         </div>
                     </div>
-                    <button class="text-sm text-indigo-600 hover:text-indigo-500" disabled>
-                        {% if workspace.buildly_org_uuid %}Disconnect{% else %}Connect{% endif %}
-                    </button>
+                    <div class="flex items-center space-x-2">
+                        <button 
+                            hx-post="/sync/all"
+                            hx-target="#sync-result"
+                            hx-indicator="#sync-spinner"
+                            class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-500">
+                            Sync from Labs
+                        </button>
+                        <span id="sync-spinner" class="htmx-indicator">
+                            <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                    </div>
                 </div>
+                <div id="sync-result" class="text-sm"></div>
                 
                 <div class="flex items-center justify-between p-4 border rounded-lg">
                     <div class="flex items-center">

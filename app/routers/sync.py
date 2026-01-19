@@ -5,6 +5,7 @@ Endpoints for syncing data from Buildly Labs.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -110,8 +111,13 @@ async def sync_all(
 ):
     """Sync all data from Labs API (products and backlog)."""
     workspace_id = request.state.workspace_id
+    is_htmx = request.headers.get("HX-Request") == "true"
     
     if not settings.labs_api_key:
+        if is_htmx:
+            return HTMLResponse(
+                '<div class="text-red-600 p-2 bg-red-50 rounded">❌ LABS_API_KEY not configured</div>'
+            )
         raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
     
     try:
@@ -124,12 +130,21 @@ async def sync_all(
         total_created = sum(r.get("created", 0) for r in results.values())
         total_updated = sum(r.get("updated", 0) for r in results.values())
         
+        if is_htmx:
+            return HTMLResponse(
+                f'<div class="text-green-600 p-2 bg-green-50 rounded">✓ Sync complete: {total_created} created, {total_updated} updated</div>'
+            )
+        
         return {
             "success": True,
             "message": f"Full sync complete: {total_created} created, {total_updated} updated",
             "results": results,
         }
     except Exception as e:
+        if is_htmx:
+            return HTMLResponse(
+                f'<div class="text-red-600 p-2 bg-red-50 rounded">❌ Sync failed: {str(e)}</div>'
+            )
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 
