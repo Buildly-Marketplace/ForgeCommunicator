@@ -245,6 +245,97 @@
             {% endif %}
         </div>
         
+        <!-- Products Section -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-medium text-gray-900">Products</h2>
+                    <p class="text-sm text-gray-500">Synced products from Buildly Labs. Deleting a product also removes its channels and docs.</p>
+                </div>
+                {% if membership.role in ['owner', 'admin'] and products %}
+                <button hx-delete="/workspaces/{{ workspace.id }}/products"
+                        hx-target="#delete-all-result"
+                        hx-swap="innerHTML"
+                        hx-confirm="Delete ALL products? This will remove all synced products, their channels, and documents."
+                        class="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-500">
+                    Delete All Products
+                </button>
+                {% endif %}
+            </div>
+            <div id="delete-all-result"></div>
+            
+            {% if products %}
+            <ul class="divide-y divide-gray-200" id="product-list">
+                {% for product in products %}
+                <li class="py-3 flex items-center justify-between" id="product-row-{{ product.id }}">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded bg-indigo-100 flex items-center justify-center">
+                            <span class="text-sm font-medium text-indigo-600">{{ product.name[0] | upper }}</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">{{ product.name }}</p>
+                            {% if product.description %}
+                            <p class="text-xs text-gray-500">{{ product.description[:60] }}{% if product.description|length > 60 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if membership.role in ['owner', 'admin'] %}
+                    <button hx-delete="/workspaces/{{ workspace.id }}/products/{{ product.id }}"
+                            hx-target="#product-row-{{ product.id }}"
+                            hx-swap="outerHTML"
+                            hx-confirm="Delete {{ product.name }}? This will also remove all associated channels and documents."
+                            class="text-xs text-red-600 hover:text-red-500">
+                        Delete
+                    </button>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500">No products synced yet. Use "Sync from Labs" to import products.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Documents/Artifacts Section -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Documents</h2>
+            <p class="text-sm text-gray-500 mb-4">Synced documents and artifacts from Buildly Labs.</p>
+            
+            {% if artifacts %}
+            <ul class="divide-y divide-gray-200" id="artifact-list">
+                {% for artifact in artifacts %}
+                <li class="py-3 flex items-center justify-between" id="artifact-row-{{ artifact.id }}">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">{{ artifact.title or 'Untitled' }}</p>
+                            <p class="text-xs text-gray-500">
+                                {% if artifact.product %}{{ artifact.product.name }} • {% endif %}
+                                {{ artifact.artifact_type.value if artifact.artifact_type else 'document' }}
+                            </p>
+                        </div>
+                    </div>
+                    {% if membership.role in ['owner', 'admin'] %}
+                    <button hx-delete="/workspaces/{{ workspace.id }}/artifacts/{{ artifact.id }}"
+                            hx-target="#artifact-row-{{ artifact.id }}"
+                            hx-swap="outerHTML"
+                            hx-confirm="Delete this document?"
+                            class="text-xs text-red-600 hover:text-red-500">
+                        Delete
+                    </button>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500">No documents synced yet.</p>
+            {% endif %}
+        </div>
+        
         <!-- Integrations Section -->
         <div class="bg-white shadow rounded-lg p-6">
             <h2 class="text-lg font-medium text-gray-900 mb-4">Integrations</h2>

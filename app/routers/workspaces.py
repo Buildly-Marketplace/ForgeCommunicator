@@ -11,8 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
+from app.models.artifact import Artifact
 from app.models.channel import Channel
 from app.models.membership import Membership, MembershipRole
+from app.models.product import Product
 from app.models.team_invite import TeamInvite, InviteStatus
 from app.models.workspace import Workspace
 from app.templates_config import templates
@@ -324,6 +326,23 @@ async def workspace_settings(
     )
     channels = result.scalars().all()
     
+    # Get products for management
+    result = await db.execute(
+        select(Product)
+        .where(Product.workspace_id == workspace_id)
+        .order_by(Product.name)
+    )
+    products = result.scalars().all()
+    
+    # Get artifacts (docs) for management
+    result = await db.execute(
+        select(Artifact)
+        .where(Artifact.workspace_id == workspace_id)
+        .options(selectinload(Artifact.product))
+        .order_by(Artifact.title)
+    )
+    artifacts = result.scalars().all()
+    
     return templates.TemplateResponse(
         "workspaces/settings.html",
         {
@@ -333,6 +352,8 @@ async def workspace_settings(
             "membership": membership,
             "pending_invites": pending_invites,
             "channels": channels,
+            "products": products,
+            "artifacts": artifacts,
         },
     )
 
@@ -506,6 +527,151 @@ async def cancel_team_invite(
     
     if request.headers.get("HX-Request"):
         return HTMLResponse("")  # Remove the row
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}/products/{product_id}")
+async def delete_product(
+    request: Request,
+    workspace_id: int,
+    product_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete a product and its associated channels/artifacts (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get and delete product
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.workspace_id == workspace_id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    
+    # Delete associated artifacts first
+    await db.execute(
+        Artifact.__table__.delete().where(Artifact.product_id == product_id)
+    )
+    
+    # Delete associated channels
+    await db.execute(
+        Channel.__table__.delete().where(Channel.product_id == product_id)
+    )
+    
+    # Delete product
+    await db.delete(product)
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse("")  # Remove the row
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}/artifacts/{artifact_id}")
+async def delete_artifact(
+    request: Request,
+    workspace_id: int,
+    artifact_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete an artifact/document (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get and delete artifact
+    result = await db.execute(
+        select(Artifact).where(
+            Artifact.id == artifact_id,
+            Artifact.workspace_id == workspace_id,
+        )
+    )
+    artifact = result.scalar_one_or_none()
+    if not artifact:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
+    
+    await db.delete(artifact)
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse("")  # Remove the row
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.delete("/{workspace_id}/products")
+async def delete_all_products(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete all products in workspace (admin only) - bulk cleanup."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Delete all artifacts in workspace
+    await db.execute(
+        Artifact.__table__.delete().where(Artifact.workspace_id == workspace_id)
+    )
+    
+    # Delete all product-linked channels
+    await db.execute(
+        Channel.__table__.delete().where(
+            Channel.workspace_id == workspace_id,
+            Channel.product_id.isnot(None)
+        )
+    )
+    
+    # Delete all products
+    await db.execute(
+        Product.__table__.delete().where(Product.workspace_id == workspace_id)
+    )
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse('<div class="text-green-400">All products deleted successfully. Refresh the page to see changes.</div>')
     
     return RedirectResponse(
         url=f"/workspaces/{workspace_id}/settings",
