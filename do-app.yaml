@@ -20,7 +20,7 @@ services:
     envs:
       - key: DATABASE_URL
         scope: RUN_TIME
-        type: SECRET
+        value: ${forge-db.DATABASE_URL}
       - key: SECRET_KEY
         scope: RUN_TIME
         type: SECRET

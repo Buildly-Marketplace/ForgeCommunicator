@@ -49,14 +49,29 @@ class Settings(BaseSettings):
         Many deployment platforms provide postgres:// URLs that need
         to be converted to postgresql+asyncpg:// for SQLAlchemy async.
         """
+        import os
+        import sys
+        
         if not v:
-            return v
+            return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
+        
+        # Strip whitespace
+        v = v.strip()
+        
+        # Handle ${...} variable substitution syntax (not yet resolved)
+        if v.startswith("${") or not v:
+            return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
+        
+        # Log what we got for debugging (remove in production)
+        print(f"DATABASE_URL received: {v[:50]}...", file=sys.stderr)
+        
         # Handle postgres:// -> postgresql+asyncpg://
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         # Handle postgresql:// without driver -> postgresql+asyncpg://
         elif v.startswith("postgresql://") and "+asyncpg" not in v:
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
         return v
     
     # For sync operations (Alembic)
