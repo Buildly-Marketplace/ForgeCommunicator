@@ -102,7 +102,7 @@
                     </div>
                     <div class="flex items-center space-x-2">
                         <button 
-                            hx-post="/sync/all"
+                            hx-post="/sync/all?workspace_id={{ workspace.id }}"
                             hx-target="#sync-result"
                             hx-indicator="#sync-spinner"
                             class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-500">

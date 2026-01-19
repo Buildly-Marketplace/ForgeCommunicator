@@ -52,11 +52,11 @@ async def sync_status(
 @router.post("/products")
 async def sync_products(
     request: Request,
+    workspace_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Sync products from Labs API to current workspace."""
-    workspace_id = request.state.workspace_id
     
     if not settings.labs_api_key:
         raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
@@ -76,12 +76,12 @@ async def sync_products(
 @router.post("/backlog")
 async def sync_backlog(
     request: Request,
+    workspace_id: int,
     product_id: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Sync backlog items from Labs API to artifacts."""
-    workspace_id = request.state.workspace_id
     
     if not settings.labs_api_key:
         raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
@@ -106,11 +106,11 @@ async def sync_backlog(
 @router.post("/all")
 async def sync_all(
     request: Request,
+    workspace_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Sync all data from Labs API (products and backlog)."""
-    workspace_id = request.state.workspace_id
     is_htmx = request.headers.get("HX-Request") == "true"
     
     if not settings.labs_api_key:
