@@ -69,14 +69,14 @@ class LabsSyncService:
     
     async def get_backlog(
         self,
-        product_id: int | None = None,
+        product_uuid: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> dict:
-        """Get backlog items, optionally filtered by product."""
+        """Get backlog items for a product. product_uuid is required by Labs API."""
         params = {"limit": limit, "offset": offset}
-        if product_id:
-            params["product_id"] = product_id
+        if product_uuid:
+            params["product_uuid"] = product_uuid
         return await self._request("GET", "/backlog", params=params)
     
     async def get_backlog_item(self, item_id: int) -> dict:
@@ -163,7 +163,8 @@ class LabsSyncService:
         self,
         db: AsyncSession,
         workspace_id: int,
-        product_id: int | None = None,
+        product_uuid: str | None = None,
+        local_product_id: int | None = None,
         user_id: int | None = None,
     ) -> dict[str, int]:
         """
@@ -172,24 +173,20 @@ class LabsSyncService:
         Args:
             db: Database session
             workspace_id: Workspace to sync to
-            product_id: Local product ID to filter by (optional)
+            product_uuid: Labs product UUID to filter by (required by Labs API)
+            local_product_id: Local product ID to link artifacts to
             user_id: User ID to set as creator for new items
             
         Returns dict with counts: {"created": N, "updated": N, "skipped": N}
         """
         stats = {"created": 0, "updated": 0, "skipped": 0}
         
-        # Get product's buildly_product_uuid if product_id is provided
-        labs_product_id = None
-        local_product = None
-        if product_id:
-            result = await db.execute(select(Product).where(Product.id == product_id))
-            local_product = result.scalar_one_or_none()
-            if local_product and local_product.buildly_product_uuid:
-                labs_product_id = int(local_product.buildly_product_uuid)
+        if not product_uuid:
+            # Can't fetch backlog without a product - Labs API requires it
+            return stats
         
         try:
-            response = await self.get_backlog(product_id=labs_product_id)
+            response = await self.get_backlog(product_uuid=product_uuid)
             backlog_items = response.get("data", [])
         except httpx.HTTPError as e:
             raise Exception(f"Failed to fetch backlog from Labs API: {e}")
@@ -229,7 +226,7 @@ class LabsSyncService:
                 # Create new artifact
                 new_artifact = Artifact(
                     workspace_id=workspace_id,
-                    product_id=product_id,
+                    product_id=local_product_id,
                     type=artifact_type,
                     title=item.get("title", "Untitled Item"),
                     body=item.get("description"),
@@ -300,8 +297,31 @@ async def sync_all_from_labs(
     # Sync products first
     results["products"] = await service.sync_products(db, workspace_id)
     
-    # Sync backlog items
-    results["backlog"] = await service.sync_backlog(db, workspace_id, user_id=user_id)
+    # Sync backlog items for each product (Labs API requires product_uuid)
+    backlog_stats = {"created": 0, "updated": 0, "skipped": 0}
+    
+    # Get all products in this workspace that have a Labs UUID
+    product_result = await db.execute(
+        select(Product).where(
+            Product.workspace_id == workspace_id,
+            Product.buildly_product_uuid.isnot(None),
+        )
+    )
+    products = product_result.scalars().all()
+    
+    for product in products:
+        product_stats = await service.sync_backlog(
+            db,
+            workspace_id,
+            product_uuid=product.buildly_product_uuid,
+            local_product_id=product.id,
+            user_id=user_id,
+        )
+        backlog_stats["created"] += product_stats["created"]
+        backlog_stats["updated"] += product_stats["updated"]
+        backlog_stats["skipped"] += product_stats["skipped"]
+    
+    results["backlog"] = backlog_stats
     
     return results
 
