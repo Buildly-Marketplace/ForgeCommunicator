@@ -29,7 +29,7 @@
         <div class="bg-white shadow rounded-lg p-6 mb-6">
             <h2 class="text-lg font-medium text-gray-900 mb-4">Workspace Details</h2>
             
-            {% if membership.role == 'owner' %}
+            {% if membership.role in ['owner'] %}
             <form hx-put="/workspaces/{{ workspace.id }}"
                   hx-target="#workspace-update-result"
                   hx-swap="innerHTML"
