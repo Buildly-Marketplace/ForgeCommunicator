@@ -65,8 +65,13 @@ async def add_request_id(request: Request, call_next):
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Templates
+# Templates with brand context
+from app.brand import get_brand
+
 templates = Jinja2Templates(directory="app/templates")
+
+# Add brand to all template contexts
+templates.env.globals["brand"] = get_brand()
 
 
 # Health check endpoint

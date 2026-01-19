@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Forge Communicator{% endblock %}</title>
+    <title>{% block title %}{{ brand.full_name }}{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -11,9 +11,15 @@
             theme: {
                 extend: {
                     colors: {
+                        brand: {
+                            primary: '{{ brand.primary_color }}',
+                            secondary: '{{ brand.secondary_color }}',
+                            accent: '{{ brand.accent_color }}',
+                        },
+                        // Legacy forge colors for backwards compatibility
                         forge: {
-                            navy: '#1e3a5f',
-                            orange: '#f97316',
+                            navy: '{{ brand.secondary_color }}',
+                            orange: '{{ brand.accent_color }}',
                         }
                     }
                 }
@@ -22,8 +28,13 @@
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/ws.js"></script>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="{{ brand.favicon_url }}">
     <style>
+        :root {
+            --brand-primary: {{ brand.primary_color }};
+            --brand-secondary: {{ brand.secondary_color }};
+            --brand-accent: {{ brand.accent_color }};
+        }
         [x-cloak] { display: none !important; }
         .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
         .htmx-request .htmx-indicator { opacity: 1; }
@@ -40,6 +51,12 @@
         .message-actions { opacity: 0; transition: opacity 150ms; }
         /* Mention dropdown */
         .mention-dropdown { max-height: 200px; overflow-y: auto; }
+        /* Brand-colored elements */
+        .bg-brand-primary { background-color: var(--brand-primary); }
+        .text-brand-primary { color: var(--brand-primary); }
+        .border-brand-primary { border-color: var(--brand-primary); }
+        .hover\\:bg-brand-primary:hover { background-color: var(--brand-primary); }
+    </style>
     </style>
     {% block head %}{% endblock %}
     <script>

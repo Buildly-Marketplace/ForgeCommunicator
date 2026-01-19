@@ -1,13 +1,14 @@
 {% extends "layout.html" %}
 
-{% block title %}Register - Forge Communicator{% endblock %}
+{% block title %}Register - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <div>
             <h1 class="text-center text-3xl font-extrabold text-gray-900">
-                🔧 Forge Communicator
+                <img src="{{ brand.logo_url }}" alt="{{ brand.company }} Logo" class="h-30 w-30 mx-auto block">
+                {{ brand.name }}
             </h1>
             <h2 class="mt-6 text-center text-xl text-gray-600">
                 Create your account

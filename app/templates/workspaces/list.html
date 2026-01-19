@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Workspaces - Forge Communicator{% endblock %}
+{% block title %}Workspaces - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50">
@@ -9,8 +9,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <img src="/static/forge-logo.png" alt="The Forge Logo" class="h-14 w-14 mr-2">
-                    <span class="text-xl font-bold text-gray-900">Communicator</span>
+                    <img src="{{ brand.logo_url }}" alt="{{ brand.company }} Logo" class="h-14 w-14 mr-2">
+                    <span class="text-xl font-bold text-gray-900">{{ brand.name }}</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-600">{{ user.display_name }}</span>

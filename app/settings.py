@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = Field(default="change-me-in-production-use-openssl-rand-hex-32")
     
+    # White-label branding - customize per customer deployment
+    brand_name: str = "Communicator"  # Display name in UI
+    brand_logo_url: str | None = None  # URL to logo image (uses default if not set)
+    brand_favicon_url: str | None = None  # URL to favicon (uses default if not set)
+    brand_company: str = "Buildly"  # Company name for footer/copyright
+    brand_support_email: str = "support@buildly.io"
+    brand_primary_color: str = "#4f46e5"  # Indigo-600 - main accent color
+    brand_secondary_color: str = "#1e3a5f"  # Navy - secondary color
+    brand_accent_color: str = "#f97316"  # Orange - highlight color
+    
     # Server
     host: str = "0.0.0.0"
     port: int = Field(default=8000, alias="PORT")
