@@ -357,6 +357,8 @@ async def oauth_callback(
         # Exchange code for tokens
         tokens = await oauth_provider.exchange_code(code)
         access_token = tokens["access_token"]
+        refresh_token = tokens.get("refresh_token")
+        expires_in = tokens.get("expires_in", 3600)  # Default 1 hour
         
         # Get user info
         user_info = await oauth_provider.get_user_info(access_token)
@@ -392,6 +394,12 @@ async def oauth_callback(
                     user.labs_user_id = user_info.extra["labs_user_id"]
                 if user_info.extra.get("organization_uuid"):
                     user.labs_org_uuid = user_info.extra["organization_uuid"]
+            # Store OAuth tokens for Labs API access
+            if provider == "buildly":
+                from datetime import timedelta
+                user.labs_access_token = access_token
+                user.labs_refresh_token = refresh_token
+                user.labs_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         else:
             # Create new user
             user = User(
@@ -407,6 +415,12 @@ async def oauth_callback(
                     user.labs_user_id = user_info.extra["labs_user_id"]
                 if user_info.extra.get("organization_uuid"):
                     user.labs_org_uuid = user_info.extra["organization_uuid"]
+            # Store OAuth tokens for new Buildly users
+            if provider == "buildly":
+                from datetime import timedelta
+                user.labs_access_token = access_token
+                user.labs_refresh_token = refresh_token
+                user.labs_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
             db.add(user)
         
         # Create session

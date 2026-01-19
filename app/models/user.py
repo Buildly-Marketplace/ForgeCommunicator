@@ -58,6 +58,9 @@ class User(Base, TimestampMixin):
     # Buildly Labs SSO - for cross-app identity sync
     labs_user_id: Mapped[int | None] = mapped_column(nullable=True)  # Labs numeric user ID
     labs_org_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)  # Labs organization UUID
+    labs_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth access token for Labs API
+    labs_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth refresh token
+    labs_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Avatar
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

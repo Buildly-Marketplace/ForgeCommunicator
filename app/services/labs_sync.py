@@ -22,13 +22,14 @@ class LabsSyncService:
     
     BASE_URL = settings.labs_api_url
     
-    def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or settings.labs_api_key
-        if not self.api_key:
-            raise ValueError("Labs API key is required")
+    def __init__(self, api_key: str | None = None, access_token: str | None = None):
+        """Initialize with either an API key or OAuth access token."""
+        self.token = access_token or api_key or settings.labs_api_key
+        if not self.token:
+            raise ValueError("Labs API key or access token is required")
         
         self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
     
@@ -285,13 +286,14 @@ async def sync_all_from_labs(
     workspace_id: int,
     user_id: int,
     api_key: str | None = None,
+    access_token: str | None = None,
 ) -> dict[str, dict[str, int]]:
     """
     Sync all data from Labs API for a workspace.
     
     Returns dict with sync stats for each entity type.
     """
-    service = LabsSyncService(api_key=api_key)
+    service = LabsSyncService(api_key=api_key, access_token=access_token)
     
     results = {}
     
@@ -305,6 +307,6 @@ async def sync_all_from_labs(
 
 
 # Create a default instance for easy import
-def get_labs_service(api_key: str | None = None) -> LabsSyncService:
+def get_labs_service(api_key: str | None = None, access_token: str | None = None) -> LabsSyncService:
     """Get a Labs sync service instance."""
-    return LabsSyncService(api_key=api_key)
+    return LabsSyncService(api_key=api_key, access_token=access_token)

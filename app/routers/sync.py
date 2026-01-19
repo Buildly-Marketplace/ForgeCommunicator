@@ -24,15 +24,20 @@ async def sync_status(
     current_user: User = Depends(get_current_user),
 ):
     """Check if Labs sync is configured and available."""
-    has_key = bool(settings.labs_api_key)
+    # Check if user has Labs OAuth token
+    has_user_token = bool(current_user.labs_access_token)
+    has_api_key = bool(settings.labs_api_key)
     
-    if has_key:
+    if has_user_token or has_api_key:
         try:
-            service = LabsSyncService()
+            # Prefer user's OAuth token over API key
+            token = current_user.labs_access_token if has_user_token else settings.labs_api_key
+            service = LabsSyncService(access_token=token)
             me = await service.get_me()
             return {
                 "configured": True,
                 "connected": True,
+                "auth_method": "oauth" if has_user_token else "api_key",
                 "labs_user": me.get("data", {}).get("email", "unknown"),
             }
         except Exception as e:
@@ -45,7 +50,7 @@ async def sync_status(
     return {
         "configured": False,
         "connected": False,
-        "message": "LABS_API_KEY not configured",
+        "message": "Sign in with Buildly Labs to enable sync",
     }
 
 
@@ -58,11 +63,13 @@ async def sync_products(
 ):
     """Sync products from Labs API to current workspace."""
     
-    if not settings.labs_api_key:
-        raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
+    # Get auth token - prefer user's OAuth token
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
+        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
     
     try:
-        service = LabsSyncService()
+        service = LabsSyncService(access_token=token)
         stats = await service.sync_products(db, workspace_id)
         return {
             "success": True,
@@ -83,11 +90,13 @@ async def sync_backlog(
 ):
     """Sync backlog items from Labs API to artifacts."""
     
-    if not settings.labs_api_key:
-        raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
+    # Get auth token - prefer user's OAuth token
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
+        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
     
     try:
-        service = LabsSyncService()
+        service = LabsSyncService(access_token=token)
         stats = await service.sync_backlog(
             db,
             workspace_id,
@@ -113,18 +122,21 @@ async def sync_all(
     """Sync all data from Labs API (products and backlog)."""
     is_htmx = request.headers.get("HX-Request") == "true"
     
-    if not settings.labs_api_key:
+    # Get auth token - prefer user's OAuth token
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
         if is_htmx:
             return HTMLResponse(
-                '<div class="text-red-600 p-2 bg-red-50 rounded">❌ LABS_API_KEY not configured</div>'
+                '<div class="text-yellow-600 p-2 bg-yellow-50 rounded">⚠️ Sign in with Buildly Labs to enable sync</div>'
             )
-        raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
+        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
     
     try:
         results = await sync_all_from_labs(
             db,
             workspace_id,
             user_id=current_user.id,
+            access_token=token,
         )
         
         total_created = sum(r.get("created", 0) for r in results.values())

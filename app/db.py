@@ -138,6 +138,10 @@ async def init_db() -> None:
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_org_uuid VARCHAR(36)",
                     # Platform admin column (added 2026-01-19)
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_platform_admin BOOLEAN DEFAULT FALSE",
+                    # Labs OAuth token columns (added 2026-01-19)
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_access_token TEXT",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_refresh_token TEXT",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS labs_token_expires_at TIMESTAMP WITH TIME ZONE",
                 ]
                 
                 for migration in migrations:
