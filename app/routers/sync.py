@@ -152,13 +152,32 @@ async def sync_all(
         team_invited = team.get("invited", 0)
         
         if is_htmx:
-            # Show detailed breakdown
-            lines = ['<div class="text-green-600 p-2 bg-green-50 rounded">']
-            lines.append('✓ Sync complete:<br>')
-            lines.append(f'• Products: {products_created} new, {products_updated} updated<br>')
-            lines.append(f'• Channels: {channels_created} created<br>')
-            lines.append(f'• Backlog: {backlog_created} new, {backlog_updated} updated<br>')
-            lines.append(f'• Team invites: {team_invited} created')
+            # Build detailed breakdown
+            errors = results.get("errors", [])
+            backlog_errors = backlog.get("errors", 0)
+            
+            if errors or backlog_errors:
+                # Partial success with warnings
+                lines = ['<div class="p-2 bg-yellow-50 rounded border border-yellow-200">']
+                lines.append('<span class="text-yellow-700">⚠️ Sync completed with some issues:</span><br>')
+            else:
+                lines = ['<div class="text-green-600 p-2 bg-green-50 rounded">']
+                lines.append('✓ Sync complete:<br>')
+            
+            lines.append(f'<span class="text-gray-700">• Products: {products_created} new, {products_updated} updated</span><br>')
+            lines.append(f'<span class="text-gray-700">• Channels: {channels_created} created</span><br>')
+            lines.append(f'<span class="text-gray-700">• Backlog: {backlog_created} new, {backlog_updated} updated')
+            if backlog_errors:
+                lines.append(f' <span class="text-orange-600">({backlog_errors} errors)</span>')
+            lines.append('</span><br>')
+            lines.append(f'<span class="text-gray-700">• Team invites: {team_invited} created</span>')
+            
+            if errors:
+                lines.append('<br><span class="text-red-600 text-xs mt-1">')
+                for err in errors:
+                    lines.append(f'<br>• {err}')
+                lines.append('</span>')
+            
             lines.append('</div>')
             return HTMLResponse(''.join(lines))
         

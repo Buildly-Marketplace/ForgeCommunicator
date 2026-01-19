@@ -498,12 +498,17 @@ async def sync_all_from_labs(
     service = LabsSyncService(api_key=api_key, access_token=access_token)
     
     results = {}
+    errors = []
     
     # Sync products first (creates channels for new products)
-    results["products"] = await service.sync_products(db, workspace_id, user_id=user_id)
+    try:
+        results["products"] = await service.sync_products(db, workspace_id, user_id=user_id)
+    except Exception as e:
+        results["products"] = {"created": 0, "updated": 0, "skipped": 0, "channels_created": 0}
+        errors.append(f"Products: {str(e)}")
     
     # Sync backlog items for each product (Labs API requires product_uuid)
-    backlog_stats = {"created": 0, "updated": 0, "skipped": 0}
+    backlog_stats = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
     
     # Get all products in this workspace that have a Labs UUID
     product_result = await db.execute(
@@ -515,21 +520,32 @@ async def sync_all_from_labs(
     products = product_result.scalars().all()
     
     for product in products:
-        product_stats = await service.sync_backlog(
-            db,
-            workspace_id,
-            product_uuid=product.buildly_product_uuid,
-            local_product_id=product.id,
-            user_id=user_id,
-        )
-        backlog_stats["created"] += product_stats["created"]
-        backlog_stats["updated"] += product_stats["updated"]
-        backlog_stats["skipped"] += product_stats["skipped"]
+        try:
+            product_stats = await service.sync_backlog(
+                db,
+                workspace_id,
+                product_uuid=product.buildly_product_uuid,
+                local_product_id=product.id,
+                user_id=user_id,
+            )
+            backlog_stats["created"] += product_stats["created"]
+            backlog_stats["updated"] += product_stats["updated"]
+            backlog_stats["skipped"] += product_stats["skipped"]
+        except Exception as e:
+            backlog_stats["errors"] += 1
+            print(f"[Labs Sync] Backlog sync failed for product {product.name}: {e}")
     
     results["backlog"] = backlog_stats
     
     # Sync team members and create invites
-    results["team"] = await service.sync_team(db, workspace_id, invited_by_id=user_id)
+    try:
+        results["team"] = await service.sync_team(db, workspace_id, invited_by_id=user_id)
+    except Exception as e:
+        results["team"] = {"invited": 0, "already_member": 0, "already_invited": 0, "skipped": 0}
+        errors.append(f"Team: {str(e)}")
+    
+    if errors:
+        results["errors"] = errors
     
     return results
 
