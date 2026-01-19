@@ -135,21 +135,22 @@ class Settings(BaseSettings):
     password_min_length: int = 8
     session_expire_hours: int = 24
     
-    # Auth - Google OAuth
+    # Auth - Google OAuth (optional, per-deployment)
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_redirect_uri: str | None = None
     google_allowed_domain: str | None = None  # Restrict to this Google Workspace domain
     
-    # Auth - Buildly Labs OAuth (Labs is the identity provider)
-    buildly_client_id: str | None = None
-    buildly_client_secret: str | None = None
+    # Auth - Buildly Labs OAuth (first-party integration - hardcoded for all deployments)
+    # Only the secret is configured via env var for security
+    buildly_client_id: str = "forge-communicator"  # Registered in Labs
+    buildly_client_secret: str | None = None  # Set via BUILDLY_CLIENT_SECRET env var
     buildly_redirect_uri: str = "https://comms.buildly.io/auth/oauth/buildly/callback"
     buildly_oauth_url: str = "https://labs.buildly.io"  # OAuth endpoints
     buildly_api_url: str = "https://labs.buildly.io/api/v1"  # User info API
     
     # Buildly Labs API (for syncing)
-    labs_api_key: str | None = None
+    labs_api_key: str | None = None  # Optional - falls back to user's OAuth token
     labs_api_url: str = "https://labs.buildly.io/api/v1"
     
     # Rate limiting
@@ -174,7 +175,8 @@ class Settings(BaseSettings):
     
     @property
     def buildly_oauth_enabled(self) -> bool:
-        return bool(self.buildly_client_id and self.buildly_client_secret)
+        # Only need the secret - client_id is hardcoded
+        return bool(self.buildly_client_secret)
     
     @property
     def push_enabled(self) -> bool:
