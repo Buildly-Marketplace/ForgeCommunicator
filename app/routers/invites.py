@@ -5,18 +5,23 @@ Handles accepting team invites via token link.
 """
 
 from datetime import datetime, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 
-from app.deps import CurrentUser, DBSession
+from app.deps import CurrentUser, DBSession, get_current_user_optional
 from app.models.membership import Membership, MembershipRole
 from app.models.team_invite import TeamInvite, InviteStatus
+from app.models.user import User
 from app.models.workspace import Workspace
 from app.templates_config import templates
 
 router = APIRouter(prefix="/invites", tags=["invites"])
+
+# Optional user dependency for viewing invites
+OptionalUser = Annotated[User | None, Depends(get_current_user_optional)]
 
 
 @router.get("/{token}", response_class=HTMLResponse)
@@ -24,7 +29,7 @@ async def view_invite(
     request: Request,
     token: str,
     db: DBSession,
-    user: CurrentUser | None = None,
+    user: OptionalUser,
 ):
     """View an invite and optionally accept it."""
     # Find the invite
