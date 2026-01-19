@@ -198,6 +198,52 @@ async def list_labs_products(
         raise HTTPException(status_code=500, detail=f"Failed to fetch: {str(e)}")
 
 
+@router.get("/labs/debug")
+async def debug_labs_api(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Debug endpoint to see raw Labs API responses."""
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
+        return {"error": "No token available", "has_labs_token": bool(current_user.labs_access_token), "has_api_key": bool(settings.labs_api_key)}
+    
+    try:
+        service = LabsSyncService(access_token=token)
+        
+        # Get raw responses
+        products_response = await service.get_products(limit=5)
+        me_response = await service.get_me()
+        
+        # Analyze structure
+        products_keys = list(products_response.keys()) if isinstance(products_response, dict) else "response is a list"
+        
+        # Try to find products in different locations
+        products_in_data = products_response.get("data", []) if isinstance(products_response, dict) else []
+        products_in_results = products_response.get("results", []) if isinstance(products_response, dict) else []
+        products_direct = products_response if isinstance(products_response, list) else []
+        
+        first_product = None
+        products_list = products_in_data or products_in_results or products_direct
+        if products_list and len(products_list) > 0:
+            first_product = products_list[0]
+        
+        return {
+            "auth_method": "oauth" if current_user.labs_access_token else "api_key",
+            "me": me_response,
+            "products_response_keys": products_keys,
+            "products_in_data_count": len(products_in_data),
+            "products_in_results_count": len(products_in_results),
+            "products_direct_count": len(products_direct),
+            "first_product_keys": list(first_product.keys()) if first_product and isinstance(first_product, dict) else None,
+            "first_product": first_product,
+            "raw_products_response": products_response,
+        }
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
 @router.get("/labs/backlog")
 async def list_labs_backlog(
     request: Request,
