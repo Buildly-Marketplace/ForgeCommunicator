@@ -71,6 +71,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Health check endpoint
 @app.get("/healthz", tags=["health"])
+@app.get("/health", tags=["health"])
 async def healthz():
     """Health check endpoint for load balancers."""
     return {"status": "healthy"}
@@ -111,7 +112,7 @@ async def root(request: Request):
 
 
 # Import and include routers
-from app.routers import artifacts, auth, channels, messages, profile, push, realtime, workspaces
+from app.routers import artifacts, auth, channels, messages, profile, push, realtime, sync, workspaces
 
 app.include_router(auth.router)
 app.include_router(workspaces.router)
@@ -121,6 +122,7 @@ app.include_router(artifacts.router)
 app.include_router(realtime.router)
 app.include_router(profile.router)
 app.include_router(push.router)
+app.include_router(sync.router)
 
 
 # Error handlers

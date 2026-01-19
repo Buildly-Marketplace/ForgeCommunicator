@@ -24,17 +24,29 @@ class Base(DeclarativeBase):
 
 def _get_connect_args() -> dict:
     """Get connection arguments, including SSL for managed databases."""
+    import sys
+    
     connect_args = {}
     
     # DigitalOcean and other managed databases require SSL
-    # Check if the URL contains sslmode or if we should enable SSL by default
+    # Skip SSL for local development (localhost, 127.0.0.1, or Docker service names)
     db_url = settings.database_url
-    if "sslmode=" not in db_url and "localhost" not in db_url and "127.0.0.1" not in db_url:
+    local_hosts = ["localhost", "127.0.0.1", "@db:", "@db/", "@postgres:", "@postgres/"]
+    is_local = any(host in db_url for host in local_hosts)
+    
+    # Check for known managed database hosts that require SSL
+    managed_db_hosts = [".db.ondigitalocean.com", ".rds.amazonaws.com", ".cloud.google.com"]
+    is_managed = any(host in db_url for host in managed_db_hosts)
+    
+    if is_managed or not is_local:
         # Create SSL context for managed databases
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE  # DO managed DBs use self-signed certs
+        ssl_context.verify_mode = ssl.CERT_NONE  # Managed DBs often use self-signed certs
         connect_args["ssl"] = ssl_context
+        print(f"SSL enabled for database connection", file=sys.stderr)
+    else:
+        print(f"SSL disabled (local database)", file=sys.stderr)
     
     return connect_args
 
@@ -84,10 +96,22 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize database (create tables if needed) with retry logic."""
+    import os
     import sys
+    from urllib.parse import urlparse
     
-    max_retries = 5
-    retry_delay = 3  # seconds
+    # More retries for managed databases that may take time to be ready
+    max_retries = 10
+    retry_delay = 5  # seconds
+    
+    # Log which database we're connecting to (mask password)
+    db_url = settings.database_url
+    try:
+        parsed = urlparse(db_url)
+        masked_url = f"{parsed.scheme}://{parsed.username}:***@{parsed.hostname}:{parsed.port}{parsed.path}"
+        print(f"Connecting to database: {masked_url}", file=sys.stderr)
+    except Exception:
+        print("Connecting to database...", file=sys.stderr)
     
     for attempt in range(max_retries):
         try:

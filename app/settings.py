@@ -48,9 +48,10 @@ class Settings(BaseSettings):
         
         Many deployment platforms provide postgres:// URLs that need
         to be converted to postgresql+asyncpg:// for SQLAlchemy async.
+        Also removes sslmode parameter since asyncpg handles SSL differently.
         """
-        import os
         import sys
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
         
         if not v:
             return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
@@ -62,8 +63,8 @@ class Settings(BaseSettings):
         if v.startswith("${") or not v:
             return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
         
-        # Log what we got for debugging (remove in production)
-        print(f"DATABASE_URL received: {v[:50]}...", file=sys.stderr)
+        # Log what we got for debugging
+        print(f"DATABASE_URL received: {v[:60]}...", file=sys.stderr)
         
         # Handle postgres:// -> postgresql+asyncpg://
         if v.startswith("postgres://"):
@@ -72,6 +73,28 @@ class Settings(BaseSettings):
         elif v.startswith("postgresql://") and "+asyncpg" not in v:
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
         
+        # Remove sslmode from query string (asyncpg doesn't support it as URL param)
+        # We handle SSL via connect_args instead
+        try:
+            parsed = urlparse(v)
+            if parsed.query:
+                query_params = parse_qs(parsed.query)
+                # Remove sslmode - we'll handle it in connect_args
+                query_params.pop("sslmode", None)
+                # Rebuild URL without sslmode
+                new_query = urlencode(query_params, doseq=True)
+                v = urlunparse((
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path,
+                    parsed.params,
+                    new_query,
+                    parsed.fragment,
+                ))
+        except Exception as e:
+            print(f"Warning: Could not parse DATABASE_URL query params: {e}", file=sys.stderr)
+        
+        print(f"DATABASE_URL transformed: {v[:60]}...", file=sys.stderr)
         return v
     
     # For sync operations (Alembic)
@@ -101,6 +124,10 @@ class Settings(BaseSettings):
     buildly_redirect_uri: str | None = None
     buildly_api_url: str = "https://api.buildly.io"
     buildly_auth_url: str = "https://auth.buildly.io"
+    
+    # Buildly Labs API (for syncing)
+    labs_api_key: str | None = None
+    labs_api_url: str = "http://labs.buildly.io/api/v1"
     
     # Rate limiting
     rate_limit_auth_per_minute: int = 10
