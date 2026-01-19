@@ -50,10 +50,16 @@ class Settings(BaseSettings):
         to be converted to postgresql+asyncpg:// for SQLAlchemy async.
         Also removes sslmode parameter since asyncpg handles SSL differently.
         """
+        import os
         import sys
         from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
         
+        # Debug: Log all database-related env vars
+        print(f"DATABASE_URL from env: {os.environ.get('DATABASE_URL', 'NOT SET')[:60] if os.environ.get('DATABASE_URL') else 'NOT SET'}", file=sys.stderr)
+        print(f"Validator received value: {repr(v)[:60] if v else 'None/Empty'}", file=sys.stderr)
+        
         if not v:
+            print("DATABASE_URL is empty, using default", file=sys.stderr)
             return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
         
         # Strip whitespace
@@ -61,10 +67,11 @@ class Settings(BaseSettings):
         
         # Handle ${...} variable substitution syntax (not yet resolved)
         if v.startswith("${") or not v:
+            print(f"DATABASE_URL appears unresolved: {v[:40]}", file=sys.stderr)
             return "postgresql+asyncpg://forge:forge@localhost:5432/forge_communicator"
         
         # Log what we got for debugging
-        print(f"DATABASE_URL received: {v[:60]}...", file=sys.stderr)
+        print(f"DATABASE_URL processing: {v[:60]}...", file=sys.stderr)
         
         # Handle postgres:// -> postgresql+asyncpg://
         if v.startswith("postgres://"):
@@ -94,7 +101,7 @@ class Settings(BaseSettings):
         except Exception as e:
             print(f"Warning: Could not parse DATABASE_URL query params: {e}", file=sys.stderr)
         
-        print(f"DATABASE_URL transformed: {v[:60]}...", file=sys.stderr)
+        print(f"DATABASE_URL final: {v[:60]}...", file=sys.stderr)
         return v
     
     # For sync operations (Alembic)
