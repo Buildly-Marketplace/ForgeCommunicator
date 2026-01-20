@@ -459,6 +459,8 @@ async def google_link_start(
     This allows users to link their Google Workspace account for calendar integration
     without changing their primary auth provider.
     """
+    import logging
+    logger = logging.getLogger(__name__)
     from app.services.auth_providers import GoogleOAuthProvider
     
     if not settings.google_oauth_enabled:
@@ -472,6 +474,12 @@ async def google_link_start(
     host = request.headers.get("X-Forwarded-Host", request.url.netloc)
     base_url = f"{proto}://{host}"
     link_redirect = f"{base_url}/auth/google/link/callback"
+    
+    # Debug logging
+    logger.warning(f"Google OAuth Debug - Proto: {proto}, Host: {host}, Redirect URI: {link_redirect}")
+    logger.warning(f"Google OAuth Debug - X-Forwarded-Proto: {request.headers.get('X-Forwarded-Proto')}")
+    logger.warning(f"Google OAuth Debug - X-Forwarded-Host: {request.headers.get('X-Forwarded-Host')}")
+    logger.warning(f"Google OAuth Debug - request.url.netloc: {request.url.netloc}")
     google_provider = GoogleOAuthProvider(include_calendar=True, redirect_uri_override=link_redirect)
     
     # Generate state token
