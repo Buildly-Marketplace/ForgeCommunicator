@@ -38,9 +38,9 @@ class Settings(BaseSettings):
     brand_favicon_url: str | None = None  # URL to favicon (uses default if not set)
     brand_company: str = "Buildly"  # Company name for footer/copyright
     brand_support_email: str = "support@buildly.io"
-    brand_primary_color: str = "#4f46e5"  # Indigo-600 - main accent color
-    brand_secondary_color: str = "#1e3a5f"  # Navy - secondary color
-    brand_accent_color: str = "#f97316"  # Orange - highlight color
+    brand_primary_color: str = "#3b82f6"  # Blue-500 - main accent color (matches splash)
+    brand_secondary_color: str = "#0f172a"  # Slate-900 - dark navy (matches splash)
+    brand_accent_color: str = "#a855f7"  # Purple-500 - highlight color (matches splash)
     
     # Server
     host: str = "0.0.0.0"

@@ -3,30 +3,30 @@
 {% block title %}Settings - Admin - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow-sm">
+<div class="min-h-screen bg-slate-100 dark:bg-slate-900">
+    <nav class="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="/admin" class="text-gray-400 hover:text-gray-600">
+                    <a href="/admin" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </a>
-                    <span class="text-xl font-bold text-gray-900">Platform Settings</span>
+                    <span class="text-xl font-bold text-gray-900 dark:text-white">Platform Settings</span>
                 </div>
             </div>
         </div>
     </nav>
     
     <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div class="bg-yellow-500/20 dark:bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6">
             <div class="flex">
-                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300">
                         These settings are configured via environment variables. To change them, update your deployment configuration and redeploy.
                     </p>
                 </div>
@@ -34,31 +34,31 @@
         </div>
         
         <!-- Registration Settings -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Registration</h2>
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Registration</h2>
             
             <dl class="space-y-4">
                 <div class="flex justify-between">
-                    <dt class="text-sm font-medium text-gray-500">Registration Mode</dt>
-                    <dd class="text-sm text-gray-900">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Registration Mode</dt>
+                    <dd class="text-sm text-gray-900 dark:text-gray-200">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                            {% if settings.registration_mode == 'open' %}bg-green-100 text-green-800
-                            {% elif settings.registration_mode == 'invite_only' %}bg-yellow-100 text-yellow-800
-                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {% if settings.registration_mode == 'open' %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
+                            {% elif settings.registration_mode == 'invite_only' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400
+                            {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
                             {{ settings.registration_mode | capitalize }}
                         </span>
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500 mb-1">Platform Admin Emails</dt>
-                    <dd class="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Platform Admin Emails</dt>
+                    <dd class="text-sm text-gray-900 dark:text-gray-200 font-mono bg-gray-50 dark:bg-slate-700 p-2 rounded">
                         {{ settings.platform_admin_emails or '(none configured)' }}
                     </dd>
                 </div>
             </dl>
             
-            <div class="mt-4 pt-4 border-t">
-                <p class="text-xs text-gray-500">
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
                     <strong>Environment variables:</strong><br>
                     <code class="text-xs">REGISTRATION_MODE=open|invite_only|closed</code><br>
                     <code class="text-xs">PLATFORM_ADMIN_EMAILS=email1@example.com,email2@example.com</code>
@@ -67,50 +67,58 @@
         </div>
         
         <!-- Branding -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Branding</h2>
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Branding</h2>
+                <a href="/admin/config/branding" 
+                   class="inline-flex items-center px-3 py-1.5 border border-blue-500 text-sm font-medium rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Edit Theme
+                </a>
+            </div>
             
             <dl class="space-y-4">
                 <div class="flex justify-between">
-                    <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
-                    <dd class="text-sm text-gray-900">{{ settings.brand_name }}</dd>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Brand Name</dt>
+                    <dd class="text-sm text-gray-900 dark:text-gray-200">{{ settings.brand_name }}</dd>
                 </div>
                 <div class="flex justify-between">
-                    <dt class="text-sm font-medium text-gray-500">Company</dt>
-                    <dd class="text-sm text-gray-900">{{ settings.brand_company }}</dd>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Company</dt>
+                    <dd class="text-sm text-gray-900 dark:text-gray-200">{{ settings.brand_company }}</dd>
                 </div>
             </dl>
             
-            <div class="mt-4 pt-4 border-t">
-                <p class="text-xs text-gray-500">
-                    <strong>Environment variables:</strong><br>
-                    <code class="text-xs">BRAND_NAME, BRAND_COMPANY, BRAND_LOGO_URL, BRAND_PRIMARY_COLOR</code>
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <strong>Tip:</strong> Use the <a href="/admin/config/branding" class="text-blue-500 hover:underline">Branding & Theme</a> page to customize colors and branding without redeploying.
                 </p>
             </div>
         </div>
         
         <!-- OAuth Providers -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Authentication Providers</h2>
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Authentication Providers</h2>
             
             <dl class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <dt class="text-sm font-medium text-gray-500">Buildly Labs OAuth</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Buildly Labs OAuth</dt>
                     <dd>
                         {% if settings.buildly_oauth_enabled %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">Enabled</span>
                         {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Disabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400">Disabled</span>
                         {% endif %}
                     </dd>
                 </div>
                 <div class="flex justify-between items-center">
-                    <dt class="text-sm font-medium text-gray-500">Google OAuth</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Google OAuth</dt>
                     <dd>
                         {% if settings.google_oauth_enabled %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">Enabled</span>
                         {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Disabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400">Disabled</span>
                         {% endif %}
                     </dd>
                 </div>
@@ -118,17 +126,17 @@
         </div>
         
         <!-- Features -->
-        <div class="bg-white shadow rounded-lg p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Features</h2>
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Features</h2>
             
             <dl class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <dt class="text-sm font-medium text-gray-500">Push Notifications (VAPID)</dt>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Push Notifications (VAPID)</dt>
                     <dd>
                         {% if settings.push_enabled %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">Enabled</span>
                         {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Disabled</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-400">Disabled</span>
                         {% endif %}
                     </dd>
                 </div>

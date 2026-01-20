@@ -335,5 +335,14 @@
     });
     {% endif %}
 </script>
+
+<!-- Thread Panel -->
+{% include "partials/thread_panel.html" %}
+
+<!-- Store workspace and channel IDs for JS -->
+<script>
+    window.workspaceId = {{ workspace.id }};
+    window.channelId = {{ channel.id }};
+</script>
 {% endblock %}
 {% endblock %}

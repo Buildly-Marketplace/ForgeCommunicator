@@ -124,6 +124,7 @@ async def init_db() -> None:
                     message,
                     product,
                     push_subscription,
+                    site_config,
                     user,
                     workspace,
                 )
@@ -148,6 +149,18 @@ async def init_db() -> None:
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_refresh_token TEXT",
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_token_expires_at TIMESTAMP WITH TIME ZONE",
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_connected_by_id INTEGER",
+                    # Site config table (added 2026-01-20)
+                    """CREATE TABLE IF NOT EXISTS site_configs (
+                        id SERIAL PRIMARY KEY,
+                        key VARCHAR(100) UNIQUE NOT NULL,
+                        value TEXT,
+                        json_value JSONB,
+                        description TEXT,
+                        updated_by INTEGER,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_site_configs_key ON site_configs(key)",
                 ]
                 
                 for migration in migrations:

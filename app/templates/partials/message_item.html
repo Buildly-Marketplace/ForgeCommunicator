@@ -1,5 +1,5 @@
 <!-- Message Item Partial -->
-<div id="message-{{ message.id }}" class="message-item group flex space-x-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 -mx-2">
+<div id="message-{{ message.id }}" class="message-item group flex space-x-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 -mx-2" data-message-id="{{ message.id }}">
     <!-- Avatar -->
     <div class="flex-shrink-0">
         <a href="/profile/user/{{ message.user.id }}" class="block">
@@ -23,12 +23,34 @@
             {% endif %}
         </div>
         
-        <div class="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{{ message.body }}</div>
+        <div class="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words message-body">{{ message.body | md }}</div>
+        
+        <!-- Thread indicator / Reply button -->
+        {% if not is_thread_reply %}
+        <div class="mt-2 flex items-center space-x-3">
+            {% if message.thread_reply_count > 0 %}
+            <button onclick="openThread({{ message.id }})"
+                    class="inline-flex items-center text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                {{ message.thread_reply_count }} {{ 'reply' if message.thread_reply_count == 1 else 'replies' }}
+            </button>
+            {% endif %}
+            <button onclick="openThread({{ message.id }})"
+                    class="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                </svg>
+                Reply in thread
+            </button>
+        </div>
+        {% endif %}
     </div>
     
     <!-- Actions -->
     {% if message.user_id == user.id %}
-    <div class="message-actions flex-shrink-0 flex items-start space-x-1">
+    <div class="message-actions flex-shrink-0 flex items-start space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onclick="startEditMessage({{ message.id }})"
                 class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
                 title="Edit">

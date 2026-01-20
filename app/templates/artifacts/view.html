@@ -84,7 +84,7 @@
             <div class="px-6 py-5">
                 {% if artifact.body %}
                 <div class="prose max-w-none">
-                    <p class="whitespace-pre-wrap">{{ artifact.body }}</p>
+                    {{ artifact.body | md }}
                 </div>
                 {% else %}
                 <p class="text-gray-500 italic">No description provided.</p>

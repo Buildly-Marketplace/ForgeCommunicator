@@ -266,10 +266,14 @@ async def channel_view(
     )
     products = result.scalars().all()
     
-    # Get recent messages
+    # Get recent messages (exclude thread replies)
     result = await db.execute(
         select(Message)
-        .where(Message.channel_id == channel_id, Message.deleted_at == None)
+        .where(
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+            Message.parent_id == None,  # Only top-level messages
+        )
         .options(selectinload(Message.user))
         .order_by(Message.created_at.desc())
         .limit(50)

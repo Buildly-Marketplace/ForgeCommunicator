@@ -73,13 +73,17 @@ async def get_messages(
     after: int | None = Query(default=None),
     limit: int = Query(default=50, le=100),
 ):
-    """Get messages for channel (supports polling)."""
+    """Get messages for channel (supports polling). Excludes thread replies."""
     channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
     
-    # Build query
+    # Build query - exclude thread replies (parent_id is null for top-level messages)
     query = (
         select(Message)
-        .where(Message.channel_id == channel_id, Message.deleted_at == None)
+        .where(
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+            Message.parent_id == None,  # Only top-level messages
+        )
         .options(selectinload(Message.user))
     )
     
@@ -129,8 +133,9 @@ async def send_message(
     user: CurrentUser,
     db: DBSession,
     body: Annotated[str, Form()],
+    parent_id: int | None = Query(default=None),
 ):
-    """Send a message to channel."""
+    """Send a message to channel. If parent_id is provided, this is a thread reply."""
     channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
     
     body = body.strip()
@@ -230,13 +235,24 @@ async def send_message(
                     '<div class="text-green-500 text-sm p-2">Topic updated</div>'
                 )
     
-    # Regular message
+    # Regular message (or thread reply)
     message = Message(
         channel_id=channel_id,
         user_id=user.id,
         body=body,
+        parent_id=parent_id,
     )
     db.add(message)
+    
+    # Update parent's reply count if this is a thread reply
+    if parent_id:
+        result = await db.execute(
+            select(Message).where(Message.id == parent_id)
+        )
+        parent_message = result.scalar_one_or_none()
+        if parent_message:
+            parent_message.thread_reply_count = (parent_message.thread_reply_count or 0) + 1
+    
     await db.commit()
     await db.refresh(message)
     
@@ -310,6 +326,18 @@ async def send_message(
         logging.getLogger(__name__).error(f"Push notification error: {e}")
     
     if request.headers.get("HX-Request"):
+        # Different template for thread replies vs main messages
+        if parent_id:
+            return templates.TemplateResponse(
+                "partials/thread_reply_item.html",
+                {
+                    "request": request,
+                    "reply": message,
+                    "user": user,
+                    "workspace_id": workspace_id,
+                    "channel_id": channel_id,
+                },
+            )
         return templates.TemplateResponse(
             "partials/message_item.html",
             {
@@ -413,6 +441,15 @@ async def delete_message(
     if message.user_id != user.id and membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete this message")
     
+    # Decrement parent's reply count if this is a thread reply
+    if message.parent_id:
+        result = await db.execute(
+            select(Message).where(Message.id == message.parent_id)
+        )
+        parent = result.scalar_one_or_none()
+        if parent and parent.thread_reply_count > 0:
+            parent.thread_reply_count -= 1
+    
     # Soft delete
     message.soft_delete()
     await db.commit()
@@ -420,6 +457,104 @@ async def delete_message(
     if request.headers.get("HX-Request"):
         return HTMLResponse("")
     
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/channels/{channel_id}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.get("/{message_id}/thread", response_class=HTMLResponse)
+async def get_thread(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    message_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Get thread content for a message."""
+    await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Get parent message
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.id == message_id,
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+        )
+        .options(selectinload(Message.user))
+    )
+    parent_message = result.scalar_one_or_none()
+    
+    if not parent_message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    
+    # Get replies
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.parent_id == message_id,
+            Message.deleted_at == None,
+        )
+        .options(selectinload(Message.user))
+        .order_by(Message.created_at.asc())
+    )
+    replies = result.scalars().all()
+    
+    return templates.TemplateResponse(
+        "partials/thread_content.html",
+        {
+            "request": request,
+            "parent_message": parent_message,
+            "replies": replies,
+            "user": user,
+            "workspace_id": workspace_id,
+            "channel_id": channel_id,
+        },
+    )
+
+
+@router.get("/{message_id}", response_class=HTMLResponse)
+async def get_single_message(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    message_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    partial: bool = Query(default=False),
+):
+    """Get a single message (for refreshing after thread update)."""
+    await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.id == message_id,
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+        )
+        .options(selectinload(Message.user))
+    )
+    message = result.scalar_one_or_none()
+    
+    if not message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    
+    if partial or request.headers.get("HX-Request"):
+        return templates.TemplateResponse(
+            "partials/message_item.html",
+            {
+                "request": request,
+                "message": message,
+                "user": user,
+                "workspace_id": workspace_id,
+                "channel_id": channel_id,
+            },
+        )
+    
+    # Full page redirect to channel
     return RedirectResponse(
         url=f"/workspaces/{workspace_id}/channels/{channel_id}",
         status_code=status.HTTP_302_FOUND,

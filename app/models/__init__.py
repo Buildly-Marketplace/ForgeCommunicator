@@ -7,6 +7,7 @@ from app.models.message import Message
 from app.models.artifact import Artifact, ArtifactType, ArtifactStatus
 from app.models.product import Product
 from app.models.push_subscription import PushSubscription
+from app.models.site_config import SiteConfig, ConfigKeys, THEME_PRESETS
 
 __all__ = [
     "User",
@@ -23,4 +24,8 @@ __all__ = [
     "ArtifactStatus",
     "Product",
     "PushSubscription",
+    "SiteConfig",
+    "ConfigKeys",
+    "THEME_PRESETS",
 ]
+

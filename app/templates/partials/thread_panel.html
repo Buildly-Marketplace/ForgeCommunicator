@@ -1,0 +1,77 @@
+<!-- Thread Panel Partial -->
+<div id="thread-panel" class="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col border-l dark:border-gray-700">
+    <!-- Header -->
+    <div class="flex-shrink-0 px-4 py-3 border-b dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-900">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Thread</h3>
+        <button onclick="closeThread()" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    
+    <!-- Thread content container -->
+    <div id="thread-content" class="flex-1 flex flex-col overflow-hidden">
+        <!-- Will be populated via HTMX -->
+    </div>
+</div>
+
+<!-- Thread Panel Scripts -->
+<script>
+let currentThreadId = null;
+
+function openThread(messageId) {
+    currentThreadId = messageId;
+    const panel = document.getElementById('thread-panel');
+    const content = document.getElementById('thread-content');
+    
+    // Show panel
+    panel.classList.remove('translate-x-full');
+    
+    // Load thread content
+    htmx.ajax('GET', `/workspaces/${window.workspaceId}/channels/${window.channelId}/messages/${messageId}/thread`, {
+        target: '#thread-content',
+        swap: 'innerHTML'
+    });
+}
+
+function closeThread() {
+    currentThreadId = null;
+    const panel = document.getElementById('thread-panel');
+    panel.classList.add('translate-x-full');
+}
+
+// Close thread on escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && currentThreadId) {
+        closeThread();
+    }
+});
+
+// Handle thread reply form submission
+document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'thread-replies') {
+        // Clear the input
+        const input = document.querySelector('#thread-reply-form textarea');
+        if (input) {
+            input.value = '';
+        }
+        // Scroll to bottom
+        const repliesContainer = document.getElementById('thread-replies');
+        if (repliesContainer) {
+            repliesContainer.scrollTop = repliesContainer.scrollHeight;
+        }
+        // Update reply count in main message
+        if (currentThreadId) {
+            const mainMessage = document.getElementById(`message-${currentThreadId}`);
+            if (mainMessage) {
+                // Refresh to update count
+                htmx.ajax('GET', `/workspaces/${window.workspaceId}/channels/${window.channelId}/messages/${currentThreadId}?partial=true`, {
+                    target: `#message-${currentThreadId}`,
+                    swap: 'outerHTML'
+                });
+            }
+        }
+    }
+});
+</script>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,10 +16,19 @@
                             secondary: '{{ brand.secondary_color }}',
                             accent: '{{ brand.accent_color }}',
                         },
-                        // Legacy forge colors for backwards compatibility
+                        // Futuristic theme colors
                         forge: {
                             navy: '{{ brand.secondary_color }}',
-                            orange: '{{ brand.accent_color }}',
+                            blue: '{{ brand.primary_color }}',
+                            purple: '{{ brand.accent_color }}',
+                        },
+                        // Dark theme backgrounds
+                        dark: {
+                            900: '#0a1628',
+                            800: '#0f172a',
+                            700: '#1a2744',
+                            600: '#1e293b',
+                            500: '#334155',
                         }
                     }
                 }
@@ -30,6 +39,12 @@
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/ws.js"></script>
     <link rel="icon" type="image/svg+xml" href="{{ brand.favicon_url }}">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
         :root {
             --brand-primary: {{ brand.primary_color }};
             --brand-secondary: {{ brand.secondary_color }};
@@ -39,36 +54,58 @@
         .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
         .htmx-request .htmx-indicator { opacity: 1; }
         .htmx-request.htmx-indicator { opacity: 1; }
-        /* Custom scrollbar */
+        
+        /* Custom scrollbar - dark theme */
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
-        .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
-        .dark .scrollbar-thin::-webkit-scrollbar-track { background: #374151; }
-        .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #6b7280; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
         /* Message hover actions */
         .message-item:hover .message-actions { opacity: 1; }
         .message-actions { opacity: 0; transition: opacity 150ms; }
+        
         /* Mention dropdown */
         .mention-dropdown { max-height: 200px; overflow-y: auto; }
+        
         /* Brand-colored elements */
         .bg-brand-primary { background-color: var(--brand-primary); }
         .text-brand-primary { color: var(--brand-primary); }
         .border-brand-primary { border-color: var(--brand-primary); }
         .hover\\:bg-brand-primary:hover { background-color: var(--brand-primary); }
-    </style>
+        
+        /* Futuristic glow effects */
+        .glow-text { text-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+        .glow-border { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        
+        /* Glass morphism effect */
+        .glass {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Smooth transitions for theme */
+        .theme-transition {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
     </style>
     {% block head %}{% endblock %}
     <script>
-        // Initialize theme from localStorage before render
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        // Initialize theme from localStorage or default to dark
+        (function() {
+            const prefersDark = {{ 'true' if brand.dark_mode_default else 'false' }};
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else if (localStorage.theme === 'dark' || prefersDark) {
+                document.documentElement.classList.add('dark');
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
     </script>
 </head>
-<body class="h-full bg-gray-50 dark:bg-gray-900 transition-colors" hx-boost="true">
+<body class="h-full bg-slate-100 dark:bg-slate-900 text-gray-900 dark:text-gray-100 theme-transition" hx-boost="true">
     {% block body %}
     <div class="min-h-full">
         {% block content %}{% endblock %}

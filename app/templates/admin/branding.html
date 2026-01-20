@@ -1,0 +1,284 @@
+{% extends "layout.html" %}
+
+{% block title %}Branding & Theme - Admin - {{ brand.full_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-100 dark:bg-slate-900">
+    <!-- Header -->
+    <nav class="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/admin" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <span class="text-xl font-bold text-gray-900 dark:text-white">Branding & Theme</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/workspaces" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">← Back to App</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        
+        <!-- Success Message -->
+        <div id="success-message" class="hidden mb-6 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-3 rounded-lg">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Settings saved successfully!</span>
+            </div>
+        </div>
+        
+        <!-- Theme Presets -->
+        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Theme Presets</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Quick select a pre-defined theme</p>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% for preset_id, preset in theme_presets.items() %}
+                <button onclick="applyPreset('{{ preset_id }}')"
+                        class="p-4 rounded-lg border-2 transition-all hover:scale-105 
+                               {% if current_preset == preset_id %}border-blue-500 ring-2 ring-blue-500/50{% else %}border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500{% endif %}"
+                        style="background: linear-gradient(135deg, {{ preset.secondary_color }} 0%, {{ preset.primary_color }}40 100%);">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-4 h-4 rounded-full" style="background: {{ preset.primary_color }};"></div>
+                        <div class="w-4 h-4 rounded-full" style="background: {{ preset.accent_color }};"></div>
+                    </div>
+                    <p class="text-sm font-medium text-white">{{ preset_id | capitalize }}</p>
+                    <p class="text-xs text-gray-300 mt-1">{{ preset.description[:30] }}...</p>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Branding Form -->
+        <form hx-post="/admin/config/branding" 
+              hx-target="#success-message"
+              hx-swap="outerHTML"
+              class="space-y-6">
+            
+            <!-- Brand Identity -->
+            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Brand Identity</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="brand_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Brand Name
+                        </label>
+                        <input type="text" id="brand_name" name="brand_name" 
+                               value="{{ config.brand_name or brand.name }}"
+                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Communicator">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Display name in the UI</p>
+                    </div>
+                    
+                    <div>
+                        <label for="brand_company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Company Name
+                        </label>
+                        <input type="text" id="brand_company" name="brand_company" 
+                               value="{{ config.brand_company or brand.company }}"
+                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Buildly">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Company name for footer/copyright</p>
+                    </div>
+                    
+                    <div>
+                        <label for="brand_logo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Logo URL
+                        </label>
+                        <input type="url" id="brand_logo_url" name="brand_logo_url" 
+                               value="{{ config.brand_logo_url or '' }}"
+                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="https://example.com/logo.png">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave empty for default logo</p>
+                    </div>
+                    
+                    <div>
+                        <label for="brand_support_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Support Email
+                        </label>
+                        <input type="email" id="brand_support_email" name="brand_support_email" 
+                               value="{{ config.brand_support_email or brand.support_email }}"
+                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="support@example.com">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Theme Colors -->
+            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Theme Colors</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="theme_primary_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Primary Color
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="theme_primary_color_picker" 
+                                   value="{{ config.theme_primary_color or brand.primary_color }}"
+                                   onchange="document.getElementById('theme_primary_color').value = this.value"
+                                   class="w-12 h-10 rounded cursor-pointer border-0">
+                            <input type="text" id="theme_primary_color" name="theme_primary_color" 
+                                   value="{{ config.theme_primary_color or brand.primary_color }}"
+                                   onchange="document.getElementById('theme_primary_color_picker').value = this.value"
+                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   placeholder="#3b82f6">
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Buttons, links, accents</p>
+                    </div>
+                    
+                    <div>
+                        <label for="theme_secondary_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Secondary Color
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="theme_secondary_color_picker" 
+                                   value="{{ config.theme_secondary_color or brand.secondary_color }}"
+                                   onchange="document.getElementById('theme_secondary_color').value = this.value"
+                                   class="w-12 h-10 rounded cursor-pointer border-0">
+                            <input type="text" id="theme_secondary_color" name="theme_secondary_color" 
+                                   value="{{ config.theme_secondary_color or brand.secondary_color }}"
+                                   onchange="document.getElementById('theme_secondary_color_picker').value = this.value"
+                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   placeholder="#0f172a">
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Headers, sidebar, nav</p>
+                    </div>
+                    
+                    <div>
+                        <label for="theme_accent_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Accent Color
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="theme_accent_color_picker" 
+                                   value="{{ config.theme_accent_color or brand.accent_color }}"
+                                   onchange="document.getElementById('theme_accent_color').value = this.value"
+                                   class="w-12 h-10 rounded cursor-pointer border-0">
+                            <input type="text" id="theme_accent_color" name="theme_accent_color" 
+                                   value="{{ config.theme_accent_color or brand.accent_color }}"
+                                   onchange="document.getElementById('theme_accent_color_picker').value = this.value"
+                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   placeholder="#a855f7">
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Highlights, notifications</p>
+                    </div>
+                </div>
+                
+                <!-- Color Preview -->
+                <div class="mt-6 p-4 rounded-lg" id="color-preview"
+                     style="background: linear-gradient(135deg, var(--preview-secondary, {{ config.theme_secondary_color or brand.secondary_color }}) 0%, var(--preview-primary, {{ config.theme_primary_color or brand.primary_color }})40 100%);">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center" 
+                             style="background: var(--preview-primary, {{ config.theme_primary_color or brand.primary_color }});">
+                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-white font-medium">Preview</p>
+                            <p class="text-gray-300 text-sm">This is how your theme will look</p>
+                        </div>
+                        <div class="ml-auto">
+                            <span class="px-3 py-1 rounded-full text-sm font-medium text-white"
+                                  style="background: var(--preview-accent, {{ config.theme_accent_color or brand.accent_color }});">
+                                Accent
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dark Mode Settings -->
+            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Default Theme Mode</h2>
+                
+                <div class="flex items-center gap-4">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="theme_dark_mode_default" value="true" 
+                               {% if config.theme_dark_mode_default != 'false' %}checked{% endif %}
+                               class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Dark mode by default</span>
+                    </label>
+                </div>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    When enabled, new users will see dark mode by default. Users can still toggle their preference.
+                </p>
+            </div>
+            
+            <!-- Save Button -->
+            <div class="flex justify-end gap-4">
+                <button type="button" onclick="location.reload()"
+                        class="px-6 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                    Reset
+                </button>
+                <button type="submit"
+                        class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                    <svg class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Save Configuration
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Theme presets
+    const presets = {{ theme_presets | tojson | safe }};
+    
+    function applyPreset(presetId) {
+        const preset = presets[presetId];
+        if (!preset) return;
+        
+        // Update color inputs
+        document.getElementById('theme_primary_color').value = preset.primary_color;
+        document.getElementById('theme_primary_color_picker').value = preset.primary_color;
+        document.getElementById('theme_secondary_color').value = preset.secondary_color;
+        document.getElementById('theme_secondary_color_picker').value = preset.secondary_color;
+        document.getElementById('theme_accent_color').value = preset.accent_color;
+        document.getElementById('theme_accent_color_picker').value = preset.accent_color;
+        
+        // Update dark mode checkbox
+        const darkCheckbox = document.querySelector('input[name="theme_dark_mode_default"]');
+        darkCheckbox.checked = preset.dark_mode_default;
+        
+        // Update preview
+        updateColorPreview();
+    }
+    
+    function updateColorPreview() {
+        const preview = document.getElementById('color-preview');
+        const primary = document.getElementById('theme_primary_color').value;
+        const secondary = document.getElementById('theme_secondary_color').value;
+        const accent = document.getElementById('theme_accent_color').value;
+        
+        preview.style.setProperty('--preview-primary', primary);
+        preview.style.setProperty('--preview-secondary', secondary);
+        preview.style.setProperty('--preview-accent', accent);
+        preview.style.background = `linear-gradient(135deg, ${secondary} 0%, ${primary}40 100%)`;
+        
+        // Update accent button
+        preview.querySelector('span').style.background = accent;
+        // Update primary button
+        preview.querySelector('div > div').style.background = primary;
+    }
+    
+    // Add change listeners to color inputs
+    document.querySelectorAll('input[type="color"], input[name*="color"]').forEach(input => {
+        input.addEventListener('input', updateColorPreview);
+        input.addEventListener('change', updateColorPreview);
+    });
+</script>
+{% endblock %}
