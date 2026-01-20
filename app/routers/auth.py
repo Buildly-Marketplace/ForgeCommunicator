@@ -467,8 +467,10 @@ async def google_link_start(
             detail="Google integration is not enabled",
         )
     
-    # Create Google provider with calendar scopes and link-specific redirect
-    base_url = str(request.base_url).rstrip("/")
+    # Build redirect URI respecting X-Forwarded-Proto for load balancers
+    proto = request.headers.get("X-Forwarded-Proto", "https" if not settings.debug else "http")
+    host = request.headers.get("X-Forwarded-Host", request.url.netloc)
+    base_url = f"{proto}://{host}"
     link_redirect = f"{base_url}/auth/google/link/callback"
     google_provider = GoogleOAuthProvider(include_calendar=True, redirect_uri_override=link_redirect)
     
@@ -517,13 +519,15 @@ async def google_link_callback(
     stored_state = request.cookies.get("google_link_state")
     if not stored_state or stored_state != state:
         return RedirectResponse(
-            url="/profile/settings?error=Invalid+state",
+            url="/profile?error=Invalid+state",
             status_code=status.HTTP_302_FOUND,
         )
     
     try:
-        # Create provider with same redirect URI used in the auth request
-        base_url = str(request.base_url).rstrip("/")
+        # Build redirect URI respecting X-Forwarded-Proto for load balancers
+        proto = request.headers.get("X-Forwarded-Proto", "https" if not settings.debug else "http")
+        host = request.headers.get("X-Forwarded-Host", request.url.netloc)
+        base_url = f"{proto}://{host}"
         link_redirect = f"{base_url}/auth/google/link/callback"
         google_provider = GoogleOAuthProvider(include_calendar=True, redirect_uri_override=link_redirect)
         
@@ -554,7 +558,7 @@ async def google_link_callback(
         await db.commit()
         
         response = RedirectResponse(
-            url="/profile/settings?success=Google+account+linked",
+            url="/profile?success=Google+account+linked",
             status_code=status.HTTP_302_FOUND,
         )
         response.delete_cookie("google_link_state")
@@ -562,7 +566,7 @@ async def google_link_callback(
         
     except Exception as e:
         return RedirectResponse(
-            url="/profile/settings?error=Google+linking+failed",
+            url="/profile?error=Google+linking+failed",
             status_code=status.HTTP_302_FOUND,
         )
 
@@ -584,7 +588,7 @@ async def google_unlink(
         )
     
     return RedirectResponse(
-        url="/profile/settings?success=Google+account+unlinked",
+        url="/profile?success=Google+account+unlinked",
         status_code=status.HTTP_302_FOUND,
     )
 
