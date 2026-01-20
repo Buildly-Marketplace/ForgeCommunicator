@@ -1,33 +1,34 @@
 {% extends "layout.html" %}
 
-{% block title %}Settings - {{ workspace.name }} - Forge Communicator{% endblock %}
+{% block title %}Settings - {{ workspace.name }} - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow-sm">
+<div class="min-h-screen">
+    <!-- Header -->
+    <nav class="glass-dark border-b border-white/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="/workspaces" class="text-gray-400 hover:text-gray-600">
+                    <a href="/workspaces" class="text-gray-400 hover:text-blue-400 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </a>
-                    <span class="text-xl font-bold text-gray-900">{{ workspace.name }}</span>
+                    <span class="text-xl font-bold text-white glow-text">{{ workspace.name }}</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/workspaces/{{ workspace.id }}" class="text-sm text-indigo-600 hover:text-indigo-500">Back to workspace</a>
+                    <a href="/workspaces/{{ workspace.id }}" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">Back to workspace</a>
                 </div>
             </div>
         </div>
     </nav>
     
     <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-8">Workspace Settings</h1>
+        <h1 class="text-2xl font-bold text-white mb-8 glow-text">Workspace Settings</h1>
         
         <!-- Workspace Details Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Workspace Details</h2>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Workspace Details</h2>
             
             {% if membership.role in ['owner'] %}
             <form hx-put="/workspaces/{{ workspace.id }}"
@@ -35,28 +36,28 @@
                   hx-swap="innerHTML"
                   class="space-y-4">
                 <div>
-                    <label for="workspace-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <label for="workspace-name" class="block text-sm font-medium text-gray-300 mb-1">Name</label>
                     <input type="text" name="name" id="workspace-name" value="{{ workspace.name }}" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                           class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
-                    <label for="workspace-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <label for="workspace-description" class="block text-sm font-medium text-gray-300 mb-1">Description</label>
                     <textarea name="description" id="workspace-description" rows="2"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">{{ workspace.description or '' }}</textarea>
+                              class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ workspace.description or '' }}</textarea>
                 </div>
                 <div id="workspace-update-result"></div>
                 <div class="flex justify-end">
                     <button type="submit"
-                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-500">
+                            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
                         Save Changes
                     </button>
                 </div>
             </form>
             {% else %}
             <div class="space-y-2">
-                <p class="text-sm"><span class="font-medium">Name:</span> {{ workspace.name }}</p>
+                <p class="text-sm text-gray-300"><span class="font-medium text-white">Name:</span> {{ workspace.name }}</p>
                 {% if workspace.description %}
-                <p class="text-sm"><span class="font-medium">Description:</span> {{ workspace.description }}</p>
+                <p class="text-sm text-gray-300"><span class="font-medium text-white">Description:</span> {{ workspace.description }}</p>
                 {% endif %}
                 <p class="text-xs text-gray-500 mt-2">Only the workspace owner can edit these settings.</p>
             </div>
@@ -64,17 +65,17 @@
         </div>
         
         <!-- Invite Code Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Invite Link</h2>
-            <p class="text-sm text-gray-500 mb-4">Share this invite code with others to let them join your workspace.</p>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Invite Link</h2>
+            <p class="text-sm text-gray-400 mb-4">Share this invite code with others to let them join your workspace.</p>
             
             <div class="flex items-center space-x-4">
-                <span id="invite-code" class="font-mono bg-gray-100 px-4 py-2 rounded text-lg">
+                <span id="invite-code" class="font-mono bg-dark-800/50 border border-white/20 px-4 py-2 rounded-lg text-lg text-blue-400">
                     {{ workspace.invite_code or 'No invite code' }}
                 </span>
                 
                 <button onclick="copyInviteUrl()" 
-                        class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500">
+                        class="inline-flex items-center text-sm text-blue-400 hover:text-blue-300 transition-colors">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                     </svg>
@@ -85,7 +86,7 @@
                 <button hx-post="/workspaces/{{ workspace.id }}/invite/regenerate"
                         hx-target="#invite-code"
                         hx-swap="outerHTML"
-                        class="text-sm text-indigo-600 hover:text-indigo-500">
+                        class="text-sm text-blue-400 hover:text-blue-300 transition-colors">
                     Regenerate
                 </button>
                 {% endif %}
@@ -115,50 +116,50 @@
         </script>
         
         <!-- Team Invites Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6" id="team-invites-section">
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10" id="team-invites-section">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-medium text-gray-900">Pending Invites</h2>
+                <h2 class="text-lg font-medium text-white">Pending Invites</h2>
                 {% if membership.role in ['owner', 'admin'] %}
                 <button onclick="document.getElementById('invite-modal').classList.remove('hidden')"
-                        class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-500">
+                        class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
                     + Invite Member
                 </button>
                 {% endif %}
             </div>
             
             {% if pending_invites %}
-            <ul class="divide-y divide-gray-200" id="invite-list">
+            <ul class="divide-y divide-white/10" id="invite-list">
                 {% for invite in pending_invites %}
                 <li class="py-3 flex items-center justify-between" id="invite-{{ invite.id }}">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-8 h-8 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">
+                            <p class="text-sm font-medium text-white">
                                 {{ invite.name or invite.email }}
                                 {% if invite.labs_user_uuid %}
-                                <span class="ml-1 text-xs text-indigo-600">(from Labs)</span>
+                                <span class="ml-1 text-xs text-blue-400">(from Labs)</span>
                                 {% endif %}
                             </p>
-                            <p class="text-sm text-gray-500">{{ invite.email }}</p>
+                            <p class="text-sm text-gray-400">{{ invite.email }}</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-3">
-                        <span class="text-xs text-gray-400">
+                        <span class="text-xs text-gray-500">
                             Expires {{ invite.expires_at.strftime('%b %d') }}
                         </span>
                         <button onclick="copyInviteLink('{{ invite.token }}')"
-                                class="text-xs text-indigo-600 hover:text-indigo-500">
+                                class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
                             Copy Link
                         </button>
                         {% if membership.role in ['owner', 'admin'] %}
                         <button hx-delete="/workspaces/{{ workspace.id }}/invites/{{ invite.id }}"
                                 hx-target="#invite-{{ invite.id }}"
                                 hx-swap="outerHTML"
-                                class="text-xs text-red-600 hover:text-red-500">
+                                class="text-xs text-red-400 hover:text-red-300 transition-colors">
                             Cancel
                         </button>
                         {% endif %}
@@ -181,60 +182,63 @@
         </script>
         
         <!-- Invite Modal -->
-        <div id="invite-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div class="mt-3">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Invite Team Member</h3>
-                    <form hx-post="/workspaces/{{ workspace.id }}/invites" 
-                          hx-target="#invite-list" 
-                          hx-swap="beforeend"
-                          hx-on::after-request="if(event.detail.successful) { document.getElementById('invite-modal').classList.add('hidden'); document.getElementById('invite-email').value=''; document.getElementById('invite-name').value=''; document.getElementById('no-invites')?.remove(); }">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input type="email" name="email" id="invite-email" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
-                            <input type="text" name="name" id="invite-name"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        </div>
-                        <div class="flex justify-end space-x-3">
-                            <button type="button" 
-                                    onclick="document.getElementById('invite-modal').classList.add('hidden')"
-                                    class="px-4 py-2 text-sm text-gray-700 hover:text-gray-500">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                    class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-500">
-                                Send Invite
-                            </button>
-                        </div>
-                    </form>
+        <div id="invite-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex min-h-screen items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="document.getElementById('invite-modal').classList.add('hidden')"></div>
+                <div class="relative glass-dark rounded-xl shadow-2xl max-w-md w-full border border-white/20">
+                    <div class="p-6">
+                        <h3 class="text-lg font-medium text-white mb-4">Invite Team Member</h3>
+                        <form hx-post="/workspaces/{{ workspace.id }}/invites" 
+                              hx-target="#invite-list" 
+                              hx-swap="beforeend"
+                              hx-on::after-request="if(event.detail.successful) { document.getElementById('invite-modal').classList.add('hidden'); document.getElementById('invite-email').value=''; document.getElementById('invite-name').value=''; document.getElementById('no-invites')?.remove(); }">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                                <input type="email" name="email" id="invite-email" required
+                                       class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Name (optional)</label>
+                                <input type="text" name="name" id="invite-name"
+                                       class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="flex justify-end space-x-3">
+                                <button type="button" 
+                                        onclick="document.getElementById('invite-modal').classList.add('hidden')"
+                                        class="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
+                                    Send Invite
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- Members Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Members</h2>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Members</h2>
             
-            <ul class="divide-y divide-gray-200">
+            <ul class="divide-y divide-white/10">
                 {% for m in workspace.memberships %}
                 <li class="py-3 flex items-center justify-between">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span class="text-sm font-medium text-gray-600">{{ m.user.display_name[0] }}</span>
+                        <div class="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                            <span class="text-sm font-medium text-blue-400">{{ m.user.display_name[0] }}</span>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">{{ m.user.display_name }}</p>
-                            <p class="text-sm text-gray-500">{{ m.user.email }}</p>
+                            <p class="text-sm font-medium text-white">{{ m.user.display_name }}</p>
+                            <p class="text-sm text-gray-400">{{ m.user.email }}</p>
                         </div>
                     </div>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                 {% if m.role.value == 'owner' %}bg-purple-100 text-purple-800
-                                 {% elif m.role.value == 'admin' %}bg-blue-100 text-blue-800
-                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                 {% if m.role.value == 'owner' %}bg-purple-500/20 text-purple-400 border border-purple-500/30
+                                 {% elif m.role.value == 'admin' %}bg-blue-500/20 text-blue-400 border border-blue-500/30
+                                 {% else %}bg-gray-500/20 text-gray-400 border border-gray-500/30{% endif %}">
                         {{ m.role.value }}
                     </span>
                 </li>
@@ -243,20 +247,20 @@
         </div>
         
         <!-- Channels Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Channels</h2>
-            <p class="text-sm text-gray-500 mb-4">Manage channels in this workspace. Deleting a channel will remove all its messages.</p>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Channels</h2>
+            <p class="text-sm text-gray-400 mb-4">Manage channels in this workspace. Deleting a channel will remove all its messages.</p>
             
             {% if channels %}
-            <ul class="divide-y divide-gray-200" id="channel-list">
+            <ul class="divide-y divide-white/10" id="channel-list">
                 {% for channel in channels %}
                 <li class="py-3 flex items-center justify-between" id="channel-row-{{ channel.id }}">
                     <div class="flex items-center">
-                        <span class="text-gray-400 mr-2">#</span>
+                        <span class="text-blue-400 mr-2">#</span>
                         <div>
-                            <p class="text-sm font-medium text-gray-900">{{ channel.name }}</p>
+                            <p class="text-sm font-medium text-white">{{ channel.name }}</p>
                             {% if channel.product %}
-                            <p class="text-xs text-indigo-600">{{ channel.product.name }}</p>
+                            <p class="text-xs text-blue-400">{{ channel.product.name }}</p>
                             {% elif channel.description %}
                             <p class="text-xs text-gray-500">{{ channel.description[:50] }}{% if channel.description|length > 50 %}...{% endif %}</p>
                             {% endif %}
@@ -265,12 +269,12 @@
                     {% if membership.role in ['owner', 'admin'] %}
                     <div class="flex items-center space-x-2">
                         <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}" 
-                           class="text-xs text-indigo-600 hover:text-indigo-500">View</a>
+                           class="text-xs text-blue-400 hover:text-blue-300 transition-colors">View</a>
                         <button hx-delete="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}"
                                 hx-target="#channel-row-{{ channel.id }}"
                                 hx-swap="outerHTML"
                                 hx-confirm="Delete #{{ channel.name }}? This will permanently remove all messages in this channel."
-                                class="text-xs text-red-600 hover:text-red-500">
+                                class="text-xs text-red-400 hover:text-red-300 transition-colors">
                             Delete
                         </button>
                     </div>
@@ -284,18 +288,18 @@
         </div>
         
         <!-- Products Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h2 class="text-lg font-medium text-gray-900">Products</h2>
-                    <p class="text-sm text-gray-500">Synced products from Buildly Labs. Deleting a product also removes its channels and docs.</p>
+                    <h2 class="text-lg font-medium text-white">Products</h2>
+                    <p class="text-sm text-gray-400">Synced products from Buildly Labs. Deleting a product also removes its channels and docs.</p>
                 </div>
                 {% if membership.role in ['owner', 'admin'] and products %}
                 <button hx-delete="/workspaces/{{ workspace.id }}/products"
                         hx-target="#delete-all-result"
                         hx-swap="innerHTML"
                         hx-confirm="Delete ALL products? This will remove all synced products, their channels, and documents."
-                        class="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-500">
+                        class="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-500 transition-all">
                     Delete All Products
                 </button>
                 {% endif %}
@@ -303,15 +307,15 @@
             <div id="delete-all-result"></div>
             
             {% if products %}
-            <ul class="divide-y divide-gray-200" id="product-list">
+            <ul class="divide-y divide-white/10" id="product-list">
                 {% for product in products %}
                 <li class="py-3 flex items-center justify-between" id="product-row-{{ product.id }}">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 rounded bg-indigo-100 flex items-center justify-center">
-                            <span class="text-sm font-medium text-indigo-600">{{ product.name[0] | upper }}</span>
+                        <div class="w-8 h-8 rounded bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                            <span class="text-sm font-medium text-blue-400">{{ product.name[0] | upper }}</span>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">{{ product.name }}</p>
+                            <p class="text-sm font-medium text-white">{{ product.name }}</p>
                             {% if product.description %}
                             <p class="text-xs text-gray-500">{{ product.description[:60] }}{% if product.description|length > 60 %}...{% endif %}</p>
                             {% endif %}
@@ -322,7 +326,7 @@
                             hx-target="#product-row-{{ product.id }}"
                             hx-swap="outerHTML"
                             hx-confirm="Delete {{ product.name }}? This will also remove all associated channels and documents."
-                            class="text-xs text-red-600 hover:text-red-500">
+                            class="text-xs text-red-400 hover:text-red-300 transition-colors">
                         Delete
                     </button>
                     {% endif %}
@@ -335,22 +339,22 @@
         </div>
         
         <!-- Documents/Artifacts Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Documents</h2>
-            <p class="text-sm text-gray-500 mb-4">Synced documents and artifacts from Buildly Labs.</p>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Documents</h2>
+            <p class="text-sm text-gray-400 mb-4">Synced documents and artifacts from Buildly Labs.</p>
             
             {% if artifacts %}
-            <ul class="divide-y divide-gray-200" id="artifact-list">
+            <ul class="divide-y divide-white/10" id="artifact-list">
                 {% for artifact in artifacts %}
                 <li class="py-3 flex items-center justify-between" id="artifact-row-{{ artifact.id }}">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-8 h-8 rounded bg-gray-500/20 border border-gray-500/30 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">{{ artifact.title or 'Untitled' }}</p>
+                            <p class="text-sm font-medium text-white">{{ artifact.title or 'Untitled' }}</p>
                             <p class="text-xs text-gray-500">
                                 {% if artifact.product %}{{ artifact.product.name }} • {% endif %}
                                 {{ artifact.artifact_type.value if artifact.artifact_type else 'document' }}
@@ -362,7 +366,7 @@
                             hx-target="#artifact-row-{{ artifact.id }}"
                             hx-swap="outerHTML"
                             hx-confirm="Delete this document?"
-                            class="text-xs text-red-600 hover:text-red-500">
+                            class="text-xs text-red-400 hover:text-red-300 transition-colors">
                         Delete
                     </button>
                     {% endif %}
@@ -375,24 +379,24 @@
         </div>
         
         <!-- Integrations Section -->
-        <div class="bg-white shadow rounded-lg p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">Integrations</h2>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Integrations</h2>
             
             <div class="space-y-4">
                 <!-- Buildly Labs Integration -->
-                <div class="p-4 border rounded-lg">
+                <div class="p-4 border border-white/10 rounded-lg bg-dark-800/30">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center">
-                            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <span class="text-indigo-600 font-bold">B</span>
+                            <div class="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center justify-center">
+                                <span class="text-blue-400 font-bold">B</span>
                             </div>
                             <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-900">Buildly Labs</p>
-                                <p class="text-sm text-gray-500" id="buildly-status">
+                                <p class="text-sm font-medium text-white">Buildly Labs</p>
+                                <p class="text-sm text-gray-400" id="buildly-status">
                                     {% if workspace.labs_api_token or workspace.labs_access_token %}
-                                    <span class="text-green-600">✓ Connected</span>
+                                    <span class="text-green-400">✓ Connected</span>
                                     {% if workspace.buildly_org_uuid %}
-                                    <span class="text-gray-400 ml-1">(Org: {{ workspace.buildly_org_uuid[:8] }}...)</span>
+                                    <span class="text-gray-500 ml-1">(Org: {{ workspace.buildly_org_uuid[:8] }}...)</span>
                                     {% endif %}
                                     {% else %}
                                     Not connected
@@ -406,11 +410,11 @@
                                 hx-post="/sync/all?workspace_id={{ workspace.id }}"
                                 hx-target="#sync-result"
                                 hx-indicator="#sync-spinner"
-                                class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-500">
+                                class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
                                 Sync from Labs
                             </button>
                             <span id="sync-spinner" class="htmx-indicator">
-                                <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg class="animate-spin h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -424,40 +428,40 @@
                     {% if membership.role in ['owner', 'admin'] %}
                     <!-- Labs Configuration Form -->
                     {% if workspace.labs_api_token or workspace.labs_access_token %}
-                    <div class="border-t pt-4 mt-4">
+                    <div class="border-t border-white/10 pt-4 mt-4">
                         <div class="flex items-center justify-between">
-                            <p class="text-sm text-gray-500">Integration is active. Disconnect to reconfigure.</p>
+                            <p class="text-sm text-gray-400">Integration is active. Disconnect to reconfigure.</p>
                             <button hx-delete="/workspaces/{{ workspace.id }}/labs/disconnect"
                                     hx-target="#labs-config-result"
                                     hx-confirm="Disconnect Labs integration? You can reconnect later."
-                                    class="text-sm text-red-600 hover:text-red-500">
+                                    class="text-sm text-red-400 hover:text-red-300 transition-colors">
                                 Disconnect
                             </button>
                         </div>
                         <div id="labs-config-result" class="mt-2"></div>
                     </div>
                     {% else %}
-                    <div class="border-t pt-4 mt-4">
-                        <p class="text-sm text-gray-600 mb-3">Connect this workspace to a Buildly Labs organization:</p>
+                    <div class="border-t border-white/10 pt-4 mt-4">
+                        <p class="text-sm text-gray-300 mb-3">Connect this workspace to a Buildly Labs organization:</p>
                         <form hx-post="/workspaces/{{ workspace.id }}/labs/api-token"
                               hx-target="#labs-config-result"
                               hx-swap="innerHTML"
                               class="space-y-3">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Labs API Token</label>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Labs API Token</label>
                                 <input type="password" name="api_token" required
                                        placeholder="Enter your Buildly Labs API token"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                <p class="text-xs text-gray-400 mt-1">Get your API token from <a href="https://labs.buildly.io/settings/tokens" target="_blank" class="text-indigo-600 hover:text-indigo-500">Labs Settings → API Tokens</a></p>
+                                       class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">Get your API token from <a href="https://labs.buildly.io/settings/tokens" target="_blank" class="text-blue-400 hover:text-blue-300">Labs Settings → API Tokens</a></p>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Organization UUID (optional)</label>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Organization UUID (optional)</label>
                                 <input type="text" name="org_uuid"
                                        placeholder="e.g., 550e8400-e29b-41d4-a716-446655440000"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                       class="w-full px-3 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             </div>
                             <div class="flex justify-end">
-                                <button type="submit" class="text-sm bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-500">
+                                <button type="submit" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
                                     Connect to Labs
                                 </button>
                             </div>
@@ -466,27 +470,27 @@
                     </div>
                     {% endif %}
                     {% else %}
-                    <div class="border-t pt-4 mt-4">
+                    <div class="border-t border-white/10 pt-4 mt-4">
                         <p class="text-xs text-gray-500">Only workspace admins can configure integrations.</p>
                     </div>
                     {% endif %}
                 </div>
                 
                 <!-- GitHub Integration -->
-                <div class="flex items-center justify-between p-4 border rounded-lg">
+                <div class="flex items-center justify-between p-4 border border-white/10 rounded-lg bg-dark-800/30">
                     <div class="flex items-center">
-                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <div class="w-10 h-10 bg-gray-500/20 border border-gray-500/30 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">GitHub</p>
+                            <p class="text-sm font-medium text-white">GitHub</p>
                             <p class="text-sm text-gray-500">Not connected</p>
                         </div>
                     </div>
-                    <button class="text-sm text-indigo-600 hover:text-indigo-500" disabled>
-                        Connect
+                    <button class="text-sm text-gray-500 cursor-not-allowed" disabled>
+                        Coming Soon
                     </button>
                 </div>
             </div>
@@ -494,15 +498,15 @@
         
         <!-- Danger Zone -->
         {% if membership.role in ['owner'] %}
-        <div class="bg-white shadow rounded-lg p-6 border-2 border-red-200">
-            <h2 class="text-lg font-medium text-red-600 mb-4">Danger Zone</h2>
+        <div class="glass-dark shadow-xl rounded-xl p-6 border-2 border-red-500/30">
+            <h2 class="text-lg font-medium text-red-400 mb-4">Danger Zone</h2>
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-900">Delete this workspace</p>
-                    <p class="text-sm text-gray-500">Once deleted, all channels, messages, products, and documents will be permanently removed.</p>
+                    <p class="text-sm font-medium text-white">Delete this workspace</p>
+                    <p class="text-sm text-gray-400">Once deleted, all channels, messages, products, and documents will be permanently removed.</p>
                 </div>
                 <button onclick="confirmDeleteWorkspace()"
-                        class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-500">
+                        class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-500 transition-all">
                     Delete Workspace
                 </button>
             </div>

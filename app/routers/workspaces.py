@@ -37,6 +37,8 @@ async def list_workspaces(
     db: DBSession,
 ):
     """List user's workspaces."""
+    from app.settings import settings
+    
     # Get workspaces user is a member of
     result = await db.execute(
         select(Workspace)
@@ -46,12 +48,16 @@ async def list_workspaces(
     )
     workspaces = result.scalars().all()
     
+    # Check if user is admin (either flagged or in admin emails)
+    is_admin = user.is_platform_admin or settings.is_admin_email(user.email)
+    
     return templates.TemplateResponse(
         "workspaces/list.html",
         {
             "request": request,
             "user": user,
             "workspaces": workspaces,
+            "is_admin": is_admin,
         },
     )
 
