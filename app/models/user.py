@@ -72,7 +72,7 @@ class User(Base, TimestampMixin):
     google_calendar_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # Last sync
     
     # Avatar
-    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # Google URLs can be very long
     
     # Session management
     session_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
