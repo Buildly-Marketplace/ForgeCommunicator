@@ -1,4 +1,5 @@
 # Models package
+from app.db import Base
 from app.models.user import User, AuthProvider, UserStatus
 from app.models.workspace import Workspace
 from app.models.channel import Channel
@@ -10,6 +11,7 @@ from app.models.push_subscription import PushSubscription
 from app.models.site_config import SiteConfig, ConfigKeys, THEME_PRESETS
 
 __all__ = [
+    "Base",
     "User",
     "AuthProvider", 
     "UserStatus",

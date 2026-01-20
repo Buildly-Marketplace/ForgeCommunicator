@@ -7,7 +7,7 @@ from sqlalchemy.engine import Connection
 from alembic import context
 
 from app.settings import settings
-from app.models import Base
+from app.db import Base
 
 config = context.config
 
