@@ -133,8 +133,28 @@
             
             <!-- Logo and Title -->
             <div class="mb-8">
-                <div class="flex items-center justify-center lg:justify-start gap-4 mb-4">
-                    <img src="{{ brand.logo_url }}" alt="{{ brand.company }}" class="h-16 w-16">
+                <!-- Large Logo with 3D effect -->
+                <div class="flex justify-center lg:justify-start mb-6">
+                    <div class="relative">
+                        <img src="{{ brand.logo_url }}" alt="{{ brand.company }}" 
+                             class="h-40 w-40 rounded-2xl shadow-2xl"
+                             style="box-shadow: 0 20px 60px rgba(59, 130, 246, 0.3), 0 8px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1); transform: perspective(500px) rotateX(5deg);">
+                        <!-- Subtle reflection/shine -->
+                        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none"></div>
+                    </div>
+                </div>
+                
+                <!-- Title with Communicator Badge -->
+                <div class="flex items-center justify-center lg:justify-start gap-3 mb-4">
+                    <!-- Communicator Badge Icon -->
+                    <div class="relative flex-shrink-0">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg"
+                             style="box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
+                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                    </div>
                     <h1 class="text-4xl lg:text-5xl font-bold text-white glow-text">
                         ForgeCommunicator
                     </h1>
