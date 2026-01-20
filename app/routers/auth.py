@@ -446,3 +446,179 @@ async def oauth_callback(
             url=f"/auth/login?error=OAuth+failed",
             status_code=status.HTTP_302_FOUND,
         )
+
+
+# Google Workspace account linking (for calendar integration)
+@router.get("/google/link")
+async def google_link_start(
+    request: Request,
+    user: CurrentUser,
+):
+    """
+    Start Google account linking flow.
+    This allows users to link their Google Workspace account for calendar integration
+    without changing their primary auth provider.
+    """
+    from app.services.auth_providers import GoogleOAuthProvider
+    
+    if not settings.google_oauth_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google integration is not enabled",
+        )
+    
+    # Create Google provider with calendar scopes and link-specific redirect
+    base_url = str(request.base_url).rstrip("/")
+    link_redirect = f"{base_url}/auth/google/link/callback"
+    google_provider = GoogleOAuthProvider(include_calendar=True, redirect_uri_override=link_redirect)
+    
+    # Generate state token
+    state = secrets.token_urlsafe(32)
+    
+    params = google_provider.get_authorization_params(state)
+    auth_url = f"{google_provider.authorization_url}?" + "&".join(
+        f"{k}={v}" for k, v in params.items()
+    )
+    
+    response = RedirectResponse(url=auth_url, status_code=status.HTTP_302_FOUND)
+    response.set_cookie(
+        key="google_link_state",
+        value=state,
+        httponly=True,
+        secure=not settings.debug,
+        samesite="lax",
+        max_age=600,  # 10 minutes
+    )
+    return response
+
+
+@router.get("/google/link/callback")
+async def google_link_callback(
+    request: Request,
+    db: DBSession,
+    user: CurrentUser,
+    code: str = Query(...),
+    state: str = Query(...),
+):
+    """
+    Handle Google account linking callback.
+    Links Google tokens to the current user for calendar access.
+    """
+    from datetime import timezone
+    from app.services.auth_providers import GoogleOAuthProvider
+    
+    if not settings.google_oauth_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google integration is not enabled",
+        )
+    
+    # Verify state
+    stored_state = request.cookies.get("google_link_state")
+    if not stored_state or stored_state != state:
+        return RedirectResponse(
+            url="/profile/settings?error=Invalid+state",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
+    try:
+        # Create provider with same redirect URI used in the auth request
+        base_url = str(request.base_url).rstrip("/")
+        link_redirect = f"{base_url}/auth/google/link/callback"
+        google_provider = GoogleOAuthProvider(include_calendar=True, redirect_uri_override=link_redirect)
+        
+        # Exchange code for tokens
+        tokens = await google_provider.exchange_code(code)
+        access_token = tokens["access_token"]
+        refresh_token = tokens.get("refresh_token")
+        expires_in = tokens.get("expires_in", 3600)
+        
+        # Get Google user info to verify identity
+        user_info = await google_provider.get_user_info(access_token)
+        
+        # Store tokens on user
+        user.set_google_tokens(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=expires_in,
+            google_sub=user_info.sub,
+        )
+        
+        # Immediately sync calendar status
+        try:
+            status_val, status_msg = await google_provider.get_current_status_from_calendar(access_token)
+            user.update_calendar_status(status_val, status_msg)
+        except Exception:
+            pass  # Calendar sync failure shouldn't block linking
+        
+        await db.commit()
+        
+        response = RedirectResponse(
+            url="/profile/settings?success=Google+account+linked",
+            status_code=status.HTTP_302_FOUND,
+        )
+        response.delete_cookie("google_link_state")
+        return response
+        
+    except Exception as e:
+        return RedirectResponse(
+            url="/profile/settings?error=Google+linking+failed",
+            status_code=status.HTTP_302_FOUND,
+        )
+
+
+@router.post("/google/unlink")
+async def google_unlink(
+    request: Request,
+    db: DBSession,
+    user: CurrentUser,
+):
+    """Unlink Google account from user."""
+    user.clear_google_tokens()
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            '<div class="text-green-400">Google account unlinked</div>',
+            headers={"HX-Trigger": "google-unlinked"},
+        )
+    
+    return RedirectResponse(
+        url="/profile/settings?success=Google+account+unlinked",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/google/sync-calendar")
+async def google_sync_calendar(
+    request: Request,
+    db: DBSession,
+    user: CurrentUser,
+):
+    """Manually sync calendar status from Google."""
+    from app.services.google_calendar import sync_user_calendar_status
+    
+    if not user.has_google_linked:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                '<div class="text-yellow-400">Google account not linked</div>',
+                status_code=400,
+            )
+        raise HTTPException(status_code=400, detail="Google account not linked")
+    
+    success = await sync_user_calendar_status(user, db)
+    
+    if request.headers.get("HX-Request"):
+        if success:
+            status_msg = user.google_calendar_message or user.effective_status_value
+            return HTMLResponse(
+                f'<div class="text-green-400">Calendar synced: {status_msg}</div>',
+                headers={"HX-Trigger": "calendar-synced"},
+            )
+        else:
+            return HTMLResponse(
+                '<div class="text-red-400">Failed to sync calendar</div>',
+                status_code=500,
+            )
+    
+    return {"status": "synced", "calendar_status": user.google_calendar_status}

@@ -53,8 +53,11 @@
                         <div class="ml-3">
                             <p class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">{{ user.display_name }}</p>
                             <p class="text-xs text-gray-400">
-                                {% if user.status.value == 'active' %}🟢{% elif user.status.value == 'away' %}🟡{% elif user.status.value == 'dnd' %}🔴{% else %}⚫{% endif %}
-                                {{ user.status.value|title }}
+                                {{ user.effective_status_emoji }}
+                                {{ user.effective_status_value|title }}
+                                {% if user.effective_status_message %}
+                                <span class="text-gray-500">- {{ user.effective_status_message }}</span>
+                                {% endif %}
                             </p>
                         </div>
                     </a>

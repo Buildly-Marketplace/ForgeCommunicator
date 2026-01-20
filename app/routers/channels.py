@@ -218,6 +218,16 @@ async def channel_view(
     """View a channel with messages."""
     workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
     
+    # Sync Google Calendar status if linked (async, don't block)
+    if user.has_google_linked:
+        try:
+            from app.services.google_calendar import sync_user_calendar_status
+            import asyncio
+            # Run in background - don't await
+            asyncio.create_task(sync_user_calendar_status(user, db))
+        except Exception:
+            pass  # Calendar sync failures shouldn't block channel view
+    
     # Get channel
     result = await db.execute(
         select(Channel)
