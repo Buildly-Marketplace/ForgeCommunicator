@@ -1,7 +1,7 @@
 """Extend avatar_url column to TEXT for long Google URLs
 
 Revision ID: 005_extend_avatar_url
-Revises: 004_add_google_calendar_integration
+Revises: 004_google_calendar
 Create Date: 2026-01-20
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '005_extend_avatar_url'
-down_revision: Union[str, None] = '004_add_google_calendar_integration'
+down_revision: Union[str, None] = '004_google_calendar'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
