@@ -116,6 +116,7 @@ from app.routers import admin, artifacts, auth, channels, invites, messages, pro
 app.include_router(auth.router)
 app.include_router(workspaces.router)
 app.include_router(channels.router)
+app.include_router(channels.dm_router)  # DM JSON API
 app.include_router(messages.router)
 app.include_router(artifacts.router)
 app.include_router(realtime.router)

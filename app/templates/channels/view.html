@@ -7,11 +7,20 @@
     <!-- Sidebar -->
     <div class="hidden md:flex md:flex-shrink-0">
         <div class="flex flex-col w-64 glass-dark border-r border-white/10">
-            <!-- Logo -->
+            <!-- Logo - Floating Communicator Badge -->
             <div class="flex items-center h-12 px-4 border-b border-white/10" style="background: linear-gradient(135deg, {{ brand.secondary_color }} 0%, rgba(15,23,42,0.9) 100%);">
-                <a href="/workspaces" class="flex items-center space-x-2">
-                    <img src="{{ brand.logo_url }}" alt="{{ brand.company }} Logo" class="h-12 w-12">
-                    <span class="text-white font-bold text-sm glow-text">{{ brand.name|upper }}</span>
+                <a href="/workspaces" class="flex items-center space-x-3 group">
+                    <!-- Communicator Badge Icon -->
+                    <div class="relative">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-shadow">
+                            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <!-- Pulse ring animation -->
+                        <div class="absolute inset-0 rounded-full bg-blue-500/30 animate-ping"></div>
+                    </div>
+                    <span class="text-white font-bold text-sm glow-text group-hover:text-blue-300 transition-colors">{{ brand.name|upper }}</span>
                 </a>
             </div>
             
@@ -69,6 +78,14 @@
                     <p id="channel-topic" class="text-sm text-gray-400">{{ channel.topic or "No topic set" }}</p>
                 </div>
                 <div class="ml-4 flex items-center md:ml-6 space-x-2">
+                    <!-- Sound toggle button -->
+                    <button type="button" id="sound-toggle-btn" onclick="toggleChannelMute(window.channelId)"
+                            class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
+                            title="Toggle channel notifications">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                        </svg>
+                    </button>
                     <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/artifacts"
                        class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
                        title="View artifacts">
@@ -301,8 +318,7 @@
     };
     
     window.insertDM = function() {
-        // For now, show a tooltip - DMs are created by clicking on a user's name
-        alert('To start a direct message, click on a user\'s name in a message or in the member list.');
+        openDMModal();
     };
     
     // WebSocket message handling
@@ -314,6 +330,10 @@
                 const messageList = document.getElementById('message-list');
                 messageList.insertAdjacentHTML('beforeend', data.html);
                 scrollToBottom();
+                // Play notification sound if not from current user and not muted
+                if (data.user_id !== window.currentUserId) {
+                    playNotificationSound();
+                }
             } else if (data.type === 'message_deleted') {
                 const msg = document.getElementById('message-' + data.message_id);
                 if (msg) msg.remove();
@@ -323,10 +343,299 @@
         }
     });
     {% endif %}
+    
+    // ============================================
+    // Auto-scroll sidebar to active channel
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const activeChannel = document.querySelector('.channel-link.bg-blue-500\\/20');
+        if (activeChannel) {
+            const sidebar = document.getElementById('channel-sidebar-content');
+            if (sidebar) {
+                setTimeout(() => {
+                    activeChannel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+        }
+    });
+    
+    // ============================================
+    // Notification Sound System
+    // ============================================
+    window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
+    window.mutedChannels = JSON.parse(localStorage.getItem('mutedChannels') || '[]');
+    
+    // Create the Star Trek communicator chirp using Web Audio API
+    function createCommunicatorChirp() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        // Star Trek-like chirp: quick ascending tone
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.1);
+        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+        
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.2);
+    }
+    
+    window.playNotificationSound = function() {
+        if (!window.notificationSoundEnabled) return;
+        if (window.mutedChannels.includes(window.channelId)) return;
+        
+        try {
+            createCommunicatorChirp();
+        } catch (e) {
+            console.log('Audio not available:', e);
+        }
+    };
+    
+    window.toggleNotificationSound = function() {
+        window.notificationSoundEnabled = !window.notificationSoundEnabled;
+        localStorage.setItem('notificationSound', window.notificationSoundEnabled ? 'enabled' : 'muted');
+        updateSoundToggleUI();
+    };
+    
+    window.toggleChannelMute = function(channelId) {
+        const idx = window.mutedChannels.indexOf(channelId);
+        if (idx > -1) {
+            window.mutedChannels.splice(idx, 1);
+        } else {
+            window.mutedChannels.push(channelId);
+        }
+        localStorage.setItem('mutedChannels', JSON.stringify(window.mutedChannels));
+        updateSoundToggleUI();
+    };
+    
+    function updateSoundToggleUI() {
+        const btn = document.getElementById('sound-toggle-btn');
+        if (btn) {
+            const isMuted = !window.notificationSoundEnabled || window.mutedChannels.includes(window.channelId);
+            btn.innerHTML = isMuted 
+                ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>'
+                : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>';
+            btn.title = isMuted ? 'Unmute notifications' : 'Mute notifications';
+        }
+    }
+    
+    // Initialize sound toggle UI
+    document.addEventListener('DOMContentLoaded', updateSoundToggleUI);
+    
+    // ============================================
+    // DM Modal with User Autocomplete
+    // ============================================
+    window.openDMModal = function() {
+        const modal = document.getElementById('dm-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.getElementById('dm-user-search').focus();
+            loadWorkspaceMembers();
+        }
+    };
+    
+    window.closeDMModal = function() {
+        const modal = document.getElementById('dm-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.getElementById('dm-user-search').value = '';
+            document.getElementById('dm-user-results').innerHTML = '';
+            document.getElementById('dm-selected-users').innerHTML = '';
+            document.getElementById('dm-message-input').value = '';
+            window.selectedDMUsers = [];
+        }
+    };
+    
+    window.selectedDMUsers = [];
+    window.workspaceMembers = [];
+    
+    function loadWorkspaceMembers() {
+        // Use channel members as workspace members
+        window.workspaceMembers = window.channelMembers || [];
+    }
+    
+    window.searchDMUsers = function(query) {
+        const resultsDiv = document.getElementById('dm-user-results');
+        if (!query || query.length < 1) {
+            resultsDiv.innerHTML = '';
+            return;
+        }
+        
+        const filtered = window.workspaceMembers.filter(m => 
+            (m.display_name.toLowerCase().includes(query.toLowerCase()) ||
+             m.email.toLowerCase().includes(query.toLowerCase())) &&
+            !window.selectedDMUsers.find(u => u.id === m.id)
+        ).slice(0, 5);
+        
+        if (filtered.length === 0) {
+            resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400 text-sm">No users found</div>';
+            return;
+        }
+        
+        resultsDiv.innerHTML = filtered.map(m => `
+            <button type="button" onclick="addDMUser(${m.id}, '${m.display_name}', '${m.email}')"
+                    class="w-full flex items-center px-3 py-2 hover:bg-white/10 text-left transition-colors">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3">
+                    <span class="text-white text-sm font-medium">${m.display_name[0].toUpperCase()}</span>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm font-medium text-white">${m.display_name}</div>
+                    <div class="text-xs text-gray-400">${m.email}</div>
+                </div>
+            </button>
+        `).join('');
+    };
+    
+    window.addDMUser = function(id, displayName, email) {
+        if (window.selectedDMUsers.find(u => u.id === id)) return;
+        
+        window.selectedDMUsers.push({ id, display_name: displayName, email });
+        updateSelectedUsersUI();
+        document.getElementById('dm-user-search').value = '';
+        document.getElementById('dm-user-results').innerHTML = '';
+        document.getElementById('dm-user-search').focus();
+    };
+    
+    window.removeDMUser = function(id) {
+        window.selectedDMUsers = window.selectedDMUsers.filter(u => u.id !== id);
+        updateSelectedUsersUI();
+    };
+    
+    function updateSelectedUsersUI() {
+        const container = document.getElementById('dm-selected-users');
+        if (window.selectedDMUsers.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        container.innerHTML = window.selectedDMUsers.map(u => `
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                ${u.display_name}
+                <button type="button" onclick="removeDMUser(${u.id})" class="ml-1 hover:text-blue-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </span>
+        `).join('');
+    }
+    
+    window.sendDMAndRedirect = function() {
+        if (window.selectedDMUsers.length === 0) {
+            alert('Please select at least one user');
+            return;
+        }
+        
+        const message = document.getElementById('dm-message-input').value.trim();
+        const userIds = window.selectedDMUsers.map(u => u.id);
+        
+        // Create DM channel and send initial message
+        fetch(`/workspaces/${window.workspaceId}/dm/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_ids: userIds, message: message })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.channel_id) {
+                closeDMModal();
+                window.location.href = `/workspaces/${window.workspaceId}/channels/${data.channel_id}`;
+            } else if (data.error) {
+                alert(data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Failed to create DM:', err);
+            alert('Failed to create DM. Please try again.');
+        });
+    };
 </script>
 
 <!-- Thread Panel -->
 {% include "partials/thread_panel.html" %}
+
+<!-- DM Modal -->
+<div id="dm-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="dm-modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onclick="closeDMModal()"></div>
+        
+        <!-- Modal panel -->
+        <div class="relative glass-dark rounded-xl shadow-2xl max-w-lg w-full border border-white/20 transform transition-all">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                    </div>
+                    <h3 id="dm-modal-title" class="text-lg font-semibold text-white">New Direct Message</h3>
+                </div>
+                <button type="button" onclick="closeDMModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+                <!-- User search -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">To:</label>
+                    <div class="relative">
+                        <input type="text" 
+                               id="dm-user-search" 
+                               class="w-full rounded-lg bg-dark-800/50 border border-white/20 text-white placeholder-gray-500 px-4 py-2 focus:border-blue-500 focus:ring-blue-500/50"
+                               placeholder="Search users..."
+                               oninput="searchDMUsers(this.value)"
+                               autocomplete="off">
+                        
+                        <!-- Search results dropdown -->
+                        <div id="dm-user-results" class="absolute z-10 w-full mt-1 glass-dark rounded-lg border border-white/20 shadow-xl max-h-48 overflow-y-auto"></div>
+                    </div>
+                </div>
+                
+                <!-- Selected users -->
+                <div id="dm-selected-users" class="flex flex-wrap gap-2"></div>
+                
+                <!-- Message composer -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Message (optional):</label>
+                    <textarea id="dm-message-input" 
+                              rows="3"
+                              class="w-full rounded-lg bg-dark-800/50 border border-white/20 text-white placeholder-gray-500 px-4 py-2 focus:border-blue-500 focus:ring-blue-500/50 resize-none"
+                              placeholder="Write your first message..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
+                <button type="button" onclick="closeDMModal()" 
+                        class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button type="button" onclick="sendDMAndRedirect()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg shadow-blue-500/25 transition-all">
+                    <span class="flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Start Conversation
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Store workspace and channel IDs for JS -->
 <script>

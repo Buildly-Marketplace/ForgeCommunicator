@@ -1,7 +1,7 @@
 <!-- Channel Sidebar Partial -->
-<div class="px-2 py-4">
+<div id="channel-sidebar-content" class="px-2 py-4">
     <!-- Channels Section -->
-    <div class="mb-4">
+    <div id="channels-section" class="mb-4">
         <div class="flex items-center justify-between px-2 mb-2">
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Channels</h3>
             <a href="/workspaces/{{ workspace.id }}/channels/new" 
@@ -17,12 +17,16 @@
             {% for ch in channels %}
             {% if not ch.is_private and not ch.product_id and not ch.is_dm %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
-               class="group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
+               id="channel-link-{{ ch.id }}"
+               data-channel-id="{{ ch.id }}"
+               class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
                       {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
                 <span class="mr-2 {% if current_channel_id == ch.id %}text-blue-400{% endif %}">#</span>
                 <span class="truncate flex-1">{{ ch.name }}</span>
                 {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
-                <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+                <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                </span>
                 {% endif %}
             </a>
             {% endif %}
@@ -33,14 +37,18 @@
             {% if private_channels %}
             {% for ch in private_channels %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
-               class="group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
+               id="channel-link-{{ ch.id }}"
+               data-channel-id="{{ ch.id }}"
+               class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
                       {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
                 <span class="truncate flex-1">{{ ch.name }}</span>
                 {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
-                <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+                <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                </span>
                 {% endif %}
             </a>
             {% endfor %}
@@ -49,7 +57,7 @@
     </div>
     
     <!-- Direct Messages Section -->
-    <div class="mb-4">
+    <div id="dm-section" class="mb-4">
         <div class="flex items-center justify-between px-2 mb-2">
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Direct Messages</h3>
             <button type="button" onclick="openDMModal()"
@@ -66,14 +74,18 @@
             {% if dm_channels %}
             {% for ch in dm_channels %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
-               class="group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
+               id="channel-link-{{ ch.id }}"
+               data-channel-id="{{ ch.id }}"
+               class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
                       {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
                 <div class="w-5 h-5 rounded-full {% if unread_channels.get(ch.id) %}bg-blue-500{% else %}bg-green-500/70{% endif %} flex items-center justify-center mr-2">
                     <span class="text-white text-xs">{{ ch.name[0] }}</span>
                 </div>
                 <span class="truncate flex-1">{{ ch.name }}</span>
                 {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
-                <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+                <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                </span>
                 {% endif %}
             </a>
             {% endfor %}

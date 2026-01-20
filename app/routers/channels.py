@@ -620,6 +620,152 @@ async def create_dm_channel(
     )
 
 
+# JSON API endpoint for DM creation (used by modal)
+dm_router = APIRouter(prefix="/workspaces/{workspace_id}/dm", tags=["dm"])
+
+@dm_router.post("/create")
+async def create_dm_channel_json(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Create a DM channel with selected users (JSON API).
+    
+    Expects JSON body: { user_ids: [1, 2], message: "optional first message" }
+    Returns JSON: { channel_id: 123 } or { error: "message" }
+    """
+    from fastapi.responses import JSONResponse
+    
+    try:
+        body = await request.json()
+        selected_user_ids = body.get("user_ids", [])
+        initial_message = body.get("message", "").strip()
+    except Exception:
+        return JSONResponse({"error": "Invalid request body"}, status_code=400)
+    
+    # Verify workspace membership
+    result = await db.execute(
+        select(Workspace, Membership)
+        .join(Membership, Membership.workspace_id == Workspace.id)
+        .where(
+            Workspace.id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    row = result.first()
+    if not row:
+        return JSONResponse({"error": "Workspace not found"}, status_code=404)
+    
+    workspace, membership = row
+    
+    # Validate user_ids
+    if not isinstance(selected_user_ids, list) or len(selected_user_ids) < 1:
+        return JSONResponse({"error": "Please select at least one user"}, status_code=400)
+    
+    selected_user_ids = [int(uid) for uid in selected_user_ids]
+    
+    # Always include current user
+    if user.id not in selected_user_ids:
+        selected_user_ids.append(user.id)
+    
+    # Verify all users are members of the workspace
+    result = await db.execute(
+        select(Membership.user_id)
+        .where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id.in_(selected_user_ids)
+        )
+    )
+    valid_user_ids = set(row[0] for row in result.fetchall())
+    
+    if len(valid_user_ids) != len(selected_user_ids):
+        return JSONResponse({"error": "One or more users not in workspace"}, status_code=400)
+    
+    # Check for existing DM with same participants
+    result = await db.execute(
+        select(Channel)
+        .where(
+            Channel.workspace_id == workspace_id,
+            Channel.is_dm == True,
+            Channel.id.in_(
+                select(ChannelMembership.channel_id)
+                .where(ChannelMembership.user_id == user.id)
+            )
+        )
+        .options(selectinload(Channel.memberships))
+    )
+    dm_channels = result.scalars().all()
+    
+    # Check if any existing DM has exact same participants
+    existing_channel = None
+    for dm in dm_channels:
+        dm_member_ids = set(m.user_id for m in dm.memberships)
+        if dm_member_ids == set(selected_user_ids):
+            existing_channel = dm
+            break
+    
+    if existing_channel:
+        # If there's an initial message, send it to the existing channel
+        if initial_message:
+            new_msg = Message(
+                channel_id=existing_channel.id,
+                user_id=user.id,
+                body=initial_message,
+            )
+            db.add(new_msg)
+            await db.commit()
+        
+        return JSONResponse({"channel_id": existing_channel.id})
+    
+    # Get user display names for the channel name
+    result = await db.execute(
+        select(User)
+        .where(User.id.in_(selected_user_ids), User.id != user.id)
+    )
+    other_users = result.scalars().all()
+    
+    if len(other_users) == 1:
+        channel_name = other_users[0].display_name
+    else:
+        names = sorted([u.display_name for u in other_users])
+        if len(names) > 3:
+            channel_name = f"{', '.join(names[:2])}, +{len(names) - 2} more"
+        else:
+            channel_name = ", ".join(names)
+    
+    # Create new DM channel
+    channel = Channel(
+        workspace_id=workspace_id,
+        name=channel_name,
+        is_private=True,
+        is_dm=True,
+    )
+    db.add(channel)
+    await db.flush()
+    
+    # Add all participants as members
+    for uid in selected_user_ids:
+        channel_membership = ChannelMembership(
+            channel_id=channel.id,
+            user_id=uid,
+        )
+        db.add(channel_membership)
+    
+    # Add initial message if provided
+    if initial_message:
+        new_msg = Message(
+            channel_id=channel.id,
+            user_id=user.id,
+            body=initial_message,
+        )
+        db.add(new_msg)
+    
+    await db.commit()
+    
+    return JSONResponse({"channel_id": channel.id})
+
+
 @router.delete("/{channel_id}")
 async def delete_channel(
     request: Request,
