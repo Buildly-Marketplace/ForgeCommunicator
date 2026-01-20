@@ -28,6 +28,5 @@ docker-compose*.yml
 tests/
 forge/
 scripts/
-alembic/
 *.ini
 !alembic.ini
