@@ -3,21 +3,21 @@
 {% block title %}Branding & Theme - Admin - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-slate-100 dark:bg-slate-900">
+<div class="min-h-screen content-layer">
     <!-- Header -->
-    <nav class="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+    <nav class="glass-dark border-b border-white/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="/admin" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <a href="/admin" class="text-gray-400 hover:text-white transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </a>
-                    <span class="text-xl font-bold text-gray-900 dark:text-white">Branding & Theme</span>
+                    <span class="text-xl font-bold text-white">Branding & Theme</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/workspaces" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500">← Back to App</a>
+                    <a href="/workspaces" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">← Back to App</a>
                 </div>
             </div>
         </div>
@@ -36,15 +36,15 @@
         </div>
         
         <!-- Theme Presets -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Theme Presets</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Quick select a pre-defined theme</p>
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Theme Presets</h2>
+            <p class="text-sm text-gray-400 mb-4">Quick select a pre-defined theme</p>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {% for preset_id, preset in theme_presets.items() %}
                 <button onclick="applyPreset('{{ preset_id }}')"
                         class="p-4 rounded-lg border-2 transition-all hover:scale-105 
-                               {% if current_preset == preset_id %}border-blue-500 ring-2 ring-blue-500/50{% else %}border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500{% endif %}"
+                               {% if current_preset == preset_id %}border-blue-500 ring-2 ring-blue-500/50{% else %}border-white/20 hover:border-white/40{% endif %}"
                         style="background: linear-gradient(135deg, {{ preset.secondary_color }} 0%, {{ preset.primary_color }}40 100%);">
                     <div class="flex items-center gap-2 mb-2">
                         <div class="w-4 h-4 rounded-full" style="background: {{ preset.primary_color }};"></div>
@@ -64,62 +64,62 @@
               class="space-y-6">
             
             <!-- Brand Identity -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Brand Identity</h2>
+            <div class="glass-dark shadow-xl rounded-xl p-6 border border-white/10">
+                <h2 class="text-lg font-medium text-white mb-4">Brand Identity</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="brand_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="brand_name" class="block text-sm font-medium text-gray-300 mb-1">
                             Brand Name
                         </label>
                         <input type="text" id="brand_name" name="brand_name" 
                                value="{{ config.brand_name or brand.name }}"
-                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               class="w-full px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="Communicator">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Display name in the UI</p>
+                        <p class="mt-1 text-xs text-gray-500">Display name in the UI</p>
                     </div>
                     
                     <div>
-                        <label for="brand_company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="brand_company" class="block text-sm font-medium text-gray-300 mb-1">
                             Company Name
                         </label>
                         <input type="text" id="brand_company" name="brand_company" 
                                value="{{ config.brand_company or brand.company }}"
-                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               class="w-full px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="Buildly">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Company name for footer/copyright</p>
+                        <p class="mt-1 text-xs text-gray-500">Company name for footer/copyright</p>
                     </div>
                     
                     <div>
-                        <label for="brand_logo_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="brand_logo_url" class="block text-sm font-medium text-gray-300 mb-1">
                             Logo URL
                         </label>
                         <input type="url" id="brand_logo_url" name="brand_logo_url" 
                                value="{{ config.brand_logo_url or '' }}"
-                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               class="w-full px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="https://example.com/logo.png">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave empty for default logo</p>
+                        <p class="mt-1 text-xs text-gray-500">Leave empty for default logo</p>
                     </div>
                     
                     <div>
-                        <label for="brand_support_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="brand_support_email" class="block text-sm font-medium text-gray-300 mb-1">
                             Support Email
                         </label>
                         <input type="email" id="brand_support_email" name="brand_support_email" 
                                value="{{ config.brand_support_email or brand.support_email }}"
-                               class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               class="w-full px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="support@example.com">
                     </div>
                 </div>
             </div>
             
             <!-- Theme Colors -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Theme Colors</h2>
+            <div class="glass-dark shadow-xl rounded-xl p-6 border border-white/10">
+                <h2 class="text-lg font-medium text-white mb-4">Theme Colors</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label for="theme_primary_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="theme_primary_color" class="block text-sm font-medium text-gray-300 mb-1">
                             Primary Color
                         </label>
                         <div class="flex items-center gap-3">
@@ -130,14 +130,14 @@
                             <input type="text" id="theme_primary_color" name="theme_primary_color" 
                                    value="{{ config.theme_primary_color or brand.primary_color }}"
                                    onchange="document.getElementById('theme_primary_color_picker').value = this.value"
-                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   class="flex-1 px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
                                    placeholder="#3b82f6">
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Buttons, links, accents</p>
+                        <p class="mt-1 text-xs text-gray-500">Buttons, links, accents</p>
                     </div>
                     
                     <div>
-                        <label for="theme_secondary_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="theme_secondary_color" class="block text-sm font-medium text-gray-300 mb-1">
                             Secondary Color
                         </label>
                         <div class="flex items-center gap-3">
@@ -148,14 +148,14 @@
                             <input type="text" id="theme_secondary_color" name="theme_secondary_color" 
                                    value="{{ config.theme_secondary_color or brand.secondary_color }}"
                                    onchange="document.getElementById('theme_secondary_color_picker').value = this.value"
-                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   class="flex-1 px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
                                    placeholder="#0f172a">
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Headers, sidebar, nav</p>
+                        <p class="mt-1 text-xs text-gray-500">Headers, sidebar, nav</p>
                     </div>
                     
                     <div>
-                        <label for="theme_accent_color" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="theme_accent_color" class="block text-sm font-medium text-gray-300 mb-1">
                             Accent Color
                         </label>
                         <div class="flex items-center gap-3">
@@ -166,10 +166,10 @@
                             <input type="text" id="theme_accent_color" name="theme_accent_color" 
                                    value="{{ config.theme_accent_color or brand.accent_color }}"
                                    onchange="document.getElementById('theme_accent_color_picker').value = this.value"
-                                   class="flex-1 px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                   class="flex-1 px-4 py-2 bg-dark-800/50 border border-white/20 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
                                    placeholder="#a855f7">
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Highlights, notifications</p>
+                        <p class="mt-1 text-xs text-gray-500">Highlights, notifications</p>
                     </div>
                 </div>
                 
@@ -198,19 +198,19 @@
             </div>
             
             <!-- Dark Mode Settings -->
-            <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border border-gray-200 dark:border-slate-700">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Default Theme Mode</h2>
+            <div class="glass-dark shadow-xl rounded-xl p-6 border border-white/10">
+                <h2 class="text-lg font-medium text-white mb-4">Default Theme Mode</h2>
                 
                 <div class="flex items-center gap-4">
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" name="theme_dark_mode_default" value="true" 
                                {% if config.theme_dark_mode_default != 'false' %}checked{% endif %}
                                class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Dark mode by default</span>
+                        <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ms-3 text-sm font-medium text-gray-300">Dark mode by default</span>
                     </label>
                 </div>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p class="mt-2 text-xs text-gray-500">
                     When enabled, new users will see dark mode by default. Users can still toggle their preference.
                 </p>
             </div>
@@ -218,11 +218,11 @@
             <!-- Save Button -->
             <div class="flex justify-end gap-4">
                 <button type="button" onclick="location.reload()"
-                        class="px-6 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                        class="px-6 py-2.5 border border-white/20 rounded-lg text-gray-300 hover:bg-white/10 transition-colors">
                     Reset
                 </button>
                 <button type="submit"
-                        class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                        class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
                     <svg class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>

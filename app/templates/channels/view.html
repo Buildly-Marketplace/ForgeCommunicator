@@ -3,20 +3,20 @@
 {% block title %}{{ channel.display_name }} - {{ workspace.name }} - {{ brand.full_name }}{% endblock %}
 
 {% block content %}
-<div class="h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900">
+<div class="h-screen flex overflow-hidden">
     <!-- Sidebar -->
     <div class="hidden md:flex md:flex-shrink-0">
-        <div class="flex flex-col w-64 bg-gray-800 dark:bg-gray-950">
+        <div class="flex flex-col w-64 glass-dark border-r border-white/10">
             <!-- Logo -->
-            <div class="flex items-center h-12 px-4" style="background-color: {{ brand.secondary_color }};">
+            <div class="flex items-center h-12 px-4 border-b border-white/10" style="background: linear-gradient(135deg, {{ brand.secondary_color }} 0%, rgba(15,23,42,0.9) 100%);">
                 <a href="/workspaces" class="flex items-center space-x-2">
                     <img src="{{ brand.logo_url }}" alt="{{ brand.company }} Logo" class="h-12 w-12">
-                    <span class="text-white font-bold text-sm">{{ brand.name|upper }}</span>
+                    <span class="text-white font-bold text-sm glow-text">{{ brand.name|upper }}</span>
                 </a>
             </div>
             
             <!-- Workspace header -->
-            <div class="flex items-center h-14 flex-shrink-0 px-4 bg-gray-900 dark:bg-gray-900 border-b border-gray-700">
+            <div class="flex items-center h-14 flex-shrink-0 px-4 bg-dark-900/50 border-b border-white/10">
                 <a href="/workspaces" class="text-gray-400 hover:text-white mr-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -31,25 +31,25 @@
             </div>
             
             <!-- User footer -->
-            <div class="flex-shrink-0 flex bg-gray-700 dark:bg-gray-800 p-4">
+            <div class="flex-shrink-0 flex bg-dark-900/70 border-t border-white/10 p-4">
                 <div class="flex items-center w-full">
                     <a href="/profile" class="flex items-center flex-1 group">
                         {% if user.avatar_url %}
-                        <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}" class="w-8 h-8 rounded-full object-cover">
+                        <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}" class="w-8 h-8 rounded-full object-cover ring-2 ring-white/20">
                         {% else %}
-                        <div class="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
-                            <span class="text-white text-sm font-medium">{{ user.display_name[0] }}</span>
+                        <div class="w-8 h-8 rounded-full bg-blue-500/30 border border-blue-400/50 flex items-center justify-center">
+                            <span class="text-blue-300 text-sm font-medium">{{ user.display_name[0] }}</span>
                         </div>
                         {% endif %}
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-white group-hover:underline">{{ user.display_name }}</p>
+                            <p class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">{{ user.display_name }}</p>
                             <p class="text-xs text-gray-400">
                                 {% if user.status.value == 'active' %}🟢{% elif user.status.value == 'away' %}🟡{% elif user.status.value == 'dnd' %}🔴{% else %}⚫{% endif %}
                                 {{ user.status.value|title }}
                             </p>
                         </div>
                     </a>
-                    <a href="/auth/logout" class="text-xs text-gray-300 hover:text-white ml-2" title="Sign out">
+                    <a href="/auth/logout" class="text-xs text-gray-400 hover:text-white ml-2 transition-colors" title="Sign out">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                         </svg>
@@ -62,45 +62,34 @@
     <!-- Main content -->
     <div class="flex flex-col w-0 flex-1 overflow-hidden">
         <!-- Channel header -->
-        <div class="relative z-10 flex-shrink-0 flex h-16 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700">
+        <div class="relative z-10 flex-shrink-0 flex h-16 glass-dark border-b border-white/10">
             <div class="flex-1 px-4 flex items-center justify-between">
                 <div class="flex-1">
-                    <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ channel.display_name }}</h1>
-                    <p id="channel-topic" class="text-sm text-gray-500 dark:text-gray-400">{{ channel.topic or "No topic set" }}</p>
+                    <h1 class="text-xl font-semibold text-white">{{ channel.display_name }}</h1>
+                    <p id="channel-topic" class="text-sm text-gray-400">{{ channel.topic or "No topic set" }}</p>
                 </div>
                 <div class="ml-4 flex items-center md:ml-6 space-x-2">
                     <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/artifacts"
-                       class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                       class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
                        title="View artifacts">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                     </a>
                     <a href="/workspaces/{{ workspace.id }}/settings"
-                       class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                       class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
                        title="Workspace settings">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </a>
-                    <!-- Theme toggle -->
-                    <button onclick="toggleTheme()" 
-                            class="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                            title="Toggle theme">
-                        <svg id="theme-icon-light" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                        </svg>
-                        <svg id="theme-icon-dark" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                        </svg>
-                    </button>
                 </div>
             </div>
         </div>
         
         <!-- Messages area -->
-        <main class="flex-1 relative overflow-hidden flex flex-col bg-white dark:bg-gray-800"
+        <main class="flex-1 relative overflow-hidden flex flex-col bg-dark-800/30"
               {% if realtime_mode == 'ws' %}
               hx-ext="ws"
               ws-connect="/ws/workspaces/{{ workspace.id }}/channels/{{ channel.id }}"
@@ -118,9 +107,9 @@
             </div>
             
             <!-- Message input with toolbar -->
-            <div class="flex-shrink-0 border-t dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <div class="flex-shrink-0 border-t border-white/10 glass-dark p-4">
                 <!-- Mention dropdown (hidden by default) -->
-                <div id="mention-dropdown" class="hidden absolute bottom-24 left-4 right-4 max-w-md bg-white dark:bg-gray-700 rounded-lg shadow-lg border dark:border-gray-600 mention-dropdown z-50">
+                <div id="mention-dropdown" class="hidden absolute bottom-24 left-4 right-4 max-w-md glass-dark rounded-lg shadow-xl border border-white/20 mention-dropdown z-50">
                     <!-- Populated by JS -->
                 </div>
                 
@@ -132,51 +121,51 @@
                       class="space-y-2">
                     
                     <!-- Toolbar -->
-                    <div class="flex items-center space-x-1 pb-2 border-b dark:border-gray-700">
+                    <div class="flex items-center space-x-1 pb-2 border-b border-white/10">
                         <button type="button" onclick="insertCommand('/decision ')" 
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Create Decision">
                             <span class="text-lg">⚖️</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">/decision</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/decision</span>
                         </button>
                         <button type="button" onclick="insertCommand('/feature ')"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Create Feature">
                             <span class="text-lg">✨</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">/feature</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/feature</span>
                         </button>
                         <button type="button" onclick="insertCommand('/issue ')"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Create Issue">
                             <span class="text-lg">🐛</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">/issue</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/issue</span>
                         </button>
                         <button type="button" onclick="insertCommand('/task ')"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Create Task">
                             <span class="text-lg">✅</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">/task</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/task</span>
                         </button>
-                        <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                        <div class="w-px h-6 bg-white/20 mx-1"></div>
                         <button type="button" onclick="insertAtMention()"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Mention someone">
                             <span class="text-lg font-bold">@</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">@mention</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">@mention</span>
                         </button>
                         <button type="button" onclick="insertDM()"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 group relative"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
                                 title="Direct message">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                             </svg>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">DM user</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">DM user</span>
                         </button>
                         <div class="flex-1"></div>
                         <button type="button" onclick="openCommandPalette()"
-                                class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs"
+                                class="p-2 rounded hover:bg-white/10 text-gray-400 text-xs transition-colors"
                                 title="Command palette (Ctrl+K)">
-                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-600 rounded text-xs">⌘K</kbd>
+                            <kbd class="px-1.5 py-0.5 glass rounded text-xs border border-white/20">⌘K</kbd>
                         </button>
                     </div>
                     
@@ -185,12 +174,12 @@
                         <input type="text" 
                                name="body" 
                                id="message-input"
-                               class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:focus:border-indigo-400"
+                               class="flex-1 rounded-lg border-white/20 bg-dark-800/50 text-white placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500/50"
                                placeholder="Message {{ channel.display_name }}..."
                                autocomplete="off"
                                required>
                         <button type="submit"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/25 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
                             <svg class="w-5 h-5 mr-1 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                             </svg>
@@ -205,9 +194,9 @@
     <!-- Right sidebar (artifacts) -->
     {% if artifacts %}
     <div class="hidden lg:flex lg:flex-shrink-0">
-        <div class="flex flex-col w-72 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div class="flex-shrink-0 px-4 py-4 border-b dark:border-gray-700">
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Recent Artifacts</h3>
+        <div class="flex flex-col w-72 border-l border-white/10 glass-dark">
+            <div class="flex-shrink-0 px-4 py-4 border-b border-white/10">
+                <h3 class="text-sm font-semibold text-white">Recent Artifacts</h3>
             </div>
             <div class="flex-1 overflow-y-auto p-4">
                 {% include "partials/artifact_panel.html" %}

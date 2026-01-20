@@ -24,6 +24,7 @@
                         },
                         // Dark theme backgrounds
                         dark: {
+                            950: '#050d1a',
                             900: '#0a1628',
                             800: '#0f172a',
                             700: '#1a2744',
@@ -55,11 +56,98 @@
         .htmx-request .htmx-indicator { opacity: 1; }
         .htmx-request.htmx-indicator { opacity: 1; }
         
+        /* Futuristic space background */
+        .forge-bg {
+            background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f172a 100%);
+            position: relative;
+        }
+        
+        .forge-bg::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(14, 165, 233, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Twinkling stars */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.3), transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.2), transparent),
+                radial-gradient(1px 1px at 230px 90px, rgba(255,255,255,0.4), transparent),
+                radial-gradient(2px 2px at 300px 60px, rgba(255,255,255,0.2), transparent),
+                radial-gradient(1px 1px at 350px 150px, rgba(255,255,255,0.3), transparent),
+                radial-gradient(2px 2px at 420px 80px, rgba(255,255,255,0.2), transparent),
+                radial-gradient(1px 1px at 500px 200px, rgba(255,255,255,0.25), transparent),
+                radial-gradient(2px 2px at 580px 140px, rgba(255,255,255,0.15), transparent),
+                radial-gradient(1px 1px at 650px 50px, rgba(255,255,255,0.35), transparent),
+                radial-gradient(2px 2px at 720px 180px, rgba(255,255,255,0.2), transparent);
+            background-size: 800px 250px;
+            animation: twinkle 10s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* Floating particles */
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 50%;
+            animation: float 8s infinite ease-in-out;
+        }
+        
+        .particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
+        .particle:nth-child(2) { left: 20%; top: 60%; animation-delay: 1s; background: rgba(168, 85, 247, 0.5); }
+        .particle:nth-child(3) { left: 30%; top: 40%; animation-delay: 2s; }
+        .particle:nth-child(4) { left: 50%; top: 80%; animation-delay: 3s; background: rgba(168, 85, 247, 0.5); }
+        .particle:nth-child(5) { left: 70%; top: 30%; animation-delay: 4s; }
+        .particle:nth-child(6) { left: 80%; top: 70%; animation-delay: 5s; background: rgba(14, 165, 233, 0.5); }
+        .particle:nth-child(7) { left: 90%; top: 50%; animation-delay: 6s; }
+        .particle:nth-child(8) { left: 15%; top: 85%; animation-delay: 7s; background: rgba(14, 165, 233, 0.5); }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 0.9; }
+        }
+        
         /* Custom scrollbar - dark theme */
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
-        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.5); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.7); border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.8); }
         
         /* Message hover actions */
         .message-item:hover .message-actions { opacity: 1; }
@@ -77,12 +165,25 @@
         /* Futuristic glow effects */
         .glow-text { text-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
         .glow-border { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .glow-accent { box-shadow: 0 0 25px rgba(168, 85, 247, 0.3); }
         
         /* Glass morphism effect */
         .glass {
             backdrop-filter: blur(20px);
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-dark {
+            backdrop-filter: blur(20px);
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        /* Content layer - above background effects */
+        .content-layer {
+            position: relative;
+            z-index: 1;
         }
         
         /* Smooth transitions for theme */
@@ -105,9 +206,22 @@
         })();
     </script>
 </head>
-<body class="h-full bg-slate-100 dark:bg-slate-900 text-gray-900 dark:text-gray-100 theme-transition" hx-boost="true">
+<body class="h-full forge-bg text-gray-100 theme-transition" hx-boost="true">
+    <!-- Background effects -->
+    <div class="stars"></div>
+    <div class="floating-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+    
     {% block body %}
-    <div class="min-h-full">
+    <div class="min-h-full content-layer">
         {% block content %}{% endblock %}
     </div>
     {% endblock %}

@@ -3,23 +3,23 @@
     {% if reply.user.avatar_url %}
     <img src="{{ reply.user.avatar_url }}" alt="" class="h-8 w-8 rounded-full flex-shrink-0">
     {% else %}
-    <div class="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center flex-shrink-0">
-        <span class="text-indigo-600 dark:text-indigo-300 text-sm font-medium">{{ reply.user.display_name[0] }}</span>
+    <div class="h-8 w-8 rounded-full bg-blue-500/20 border border-blue-400/30 flex items-center justify-center flex-shrink-0">
+        <span class="text-blue-400 text-sm font-medium">{{ reply.user.display_name[0] }}</span>
     </div>
     {% endif %}
     <div class="min-w-0 flex-1">
         <div class="flex items-baseline space-x-2">
-            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ reply.user.display_name }}</span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ reply.created_at.strftime('%H:%M') }}</span>
+            <span class="font-medium text-sm text-white">{{ reply.user.display_name }}</span>
+            <span class="text-xs text-gray-500">{{ reply.created_at.strftime('%H:%M') }}</span>
         </div>
-        <div class="mt-0.5 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{{ reply.body | md }}</div>
+        <div class="mt-0.5 text-sm text-gray-300 whitespace-pre-wrap break-words">{{ reply.body | md }}</div>
     </div>
     {% if reply.user_id == user.id %}
     <button hx-delete="/workspaces/{{ workspace_id }}/channels/{{ channel_id }}/messages/{{ reply.id }}"
             hx-target="#thread-reply-{{ reply.id }}"
             hx-swap="outerHTML"
             hx-confirm="Delete this reply?"
-            class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded flex-shrink-0"
+            class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded hover:bg-white/10 transition-colors flex-shrink-0"
             title="Delete">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>

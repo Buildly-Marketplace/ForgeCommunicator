@@ -27,22 +27,19 @@ async def seed_database():
         
         # Create demo users
         alice = User(
-            id=uuid4(),
             email="alice@example.com",
             display_name="Alice Johnson",
-            password_hash=hash_password("password123"),
+            hashed_password=hash_password("password123"),
         )
         bob = User(
-            id=uuid4(),
             email="bob@example.com",
             display_name="Bob Smith",
-            password_hash=hash_password("password123"),
+            hashed_password=hash_password("password123"),
         )
         carol = User(
-            id=uuid4(),
             email="carol@example.com",
             display_name="Carol Williams",
-            password_hash=hash_password("password123"),
+            hashed_password=hash_password("password123"),
         )
         
         session.add_all([alice, bob, carol])
@@ -51,7 +48,6 @@ async def seed_database():
         
         # Create workspace
         workspace = Workspace(
-            id=uuid4(),
             name="Acme Corp",
             slug="acme-corp",
             invite_code="ACME2024",
@@ -64,7 +60,6 @@ async def seed_database():
         # Add memberships
         for user, role in [(alice, "owner"), (bob, "member"), (carol, "member")]:
             membership = Membership(
-                id=uuid4(),
                 user_id=user.id,
                 workspace_id=workspace.id,
                 role=role,
