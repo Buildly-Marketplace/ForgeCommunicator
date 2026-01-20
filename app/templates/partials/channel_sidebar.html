@@ -102,11 +102,17 @@
         
         {% for product in products %}
         <div class="mb-2">
-            <div class="flex items-center px-2 py-1 text-gray-300">
+            <a href="https://labs.buildly.io/products/portfolio?product={{ product.buildly_product_uuid }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="flex items-center px-2 py-1 text-gray-300 hover:text-blue-400 group transition-colors">
                 <div class="w-4 h-4 rounded mr-2 {% if product.color %}{% else %}bg-indigo-500{% endif %}"
                      {% if product.color %}style="background-color: {{ product.color }}"{% endif %}></div>
-                <span class="text-sm font-medium truncate">{{ product.name }}</span>
-            </div>
+                <span class="text-sm font-medium truncate flex-1">{{ product.name }}</span>
+                <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+            </a>
             
             <!-- Product channels -->
             <nav class="ml-4 space-y-0.5">
