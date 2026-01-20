@@ -1,17 +1,99 @@
-// Service Worker for Forge Communicator Push Notifications
+// Service Worker for Forge Communicator
+// Handles push notifications and offline caching for PWA
 
-const CACHE_NAME = 'forge-communicator-v1';
+const CACHE_NAME = 'forge-communicator-v2';
+const OFFLINE_URL = '/offline';
 
-// Install event
+// Static assets to cache for offline use
+const STATIC_ASSETS = [
+    '/',
+    '/offline',
+    '/static/app.js',
+    '/static/favicon.svg',
+    '/static/forge-logo.png',
+    '/static/manifest.json',
+    '/auth/login'
+];
+
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
     console.log('[SW] Service worker installing...');
-    self.skipWaiting();
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('[SW] Caching static assets');
+                // Cache what we can, don't fail if some assets aren't available
+                return Promise.allSettled(
+                    STATIC_ASSETS.map(url => 
+                        cache.add(url).catch(err => console.log(`[SW] Failed to cache ${url}:`, err))
+                    )
+                );
+            })
+            .then(() => self.skipWaiting())
+    );
 });
 
-// Activate event
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
     console.log('[SW] Service worker activating...');
-    event.waitUntil(clients.claim());
+    event.waitUntil(
+        caches.keys()
+            .then((cacheNames) => {
+                return Promise.all(
+                    cacheNames
+                        .filter((name) => name !== CACHE_NAME)
+                        .map((name) => {
+                            console.log('[SW] Deleting old cache:', name);
+                            return caches.delete(name);
+                        })
+                );
+            })
+            .then(() => clients.claim())
+    );
+});
+
+// Fetch event - network first, fallback to cache
+self.addEventListener('fetch', (event) => {
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') return;
+    
+    // Skip cross-origin requests
+    if (!event.request.url.startsWith(self.location.origin)) return;
+    
+    // Skip API requests (don't cache dynamic data)
+    if (event.request.url.includes('/api/') || 
+        event.request.url.includes('/push/') ||
+        event.request.url.includes('/auth/') && !event.request.url.includes('/login')) {
+        return;
+    }
+    
+    event.respondWith(
+        fetch(event.request)
+            .then((response) => {
+                // Clone the response before caching
+                if (response.status === 200) {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME)
+                        .then((cache) => cache.put(event.request, responseClone));
+                }
+                return response;
+            })
+            .catch(() => {
+                // Offline - try to return cached version
+                return caches.match(event.request)
+                    .then((cachedResponse) => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        // For navigation requests, return offline page
+                        if (event.request.mode === 'navigate') {
+                            return caches.match(OFFLINE_URL);
+                        }
+                        // Return a simple offline response for other requests
+                        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+                    });
+            })
+    );
 });
 
 // Push notification received
@@ -21,8 +103,8 @@ self.addEventListener('push', (event) => {
     let data = {
         title: 'Forge Communicator',
         body: 'You have a new message',
-        icon: '/static/forge_logo.png',
-        badge: '/static/badge.png',
+        icon: '/static/icons/icon-192x192.png',
+        badge: '/static/icons/icon-96x96.png',
         data: { url: '/' }
     };
     
@@ -41,6 +123,7 @@ self.addEventListener('push', (event) => {
         tag: data.tag || 'forge-notification',
         renotify: true,
         requireInteraction: false,
+        vibrate: [100, 50, 100],
         data: data.data,
         actions: [
             { action: 'open', title: 'Open' },

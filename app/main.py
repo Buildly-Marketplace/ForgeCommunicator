@@ -76,6 +76,16 @@ async def healthz():
     return {"status": "healthy"}
 
 
+# Offline page for PWA
+@app.get("/offline", response_class=HTMLResponse)
+async def offline_page(request: Request):
+    """Offline page for PWA."""
+    return templates.TemplateResponse(
+        "offline.html",
+        {"request": request},
+    )
+
+
 # Meta endpoint for Forge Marketplace diagnostics
 @app.get("/meta", tags=["meta"])
 async def meta():

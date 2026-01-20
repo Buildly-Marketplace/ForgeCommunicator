@@ -93,3 +93,35 @@ async def unsubscribe(
         await db.commit()
     
     return JSONResponse({"status": "unsubscribed"})
+
+
+@router.post("/test")
+async def send_test_notification(
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Send a test push notification to the current user."""
+    if not settings.vapid_public_key:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Push notifications not configured"
+        )
+    
+    from app.services.push import push_service
+    
+    sent = await push_service.send_notification(
+        db=db,
+        user_id=user.id,
+        title="Test Notification",
+        body="Push notifications are working! 🎉",
+        url="/profile",
+        tag="test-notification",
+    )
+    
+    if sent > 0:
+        return JSONResponse({"status": "sent", "count": sent})
+    else:
+        return JSONResponse(
+            {"status": "no_subscriptions", "message": "No active push subscriptions found"},
+            status_code=status.HTTP_404_NOT_FOUND
+        )
