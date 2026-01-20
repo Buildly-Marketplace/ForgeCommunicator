@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
+
 # Create non-root user
 RUN useradd -m -u 1000 forge && chown -R forge:forge /app
 USER forge
