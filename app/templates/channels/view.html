@@ -304,23 +304,28 @@
 
 {% block scripts %}
 <script>
+(function() {
+    // Avoid re-initialization if already loaded for this channel
+    if (window._channelViewInitialized === {{ channel.id }}) return;
+    window._channelViewInitialized = {{ channel.id }};
+    
     // Mobile sidebar functions
-    function openMobileSidebar() {
+    window.openMobileSidebar = function() {
         document.getElementById('mobile-sidebar').classList.remove('-translate-x-full');
         document.getElementById('mobile-sidebar-overlay').classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
-    }
+    };
     
-    function closeMobileSidebar() {
+    window.closeMobileSidebar = function() {
         document.getElementById('mobile-sidebar').classList.add('-translate-x-full');
         document.getElementById('mobile-sidebar-overlay').classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
-    }
+    };
     
     // Close sidebar on escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closeMobileSidebar();
+            window.closeMobileSidebar();
         }
     });
     
@@ -655,6 +660,7 @@
             alert('Failed to create DM. Please try again.');
         });
     };
+})();
 </script>
 
 <!-- Thread Panel -->

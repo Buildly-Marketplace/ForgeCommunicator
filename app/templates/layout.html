@@ -281,41 +281,45 @@
         }
         
         // PWA Install prompt handling
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
+        if (!window._pwaInstallInitialized) {
+            window._pwaInstallInitialized = true;
+            window.deferredPrompt = null;
             
-            // Show install button if it exists
-            const installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) {
-                installBtn.classList.remove('hidden');
-            }
-        });
-        
-        // Handle app installed event
-        window.addEventListener('appinstalled', () => {
-            console.log('PWA installed successfully');
-            deferredPrompt = null;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevent Chrome 67 and earlier from automatically showing the prompt
+                e.preventDefault();
+                // Stash the event so it can be triggered later
+                window.deferredPrompt = e;
+                
+                // Show install button if it exists
+                const installBtn = document.getElementById('pwa-install-btn');
+                if (installBtn) {
+                    installBtn.classList.remove('hidden');
+                }
+            });
             
-            // Hide install button
-            const installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) {
-                installBtn.classList.add('hidden');
-            }
-        });
-        
-        // Function to trigger PWA install
-        window.installPWA = async function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log('PWA install outcome:', outcome);
-                deferredPrompt = null;
-            }
-        };
+            // Handle app installed event
+            window.addEventListener('appinstalled', () => {
+                console.log('PWA installed successfully');
+                window.deferredPrompt = null;
+                
+                // Hide install button
+                const installBtn = document.getElementById('pwa-install-btn');
+                if (installBtn) {
+                    installBtn.classList.add('hidden');
+                }
+            });
+            
+            // Function to trigger PWA install
+            window.installPWA = async function() {
+                if (window.deferredPrompt) {
+                    window.deferredPrompt.prompt();
+                    const { outcome } = await window.deferredPrompt.userChoice;
+                    console.log('PWA install outcome:', outcome);
+                    window.deferredPrompt = null;
+                }
+            };
+        }
         
         // Utility function for base64url decoding (used by push notifications)
         function urlBase64ToUint8Array(base64String) {
