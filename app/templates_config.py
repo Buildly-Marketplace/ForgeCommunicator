@@ -38,34 +38,40 @@ def simple_markdown_filter(text: str) -> Markup:
         return Markup("")
     
     import html as html_module
-    import bleach
     
     # Check if text contains HTML tags (from Labs API)
     if re.search(r'<[a-zA-Z][^>]*>', text):
-        # Sanitize HTML to allow only safe tags
-        allowed_tags = [
-            'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del',
-            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'ul', 'ol', 'li',
-            'a', 'code', 'pre', 'blockquote',
-            'table', 'thead', 'tbody', 'tr', 'th', 'td',
-            'span', 'div',
-        ]
-        allowed_attrs = {
-            'a': ['href', 'title', 'target', 'rel'],
-            'span': ['class'],
-            'div': ['class'],
-            'code': ['class'],
-            'pre': ['class'],
-        }
-        # Clean HTML and return
-        clean_html = bleach.clean(
-            text,
-            tags=allowed_tags,
-            attributes=allowed_attrs,
-            strip=True,
-        )
-        return Markup(clean_html)
+        # Try to use bleach for HTML sanitization if available
+        try:
+            import bleach
+            # Sanitize HTML to allow only safe tags
+            allowed_tags = [
+                'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del',
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'ul', 'ol', 'li',
+                'a', 'code', 'pre', 'blockquote',
+                'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                'span', 'div',
+            ]
+            allowed_attrs = {
+                'a': ['href', 'title', 'target', 'rel'],
+                'span': ['class'],
+                'div': ['class'],
+                'code': ['class'],
+                'pre': ['class'],
+            }
+            # Clean HTML and return
+            clean_html = bleach.clean(
+                text,
+                tags=allowed_tags,
+                attributes=allowed_attrs,
+                strip=True,
+            )
+            return Markup(clean_html)
+        except ImportError:
+            # If bleach not installed, strip all HTML tags for safety
+            clean_text = re.sub(r'<[^>]+>', '', text)
+            return Markup(html_module.escape(clean_text).replace('\n', '<br>'))
     
     # Escape HTML for plain text input
     text = html_module.escape(text)

@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+# Install/update Python dependencies
+echo "Checking Python dependencies..."
+pip install --no-cache-dir -q -r requirements.txt
+
 # Parse DATABASE_URL for pg_isready if available, otherwise use individual vars
 if [ -n "$DATABASE_URL" ]; then
     # Extract host and port from DATABASE_URL

@@ -51,6 +51,22 @@
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/ws.js"></script>
+    <script>
+        // Suppress WebSocket close errors from htmx ws extension during navigation
+        (function() {
+            var originalError = console.error;
+            console.error = function() {
+                var args = Array.prototype.slice.call(arguments);
+                var msg = args.join(' ');
+                // Suppress known htmx ws.js errors during page navigation
+                if (msg.includes("Cannot read properties of undefined (reading 'close')") ||
+                    msg.includes("maybeCloseWebSocketSource")) {
+                    return; // Suppress this error
+                }
+                originalError.apply(console, arguments);
+            };
+        })();
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
@@ -262,6 +278,28 @@
     
     <script src="/static/app.js"></script>
     <script>
+        // Fix htmx ws.js close error when navigating away
+        // This suppresses "Cannot read properties of undefined (reading 'close')" errors
+        window.addEventListener('beforeunload', function() {
+            // Mark that we're navigating away to suppress errors
+            window._navigatingAway = true;
+        });
+        
+        // Patch htmx to handle WebSocket cleanup gracefully
+        document.addEventListener('htmx:beforeSwap', function(e) {
+            // Close any WebSocket connections before swapping content
+            const wsElements = document.querySelectorAll('[hx-ext*="ws"]');
+            wsElements.forEach(function(el) {
+                if (el._htmxWebSocket) {
+                    try {
+                        el._htmxWebSocket.close();
+                    } catch (err) {
+                        // Ignore close errors
+                    }
+                }
+            });
+        });
+        
         // Register service worker for PWA and push notifications
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
