@@ -50,3 +50,6 @@ build/
 # Secrets
 *.pem
 *.key
+
+# Claude
+.claude
