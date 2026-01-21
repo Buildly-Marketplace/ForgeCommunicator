@@ -339,9 +339,12 @@ class LabsSyncService:
             artifact_type = self._map_item_type(item_type)
             artifact_status = self._map_item_status(item.get("status", "open"), artifact_type)
             
+            # Labs API may use 'name' or 'title' for the item name
+            item_title = item.get("name") or item.get("title") or "Untitled Item"
+            
             if existing:
                 # Update existing artifact
-                existing.title = item.get("title", existing.title)
+                existing.title = item_title
                 existing.body = item.get("description", existing.body)
                 existing.status = artifact_status
                 existing.tags = item.get("tags", existing.tags)
@@ -360,7 +363,7 @@ class LabsSyncService:
                     product_id=local_product_id,
                     channel_id=channel_id,
                     type=artifact_type,
-                    title=item.get("title", "Untitled Item"),
+                    title=item_title,
                     body=item.get("description"),
                     status=artifact_status,
                     tags=item.get("tags"),
@@ -384,15 +387,17 @@ class LabsSyncService:
             for channel_id, items in new_items_by_channel.items():
                 # Create a parent message for each new item (becomes thread starter)
                 for item in items:
+                    item_title = item.get("name") or item.get("title") or "Untitled"
                     item_type = item.get("type", "feature").lower()
                     emoji = {"feature": "✨", "bug": "🐛", "issue": "🐛", "task": "📝", "story": "📖", "release": "🚀", "milestone": "🏁"}.get(item_type, "📌")
                     status = item.get("status", "open")
+                    description = item.get("description", "") or ""
                     
                     # Create the main item message (thread starter)
                     item_msg = Message(
                         channel_id=channel_id,
                         user_id=user_id,
-                        body=f"{emoji} **{item.get('title', 'Untitled')}**\n\n{item.get('description', '') or '_No description_'}\n\n`Status: {status}` | `Type: {item_type}`",
+                        body=f"{emoji} {item_title}\n\n{description}\n\nStatus: {status} | Type: {item_type}",
                     )
                     db.add(item_msg)
                     stats["messages"] += 1

@@ -20,6 +20,7 @@ httpx>=0.26.0,<0.27.0
 # Templates
 jinja2>=3.1.2,<4.0.0
 markdown>=3.5.0,<4.0.0
+bleach>=6.1.0,<7.0.0
 
 # WebSockets
 websockets>=12.0,<13.0

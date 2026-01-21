@@ -32,13 +32,43 @@ def simple_markdown_filter(text: str) -> Markup:
     """
     Simple markdown conversion for inline formatting only.
     Handles: **bold**, *italic*, `code`, ~~strikethrough~~
+    Also preserves HTML content (from Labs API imports) while sanitizing it.
     """
     if not text:
         return Markup("")
     
-    import html
-    # Escape HTML first
-    text = html.escape(text)
+    import html as html_module
+    import bleach
+    
+    # Check if text contains HTML tags (from Labs API)
+    if re.search(r'<[a-zA-Z][^>]*>', text):
+        # Sanitize HTML to allow only safe tags
+        allowed_tags = [
+            'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'del',
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            'ul', 'ol', 'li',
+            'a', 'code', 'pre', 'blockquote',
+            'table', 'thead', 'tbody', 'tr', 'th', 'td',
+            'span', 'div',
+        ]
+        allowed_attrs = {
+            'a': ['href', 'title', 'target', 'rel'],
+            'span': ['class'],
+            'div': ['class'],
+            'code': ['class'],
+            'pre': ['class'],
+        }
+        # Clean HTML and return
+        clean_html = bleach.clean(
+            text,
+            tags=allowed_tags,
+            attributes=allowed_attrs,
+            strip=True,
+        )
+        return Markup(clean_html)
+    
+    # Escape HTML for plain text input
+    text = html_module.escape(text)
     
     # Convert markdown patterns
     # Bold: **text** or __text__
