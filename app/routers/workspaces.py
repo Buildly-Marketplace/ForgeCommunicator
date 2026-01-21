@@ -303,7 +303,7 @@ async def workspace_settings(
     result = await db.execute(
         select(Workspace)
         .where(Workspace.id == workspace_id)
-        .options(selectinload(Workspace.memberships))
+        .options(selectinload(Workspace.memberships).selectinload(Membership.user))
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
