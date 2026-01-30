@@ -2,6 +2,7 @@
 FastAPI dependencies for authentication, database, and more.
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
@@ -12,6 +13,7 @@ from app.db import get_db
 from app.models.membership import Membership, MembershipRole
 from app.models.user import User
 from app.models.workspace import Workspace
+from app.settings import settings
 
 # Type alias for database dependency
 DBSession = Annotated[AsyncSession, Depends(get_db)]
@@ -33,6 +35,13 @@ async def get_current_user_optional(
     user = result.scalar_one_or_none()
     
     if user and user.is_session_valid():
+        # Refresh session expiry if less than half the time remains (sliding session)
+        # This extends active users' sessions without updating on every request
+        half_session_duration = timedelta(hours=settings.session_expire_hours / 2)
+        if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < half_session_duration:
+            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+            user.update_last_seen()
+            await db.commit()
         return user
     return None
 

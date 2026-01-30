@@ -17,6 +17,7 @@ from app.models.membership import Membership, MembershipRole
 from app.models.product import Product
 from app.models.team_invite import TeamInvite, InviteStatus
 from app.models.workspace import Workspace
+from app.settings import settings
 from app.templates_config import templates
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
