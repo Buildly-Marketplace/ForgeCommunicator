@@ -173,7 +173,9 @@
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="text-sm text-gray-500" id="no-invites">No pending invites. Use "Sync from Labs" to auto-invite your team, or click "Invite Member" above.</p>
+            <ul class="divide-y divide-white/10" id="invite-list">
+                <li id="no-invites" class="text-sm text-gray-500 py-2">No pending invites. Use "Sync from Labs" to auto-invite your team, or click "Invite Member" above.</li>
+            </ul>
             {% endif %}
         </div>
         
