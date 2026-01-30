@@ -1,10 +1,40 @@
 /**
  * Forge Communicator - Client-side JavaScript
- * Theme toggle, keyboard shortcuts, command palette, and @mentions
+ * Theme toggle, keyboard shortcuts, command palette, notifications, and @mentions
  */
 
 (function() {
     'use strict';
+
+    // ============================================
+    // Notification Sound System (Global)
+    // ============================================
+    
+    window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
+    
+    // Notification sound using chirp.mp3
+    let globalNotificationAudio = null;
+    
+    window.playNotificationSound = function() {
+        if (!window.notificationSoundEnabled) return;
+        
+        try {
+            if (!globalNotificationAudio) {
+                globalNotificationAudio = new Audio('/static/chirp.mp3');
+                globalNotificationAudio.volume = 0.5;
+            }
+            globalNotificationAudio.currentTime = 0;
+            globalNotificationAudio.play().catch(e => console.log('Audio play failed:', e));
+        } catch (e) {
+            console.log('Notification sound not available:', e);
+        }
+    };
+    
+    window.toggleGlobalNotificationSound = function() {
+        window.notificationSoundEnabled = !window.notificationSoundEnabled;
+        localStorage.setItem('notificationSound', window.notificationSoundEnabled ? 'enabled' : 'muted');
+        return window.notificationSoundEnabled;
+    };
 
     // ============================================
     // Theme Management

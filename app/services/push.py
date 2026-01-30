@@ -58,11 +58,14 @@ class PushNotificationService:
         payload = {
             "title": title,
             "body": body,
-            "icon": icon or "/static/forge_logo.png",
-            "badge": "/static/badge.png",
+            "icon": icon or "/static/icons/icon-192x192.png",
+            "badge": "/static/icons/icon-96x96.png",
             "tag": tag,
+            "silent": False,  # Ensure sound plays
+            "requireInteraction": False,
             "data": {
                 "url": url or "/",
+                "timestamp": __import__('datetime').datetime.utcnow().isoformat(),
             }
         }
         

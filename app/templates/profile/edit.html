@@ -494,11 +494,25 @@
                             applicationServerKey: urlBase64ToUint8Array(publicKey)
                         });
                         
-                        // Send subscription to server
+                        // Send subscription to server - use base64url encoding
                         const formData = new FormData();
                         formData.append('endpoint', subscription.endpoint);
-                        formData.append('p256dh', btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))));
-                        formData.append('auth', btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))));
+                        
+                        // Convert ArrayBuffer to base64url (web-safe)
+                        const arrayBufferToBase64 = (buffer) => {
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            return btoa(binary)
+                                .replace(/\+/g, '-')
+                                .replace(/\//g, '_')
+                                .replace(/=+$/, '');
+                        };
+                        
+                        formData.append('p256dh', arrayBufferToBase64(subscription.getKey('p256dh')));
+                        formData.append('auth', arrayBufferToBase64(subscription.getKey('auth')));
                         
                         await fetch('/push/subscribe', {
                             method: 'POST',

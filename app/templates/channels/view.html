@@ -609,26 +609,16 @@
     window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
     window.mutedChannels = JSON.parse(localStorage.getItem('mutedChannels') || '[]');
     
-    // Create the Star Trek communicator chirp using Web Audio API
-    function createCommunicatorChirp() {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        // Star Trek-like chirp: quick ascending tone
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.1);
-        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
-        
-        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.2);
+    // Notification sound using chirp.mp3
+    let notificationAudio = null;
+    
+    function createNotificationSound() {
+        if (!notificationAudio) {
+            notificationAudio = new Audio('/static/chirp.mp3');
+            notificationAudio.volume = 0.5;
+        }
+        notificationAudio.currentTime = 0;
+        notificationAudio.play().catch(e => console.log('Audio play failed:', e));
     }
     
     window.playNotificationSound = function() {
@@ -636,7 +626,7 @@
         if (window.mutedChannels.includes(window.channelId)) return;
         
         try {
-            createCommunicatorChirp();
+            createNotificationSound();
         } catch (e) {
             console.log('Audio not available:', e);
         }
@@ -886,6 +876,77 @@
 <script>
     window.workspaceId = {{ workspace.id }};
     window.channelId = {{ channel.id }};
+    window.currentUserId = {{ user.id }};
+    
+    // Check for notification permission and prompt if not set
+    (function() {
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+            return; // Notifications not supported
+        }
+        
+        // Only prompt once per session
+        if (sessionStorage.getItem('notificationPromptShown')) {
+            return;
+        }
+        
+        if (Notification.permission === 'default') {
+            // Show a non-intrusive banner after a short delay
+            setTimeout(() => {
+                const banner = document.createElement('div');
+                banner.id = 'notification-prompt-banner';
+                banner.className = 'fixed top-4 right-4 z-50 max-w-sm glass-dark rounded-lg border border-white/20 shadow-xl p-4 animate-fade-in';
+                banner.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-white">Enable Notifications</h3>
+                            <p class="mt-1 text-xs text-gray-400">Get notified when you receive messages or mentions.</p>
+                            <div class="mt-3 flex space-x-2">
+                                <button onclick="requestNotificationPermission()" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-md transition-colors">
+                                    Enable
+                                </button>
+                                <button onclick="dismissNotificationBanner()" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors">
+                                    Not now
+                                </button>
+                            </div>
+                        </div>
+                        <button onclick="dismissNotificationBanner()" class="text-gray-400 hover:text-white">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(banner);
+                sessionStorage.setItem('notificationPromptShown', 'true');
+            }, 3000);
+        }
+    })();
+    
+    window.requestNotificationPermission = async function() {
+        try {
+            const permission = await Notification.requestPermission();
+            dismissNotificationBanner();
+            
+            if (permission === 'granted') {
+                // Redirect to profile to complete push subscription setup
+                window.location.href = '/profile?tab=notifications';
+            }
+        } catch (e) {
+            console.error('Error requesting notification permission:', e);
+        }
+    };
+    
+    window.dismissNotificationBanner = function() {
+        const banner = document.getElementById('notification-prompt-banner');
+        if (banner) {
+            banner.remove();
+        }
+    };
 </script>
 {% endblock %}
 {% endblock %}

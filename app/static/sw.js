@@ -1,7 +1,7 @@
 // Service Worker for Forge Communicator
 // Handles push notifications and offline caching for PWA
 
-const CACHE_NAME = 'forge-communicator-v2';
+const CACHE_NAME = 'forge-communicator-v4';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
     '/',
     '/offline',
     '/static/app.js',
+    '/static/chirp.mp3',
     '/static/favicon.svg',
     '/static/forge-logo.png',
     '/static/manifest.json',
@@ -123,7 +124,8 @@ self.addEventListener('push', (event) => {
         tag: data.tag || 'forge-notification',
         renotify: true,
         requireInteraction: false,
-        vibrate: [100, 50, 100],
+        silent: false,  // Ensure system notification sound plays
+        vibrate: [100, 50, 100, 50, 100],  // More noticeable vibration pattern
         data: data.data,
         actions: [
             { action: 'open', title: 'Open' },
@@ -131,8 +133,23 @@ self.addEventListener('push', (event) => {
         ]
     };
     
+    // Show notification and play sound
     event.waitUntil(
         self.registration.showNotification(data.title, options)
+            .then(() => {
+                // Notify all clients to play in-app sound as backup
+                return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+            })
+            .then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({
+                        type: 'PUSH_RECEIVED',
+                        title: data.title,
+                        body: data.body,
+                        url: data.data?.url
+                    });
+                });
+            })
     );
 });
 

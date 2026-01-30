@@ -325,6 +325,35 @@ async def send_message(
         import logging
         logging.getLogger(__name__).error(f"Push notification error: {e}")
     
+    # Broadcast new message via WebSocket to other users in the channel
+    try:
+        from app.routers.realtime import broadcast_new_message
+        from io import StringIO
+        
+        # Render the message HTML for WebSocket broadcast
+        message_html = templates.TemplateResponse(
+            "partials/message_item.html" if not parent_id else "partials/thread_reply_item.html",
+            {
+                "request": request,
+                "message": message if not parent_id else None,
+                "reply": message if parent_id else None,
+                "user": user,
+                "workspace_id": workspace_id,
+                "channel_id": channel_id,
+            },
+        ).body.decode('utf-8')
+        
+        await broadcast_new_message(
+            channel_id=channel_id,
+            message_html=message_html,
+            message_id=message.id,
+            user_id=user.id,
+            user_name=user.display_name,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"WebSocket broadcast error: {e}")
+    
     if request.headers.get("HX-Request"):
         # Different template for thread replies vs main messages
         if parent_id:

@@ -208,6 +208,15 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         
+        /* Animations */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
+        
         /* Content layer - above background effects */
         .content-layer {
             position: relative;
@@ -315,6 +324,40 @@
                     .catch(error => {
                         console.error('Service Worker registration failed:', error);
                     });
+                
+                // Listen for messages from Service Worker (push notifications)
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'PUSH_RECEIVED') {
+                        console.log('Push notification received in app:', event.data);
+                        // Play in-app notification sound as backup
+                        if (window.playNotificationSound) {
+                            window.playNotificationSound();
+                        } else {
+                            // Fallback: create simple notification sound
+                            try {
+                                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                                const oscillator = audioCtx.createOscillator();
+                                const gainNode = audioCtx.createGain();
+                                oscillator.connect(gainNode);
+                                gainNode.connect(audioCtx.destination);
+                                oscillator.type = 'sine';
+                                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                                oscillator.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.1);
+                                oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+                                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                                oscillator.start(audioCtx.currentTime);
+                                oscillator.stop(audioCtx.currentTime + 0.2);
+                            } catch (e) {
+                                console.log('Could not play notification sound:', e);
+                            }
+                        }
+                        // Show toast notification if available
+                        if (window.showToast) {
+                            window.showToast(event.data.body, 'info');
+                        }
+                    }
+                });
             });
         }
         
