@@ -321,31 +321,43 @@ async def channel_view(
     )
     user_channel_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
     
-    # Get latest message ID for each channel
+    # Get unread message counts for each channel
     from sqlalchemy import func as sqlfunc
-    result = await db.execute(
-        select(Message.channel_id, sqlfunc.max(Message.id).label("max_id"))
-        .where(
-            Message.channel_id.in_([ch.id for ch in channels]),
-            Message.deleted_at == None,
-        )
-        .group_by(Message.channel_id)
-    )
-    latest_messages = {row[0]: row[1] for row in result.fetchall()}
     
-    # Calculate unread status for each channel
+    # Build unread counts - count messages newer than last_read_message_id
     unread_channels = {}
-    for ch in channels:
-        latest_msg_id = latest_messages.get(ch.id)
-        last_read_id = user_channel_memberships.get(ch.id)
-        
-        if latest_msg_id:
-            if last_read_id is None or latest_msg_id > last_read_id:
-                unread_channels[ch.id] = True
+    channel_ids = [ch.id for ch in channels]
+    
+    if channel_ids:
+        # For channels with a last_read_message_id, count messages after that ID
+        # For channels without, count all messages
+        for ch_id in channel_ids:
+            last_read_id = user_channel_memberships.get(ch_id)
+            
+            if last_read_id is not None:
+                # Count messages after last read
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.channel_id == ch_id,
+                        Message.deleted_at == None,
+                        Message.id > last_read_id,
+                        Message.user_id != user.id,  # Don't count own messages
+                    )
+                )
             else:
-                unread_channels[ch.id] = False
-        else:
-            unread_channels[ch.id] = False
+                # No membership record - count all messages (except own)
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.channel_id == ch_id,
+                        Message.deleted_at == None,
+                        Message.user_id != user.id,  # Don't count own messages
+                    )
+                )
+            
+            count = count_result.scalar() or 0
+            unread_channels[ch_id] = count
     
     # Get recent artifacts for channel
     result = await db.execute(

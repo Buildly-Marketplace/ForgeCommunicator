@@ -157,6 +157,33 @@
                     <p id="channel-topic" class="text-sm text-gray-400 truncate hidden sm:block">{{ channel.topic or "No topic set" }}</p>
                 </div>
                 <div class="ml-4 flex items-center md:ml-6 space-x-2">
+                    <!-- Export messages button -->
+                    <div class="relative" id="export-dropdown-container">
+                        <button type="button" onclick="toggleExportDropdown()"
+                                class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
+                                title="Export messages">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </button>
+                        <!-- Export dropdown menu -->
+                        <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-56 rounded-md shadow-lg glass-dark border border-white/10 ring-1 ring-black ring-opacity-5 z-50">
+                            <div class="py-1">
+                                <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/export?limit=50" 
+                                   class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
+                                    Export last 50 messages
+                                </a>
+                                <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/export?limit=100" 
+                                   class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
+                                    Export last 100 messages
+                                </a>
+                                <a href="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/export?limit=500&include_threads=true" 
+                                   class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
+                                    Export all with threads
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Sound toggle button -->
                     <button type="button" id="sound-toggle-btn" onclick="toggleChannelMute(window.channelId)"
                             class="p-2 text-gray-400 hover:text-blue-400 rounded-md hover:bg-white/5 transition-colors"
@@ -378,10 +405,28 @@
         document.body.classList.remove('overflow-hidden');
     };
     
+    // Export dropdown toggle
+    window.toggleExportDropdown = function() {
+        const dropdown = document.getElementById('export-dropdown');
+        dropdown.classList.toggle('hidden');
+    };
+    
+    // Close export dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('export-dropdown-container');
+        const dropdown = document.getElementById('export-dropdown');
+        if (container && !container.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+    
     // Close sidebar on escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             window.closeMobileSidebar();
+            // Also close export dropdown
+            const dropdown = document.getElementById('export-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
         }
     });
     

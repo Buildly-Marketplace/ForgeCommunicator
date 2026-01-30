@@ -165,6 +165,23 @@ class Settings(BaseSettings):
     # CORS (for API access if needed)
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
     
+    # Email configuration (SMTP)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    smtp_from_email: str | None = None  # Defaults to brand_support_email
+    smtp_from_name: str | None = None  # Defaults to brand_name
+    
+    # Email configuration (API providers - alternative to SMTP)
+    sendgrid_api_key: str | None = None
+    mailgun_api_key: str | None = None
+    mailgun_domain: str | None = None
+    
+    # Base URL for links in emails
+    base_url: str = "http://localhost:8000"
+    
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"  # json or text
@@ -181,6 +198,15 @@ class Settings(BaseSettings):
     @property
     def push_enabled(self) -> bool:
         return bool(self.vapid_public_key and self.vapid_private_key)
+    
+    @property
+    def email_configured(self) -> bool:
+        """Check if any email provider is configured."""
+        return bool(
+            self.smtp_host or
+            self.sendgrid_api_key or
+            (self.mailgun_api_key and self.mailgun_domain)
+        )
     
     @property
     def admin_emails_list(self) -> list[str]:

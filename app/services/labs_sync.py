@@ -274,7 +274,15 @@ class LabsSyncService:
         
         try:
             response = await self.get_backlog(product_uuid=product_uuid)
-            backlog_items = response.get("data", [])
+            # Labs API may return data in different formats - try multiple keys
+            backlog_items = response.get("data") or response.get("results") or []
+            if isinstance(response, list):
+                backlog_items = response
+            print(f"[Labs Sync] Backlog API returned {len(backlog_items)} items for product {product_uuid}")
+            if backlog_items and len(backlog_items) > 0:
+                first_item = backlog_items[0]
+                print(f"[Labs Sync] First backlog item keys: {list(first_item.keys()) if isinstance(first_item, dict) else 'not a dict'}")
+                print(f"[Labs Sync] First backlog item: {first_item}")
         except httpx.HTTPError as e:
             raise Exception(f"Failed to fetch backlog from Labs API: {e}")
         
@@ -314,9 +322,17 @@ class LabsSyncService:
         new_items_by_channel = {}  # channel_id -> list of items
         
         for item in backlog_items:
-            labs_uuid = str(item.get("id") or item.get("uuid", ""))
+            # Labs API may use different UUID field names
+            labs_uuid = str(
+                item.get("item_uuid") or
+                item.get("backlog_uuid") or
+                item.get("uuid") or 
+                item.get("id") or 
+                ""
+            )
             
             if not labs_uuid:
+                print(f"[Labs Sync] Skipping backlog item with no UUID: {item}")
                 stats["skipped"] += 1
                 continue
             
@@ -330,7 +346,8 @@ class LabsSyncService:
             existing = result.scalar_one_or_none()
             
             # Determine which channel this item belongs to
-            item_type = item.get("type", "feature").lower()
+            # Labs API may use 'type', 'item_type', or 'category'
+            item_type = (item.get("type") or item.get("item_type") or item.get("category") or "feature").lower()
             channel_type = type_to_channel.get(item_type, "features")
             target_channel = channels_by_type.get(channel_type) or channels_by_type.get("general")
             channel_id = target_channel.id if target_channel else None
@@ -339,8 +356,19 @@ class LabsSyncService:
             artifact_type = self._map_item_type(item_type)
             artifact_status = self._map_item_status(item.get("status", "open"), artifact_type)
             
-            # Labs API may use 'name' or 'title' for the item name
-            item_title = item.get("name") or item.get("title") or "Untitled Item"
+            # Labs API may use different field names for the item title
+            item_title = (
+                item.get("name") or 
+                item.get("title") or 
+                item.get("summary") or
+                item.get("short_description") or
+                "Untitled Item"
+            )
+            # Truncate to fit in database field (200 chars)
+            if len(item_title) > 200:
+                item_title = item_title[:197] + "..."
+            
+            print(f"[Labs Sync] Processing backlog item: {item_title} (uuid={labs_uuid}, type={item_type})")
             
             if existing:
                 # Update existing artifact
@@ -440,6 +468,129 @@ class LabsSyncService:
         
         # Default to type-specific default
         return Artifact.get_default_status(artifact_type)
+    
+    async def sync_releases(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        local_product_id: int | None = None,
+        user_id: int | None = None,
+    ) -> dict[str, int]:
+        """
+        Sync releases from Labs API.
+        Posts releases to the releases channel.
+        
+        Returns dict with counts: {"created": N, "updated": N, "skipped": N, "messages": N}
+        """
+        stats = {"created": 0, "updated": 0, "skipped": 0, "messages": 0}
+        
+        try:
+            response = await self.get_releases()
+            # Labs API may return data in different formats
+            releases = response.get("data") or response.get("results") or []
+            if isinstance(response, list):
+                releases = response
+            print(f"[Labs Sync] Releases API returned {len(releases)} releases")
+            if releases and len(releases) > 0:
+                print(f"[Labs Sync] First release keys: {list(releases[0].keys()) if isinstance(releases[0], dict) else 'not a dict'}")
+        except httpx.HTTPError as e:
+            # Releases endpoint might not exist
+            print(f"[Labs Sync] Releases API failed: {e}")
+            return stats
+        
+        if not releases:
+            return stats
+        
+        # Get releases channel for the product (if product_id provided)
+        releases_channel = None
+        if local_product_id:
+            result = await db.execute(
+                select(Channel).where(
+                    Channel.product_id == local_product_id,
+                    Channel.name.endswith("-releases"),
+                )
+            )
+            releases_channel = result.scalar_one_or_none()
+        
+        for release in releases:
+            # Labs API may use different UUID field names
+            labs_uuid = str(
+                release.get("release_uuid") or
+                release.get("uuid") or 
+                release.get("id") or 
+                ""
+            )
+            
+            if not labs_uuid:
+                stats["skipped"] += 1
+                continue
+            
+            # Check if artifact already exists
+            result = await db.execute(
+                select(Artifact).where(
+                    Artifact.workspace_id == workspace_id,
+                    Artifact.buildly_item_uuid == labs_uuid,
+                )
+            )
+            existing = result.scalar_one_or_none()
+            
+            # Get release title from various possible fields
+            release_title = (
+                release.get("name") or 
+                release.get("title") or 
+                release.get("version") or
+                "Untitled Release"
+            )
+            if len(release_title) > 200:
+                release_title = release_title[:197] + "..."
+            
+            release_status = release.get("status", "planned")
+            release_description = release.get("description") or release.get("notes") or ""
+            
+            print(f"[Labs Sync] Processing release: {release_title} (uuid={labs_uuid})")
+            
+            if existing:
+                # Update existing artifact
+                existing.title = release_title
+                existing.body = release_description or existing.body
+                existing.status = self._map_item_status(release_status, ArtifactType.FEATURE)
+                stats["updated"] += 1
+            else:
+                if not user_id:
+                    stats["skipped"] += 1
+                    continue
+                
+                # Create new release artifact
+                new_artifact = Artifact(
+                    workspace_id=workspace_id,
+                    product_id=local_product_id,
+                    channel_id=releases_channel.id if releases_channel else None,
+                    type=ArtifactType.FEATURE,  # Using FEATURE for releases
+                    title=release_title,
+                    body=release_description,
+                    status=self._map_item_status(release_status, ArtifactType.FEATURE),
+                    created_by=user_id,
+                    buildly_item_uuid=labs_uuid,
+                )
+                db.add(new_artifact)
+                
+                # Post message to releases channel
+                if releases_channel and user_id:
+                    release_date = release.get("release_date") or release.get("date") or ""
+                    msg = Message(
+                        channel_id=releases_channel.id,
+                        user_id=user_id,
+                        body=f"🚀 **{release_title}**\n\n{release_description}\n\n" + 
+                             (f"📅 Release Date: {release_date}\n" if release_date else "") +
+                             f"Status: {release_status}",
+                    )
+                    db.add(msg)
+                    stats["messages"] += 1
+                
+                stats["created"] += 1
+        
+        await db.commit()
+        return stats
     
     async def sync_team(
         self,
@@ -595,6 +746,27 @@ async def sync_all_from_labs(
             print(f"[Labs Sync] Backlog sync failed for product {product.name}: {e}")
     
     results["backlog"] = backlog_stats
+    
+    # Sync releases for each product
+    releases_stats = {"created": 0, "updated": 0, "skipped": 0, "messages": 0, "errors": 0}
+    
+    for product in products:
+        try:
+            release_stats = await service.sync_releases(
+                db,
+                workspace_id,
+                local_product_id=product.id,
+                user_id=user_id,
+            )
+            releases_stats["created"] += release_stats["created"]
+            releases_stats["updated"] += release_stats["updated"]
+            releases_stats["skipped"] += release_stats["skipped"]
+            releases_stats["messages"] += release_stats["messages"]
+        except Exception as e:
+            releases_stats["errors"] += 1
+            print(f"[Labs Sync] Releases sync failed for product {product.name}: {e}")
+    
+    results["releases"] = releases_stats
     
     # Sync team members and create invites
     try:

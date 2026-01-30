@@ -137,6 +137,7 @@ async def sync_backlog(
     current_user: User = Depends(get_current_user),
 ):
     """Sync backlog items from Labs API to artifacts."""
+    from app.models.product import Product
     
     # Get auth token for this workspace
     token, auth_method = await get_workspace_labs_token(db, workspace_id, current_user)
@@ -145,12 +146,52 @@ async def sync_backlog(
     
     try:
         service = LabsSyncService(access_token=token)
-        stats = await service.sync_backlog(
-            db,
-            workspace_id,
-            product_id=product_id,
-            user_id=current_user.id,
-        )
+        
+        # If a specific product_id is provided, sync just that product
+        if product_id:
+            result = await db.execute(
+                select(Product).where(
+                    Product.id == product_id,
+                    Product.workspace_id == workspace_id,
+                )
+            )
+            product = result.scalar_one_or_none()
+            if not product or not product.buildly_product_uuid:
+                raise HTTPException(status_code=404, detail="Product not found or has no Labs UUID")
+            
+            stats = await service.sync_backlog(
+                db,
+                workspace_id,
+                product_uuid=product.buildly_product_uuid,
+                local_product_id=product.id,
+                user_id=current_user.id,
+            )
+        else:
+            # Sync backlog for all products in workspace
+            total_stats = {"created": 0, "updated": 0, "skipped": 0, "messages": 0}
+            result = await db.execute(
+                select(Product).where(
+                    Product.workspace_id == workspace_id,
+                    Product.buildly_product_uuid.isnot(None),
+                )
+            )
+            products = result.scalars().all()
+            
+            for product in products:
+                product_stats = await service.sync_backlog(
+                    db,
+                    workspace_id,
+                    product_uuid=product.buildly_product_uuid,
+                    local_product_id=product.id,
+                    user_id=current_user.id,
+                )
+                total_stats["created"] += product_stats["created"]
+                total_stats["updated"] += product_stats["updated"]
+                total_stats["skipped"] += product_stats["skipped"]
+                total_stats["messages"] += product_stats["messages"]
+            
+            stats = total_stats
+        
         return {
             "success": True,
             "message": f"Synced backlog: {stats['created']} created, {stats['updated']} updated",
@@ -190,6 +231,7 @@ async def sync_all(
         # Build detailed stats
         products = results.get("products", {})
         backlog = results.get("backlog", {})
+        releases = results.get("releases", {})
         team = results.get("team", {})
         
         products_created = products.get("created", 0)
@@ -198,14 +240,17 @@ async def sync_all(
         backlog_created = backlog.get("created", 0)
         backlog_updated = backlog.get("updated", 0)
         backlog_messages = backlog.get("messages", 0)
+        releases_created = releases.get("created", 0)
+        releases_updated = releases.get("updated", 0)
         team_invited = team.get("invited", 0)
         
         if is_htmx:
             # Build detailed breakdown
             errors = results.get("errors", [])
             backlog_errors = backlog.get("errors", 0)
+            releases_errors = releases.get("errors", 0)
             
-            if errors or backlog_errors:
+            if errors or backlog_errors or releases_errors:
                 # Partial success with warnings
                 lines = ['<div class="p-2 bg-yellow-50 rounded border border-yellow-200">']
                 lines.append('<span class="text-yellow-700">⚠️ Sync completed with some issues:</span><br>')
@@ -220,6 +265,10 @@ async def sync_all(
                 lines.append(f' ({backlog_messages} threads)')
             if backlog_errors:
                 lines.append(f' <span class="text-orange-600">({backlog_errors} errors)</span>')
+            lines.append('</span><br>')
+            lines.append(f'<span class="text-gray-700">• Releases: {releases_created} new, {releases_updated} updated')
+            if releases_errors:
+                lines.append(f' <span class="text-orange-600">({releases_errors} errors)</span>')
             lines.append('</span><br>')
             lines.append(f'<span class="text-gray-700">• Team invites: {team_invited} created</span>')
             
@@ -317,20 +366,36 @@ async def debug_labs_api(
 @router.get("/labs/backlog")
 async def list_labs_backlog(
     request: Request,
-    product_id: int | None = None,
+    product_uuid: str | None = None,
     limit: int = 50,
     offset: int = 0,
     current_user: User = Depends(get_current_user),
 ):
     """List backlog items directly from Labs API (preview before sync)."""
-    if not settings.labs_api_key:
-        raise HTTPException(status_code=400, detail="LABS_API_KEY not configured")
+    token = current_user.labs_access_token or settings.labs_api_key
+    if not token:
+        raise HTTPException(status_code=400, detail="Sign in with Buildly Labs to enable sync")
     
     try:
-        service = LabsSyncService()
-        return await service.get_backlog(product_id=product_id, limit=limit, offset=offset)
+        service = LabsSyncService(access_token=token)
+        response = await service.get_backlog(product_uuid=product_uuid, limit=limit, offset=offset)
+        
+        # Return with debug info about the structure
+        backlog_items = response.get("data") or response.get("results") or []
+        if isinstance(response, list):
+            backlog_items = response
+        
+        return {
+            "response_keys": list(response.keys()) if isinstance(response, dict) else "response is a list",
+            "count": len(backlog_items),
+            "first_item_keys": list(backlog_items[0].keys()) if backlog_items and isinstance(backlog_items[0], dict) else None,
+            "first_item": backlog_items[0] if backlog_items else None,
+            "items": backlog_items[:10],  # First 10 items
+            "raw_response": response,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch: {str(e)}")
+        import traceback
+        raise HTTPException(status_code=500, detail=f"Failed to fetch: {str(e)}\n{traceback.format_exc()}")
 
 
 @router.get("/labs/insights")

@@ -87,6 +87,7 @@ class User(Base, TimestampMixin):
     memberships = relationship("Membership", back_populates="user", lazy="selectin")
     messages = relationship("Message", back_populates="user", lazy="noload")
     push_subscriptions = relationship("PushSubscription", back_populates="user", lazy="noload")
+    notes = relationship("Note", back_populates="owner", foreign_keys="Note.owner_id", lazy="noload")
     
     def generate_session_token(self) -> str:
         """Generate a new session token and set expiry."""

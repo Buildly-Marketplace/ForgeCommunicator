@@ -54,10 +54,24 @@
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center">
                                     {% if workspace.icon_url %}
-                                    <img src="{{ workspace.icon_url }}" alt="" class="w-10 h-10 rounded-lg mr-3">
+                                    <div class="relative">
+                                        <img src="{{ workspace.icon_url }}" alt="" class="w-10 h-10 rounded-lg mr-3">
+                                        {% if workspace_unread_counts.get(workspace.id, 0) > 0 %}
+                                        <span class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
+                                            {{ workspace_unread_counts.get(workspace.id) if workspace_unread_counts.get(workspace.id, 0) < 100 else '99+' }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
                                     {% else %}
-                                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3 border border-blue-500/30">
-                                        <span class="text-blue-400 font-semibold text-lg">{{ workspace.name[0] }}</span>
+                                    <div class="relative">
+                                        <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3 border border-blue-500/30">
+                                            <span class="text-blue-400 font-semibold text-lg">{{ workspace.name[0] }}</span>
+                                        </div>
+                                        {% if workspace_unread_counts.get(workspace.id, 0) > 0 %}
+                                        <span class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
+                                            {{ workspace_unread_counts.get(workspace.id) if workspace_unread_counts.get(workspace.id, 0) < 100 else '99+' }}
+                                        </span>
+                                        {% endif %}
                                     </div>
                                     {% endif %}
                                     <div>

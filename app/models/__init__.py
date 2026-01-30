@@ -9,6 +9,7 @@ from app.models.artifact import Artifact, ArtifactType, ArtifactStatus
 from app.models.product import Product
 from app.models.push_subscription import PushSubscription
 from app.models.site_config import SiteConfig, ConfigKeys, THEME_PRESETS
+from app.models.note import Note, NoteShare, NoteVisibility, NoteSourceType
 
 __all__ = [
     "Base",
@@ -29,5 +30,9 @@ __all__ = [
     "SiteConfig",
     "ConfigKeys",
     "THEME_PRESETS",
+    "Note",
+    "NoteShare",
+    "NoteVisibility",
+    "NoteSourceType",
 ]
 

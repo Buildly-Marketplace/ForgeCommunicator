@@ -20,12 +20,12 @@
                id="channel-link-{{ ch.id }}"
                data-channel-id="{{ ch.id }}"
                class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
-                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
+                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
                 <span class="mr-2 {% if current_channel_id == ch.id %}text-blue-400{% endif %}">#</span>
                 <span class="truncate flex-1">{{ ch.name }}</span>
-                {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
+                {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
                 <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
-                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
                 </span>
                 {% endif %}
             </a>
@@ -40,14 +40,14 @@
                id="channel-link-{{ ch.id }}"
                data-channel-id="{{ ch.id }}"
                class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
-                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
+                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
                 <span class="truncate flex-1">{{ ch.name }}</span>
-                {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
+                {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
                 <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
-                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
                 </span>
                 {% endif %}
             </a>
@@ -77,14 +77,14 @@
                id="channel-link-{{ ch.id }}"
                data-channel-id="{{ ch.id }}"
                class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
-                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id) %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
-                <div class="w-5 h-5 rounded-full {% if unread_channels.get(ch.id) %}bg-blue-500{% else %}bg-green-500/70{% endif %} flex items-center justify-center mr-2">
+                      {% if current_channel_id == ch.id %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
+                <div class="w-5 h-5 rounded-full {% if unread_channels.get(ch.id, 0) > 0 %}bg-blue-500{% else %}bg-green-500/70{% endif %} flex items-center justify-center mr-2">
                     <span class="text-white text-xs">{{ ch.name[0] }}</span>
                 </div>
                 <span class="truncate flex-1">{{ ch.name }}</span>
-                {% if unread_channels.get(ch.id) and current_channel_id != ch.id %}
+                {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
                 <span class="unread-badge min-w-[18px] h-[18px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
-                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id) < 100 else '99+' }}
+                    {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
                 </span>
                 {% endif %}
             </a>
@@ -120,9 +120,14 @@
                 {% if ch.product_id == product.id %}
                 <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
                    class="group flex items-center px-2 py-1 text-sm rounded-md 
-                          {% if current_channel_id == ch.id %}bg-gray-900 text-white{% else %}text-gray-400 hover:bg-gray-700 hover:text-white{% endif %}">
+                          {% if current_channel_id == ch.id %}bg-gray-900 text-white{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-400 hover:bg-gray-700 hover:text-white{% endif %}">
                     <span class="mr-1">#</span>
-                    <span class="truncate">{{ ch.name }}</span>
+                    <span class="truncate flex-1">{{ ch.name }}</span>
+                    {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
+                    <span class="unread-badge min-w-[16px] h-[16px] bg-blue-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1 ml-1">
+                        {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
+                    </span>
+                    {% endif %}
                 </a>
                 {% endif %}
                 {% endfor %}

@@ -38,6 +38,10 @@ async def list_workspaces(
 ):
     """List user's workspaces."""
     from app.settings import settings
+    from sqlalchemy import func as sqlfunc
+    from app.models.channel import Channel
+    from app.models.membership import ChannelMembership
+    from app.models.message import Message
     
     # Get workspaces user is a member of
     result = await db.execute(
@@ -48,6 +52,61 @@ async def list_workspaces(
     )
     workspaces = result.scalars().all()
     
+    # Calculate unread counts per workspace
+    workspace_unread_counts = {}
+    for ws in workspaces:
+        # Get all channels in this workspace the user can access
+        result = await db.execute(
+            select(Channel.id)
+            .where(
+                Channel.workspace_id == ws.id,
+                Channel.is_archived == False,
+            )
+        )
+        channel_ids = [row[0] for row in result.fetchall()]
+        
+        if not channel_ids:
+            workspace_unread_counts[ws.id] = 0
+            continue
+        
+        # Get user's last read positions for these channels
+        result = await db.execute(
+            select(ChannelMembership)
+            .where(
+                ChannelMembership.user_id == user.id,
+                ChannelMembership.channel_id.in_(channel_ids),
+            )
+        )
+        user_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
+        
+        # Count unread messages across all channels in this workspace
+        total_unread = 0
+        for ch_id in channel_ids:
+            last_read_id = user_memberships.get(ch_id)
+            if last_read_id is not None:
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.channel_id == ch_id,
+                        Message.deleted_at == None,
+                        Message.id > last_read_id,
+                        Message.user_id != user.id,
+                    )
+                )
+            else:
+                # No membership - count all messages except own
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.channel_id == ch_id,
+                        Message.deleted_at == None,
+                        Message.user_id != user.id,
+                    )
+                )
+            total_unread += count_result.scalar() or 0
+        
+        workspace_unread_counts[ws.id] = total_unread
+    
     # Check if user is admin (either flagged or in admin emails)
     is_admin = user.is_platform_admin or settings.is_admin_email(user.email)
     
@@ -57,6 +116,7 @@ async def list_workspaces(
             "request": request,
             "user": user,
             "workspaces": workspaces,
+            "workspace_unread_counts": workspace_unread_counts,
             "is_admin": is_admin,
         },
     )
@@ -360,6 +420,7 @@ async def workspace_settings(
             "channels": channels,
             "products": products,
             "artifacts": artifacts,
+            "email_configured": settings.email_configured,
         },
     )
 
@@ -413,8 +474,19 @@ async def create_team_invite(
     db: DBSession,
     email: Annotated[str, Form()],
     name: Annotated[str | None, Form()] = None,
+    send_email: Annotated[bool, Form()] = True,
+    cc_self: Annotated[bool, Form()] = False,
+    cc_emails: Annotated[str | None, Form()] = None,
 ):
-    """Create a new team invite (admin only)."""
+    """Create a new team invite (admin only).
+    
+    Args:
+        email: Email address to invite
+        name: Optional name of the invitee
+        send_email: Whether to send the invite email (default True)
+        cc_self: Whether to CC the inviter on the email
+        cc_emails: Comma-separated list of additional emails to CC
+    """
     # Check admin
     result = await db.execute(
         select(Membership).where(
@@ -457,6 +529,12 @@ async def create_team_invite(
             return HTMLResponse('<div class="text-yellow-600 text-sm">Invite already pending for this email</div>', status_code=400)
         raise HTTPException(status_code=400, detail="Invite already pending")
     
+    # Get workspace name for email
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one()
+    
     # Create invite
     invite = TeamInvite.create(
         workspace_id=workspace_id,
@@ -467,6 +545,35 @@ async def create_team_invite(
     db.add(invite)
     await db.commit()
     await db.refresh(invite)
+    
+    # Send email if requested
+    email_sent = False
+    email_status_msg = ""
+    if send_email:
+        from app.services.email import send_invite_email, email_service
+        
+        # Build CC list
+        cc_list: list[str] = []
+        if cc_self:
+            cc_list.append(user.email)
+        if cc_emails:
+            additional_ccs = [e.strip().lower() for e in cc_emails.split(",") if e.strip() and "@" in e]
+            cc_list.extend(additional_ccs)
+        
+        email_sent = await send_invite_email(
+            to_email=email,
+            invite_token=invite.token,
+            workspace_name=workspace.name,
+            inviter_name=user.display_name,
+            cc_emails=cc_list if cc_list else None,
+        )
+        
+        if email_sent:
+            email_status_msg = '<span class="text-green-500 text-xs ml-2">✓ Email sent</span>'
+        elif email_service.is_configured:
+            email_status_msg = '<span class="text-yellow-500 text-xs ml-2">⚠ Email failed</span>'
+        else:
+            email_status_msg = '<span class="text-gray-400 text-xs ml-2">(Email not configured)</span>'
     
     if request.headers.get("HX-Request"):
         # Return the new invite row HTML
@@ -479,13 +586,14 @@ async def create_team_invite(
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-900">{invite.name or invite.email}</p>
+                        <p class="text-sm font-medium text-gray-900">{invite.name or invite.email}{email_status_msg}</p>
                         <p class="text-sm text-gray-500">{invite.email}</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
                     <span class="text-xs text-gray-400">Expires {invite.expires_at.strftime('%b %d')}</span>
                     <button onclick="copyInviteLink('{invite.token}')" class="text-xs text-indigo-600 hover:text-indigo-500">Copy Link</button>
+                    <button hx-post="/workspaces/{workspace_id}/invites/{invite.id}/resend" hx-swap="none" class="text-xs text-blue-600 hover:text-blue-500">Resend</button>
                     <button hx-delete="/workspaces/{workspace_id}/invites/{invite.id}" hx-target="#invite-{invite.id}" hx-swap="outerHTML" class="text-xs text-red-600 hover:text-red-500">Cancel</button>
                 </div>
             </li>
@@ -495,6 +603,63 @@ async def create_team_invite(
         url=f"/workspaces/{workspace_id}/settings",
         status_code=status.HTTP_302_FOUND,
     )
+
+
+@router.post("/{workspace_id}/invites/{invite_id}/resend")
+async def resend_team_invite(
+    request: Request,
+    workspace_id: int,
+    invite_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Resend an invite email (admin only)."""
+    # Check admin
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get invite
+    result = await db.execute(
+        select(TeamInvite).where(
+            TeamInvite.id == invite_id,
+            TeamInvite.workspace_id == workspace_id,
+            TeamInvite.status == InviteStatus.PENDING,
+        )
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one()
+    
+    # Resend email
+    from app.services.email import send_invite_email
+    
+    email_sent = await send_invite_email(
+        to_email=invite.email,
+        invite_token=invite.token,
+        workspace_name=workspace.name,
+        inviter_name=user.display_name,
+    )
+    
+    if request.headers.get("HX-Request"):
+        if email_sent:
+            return HTMLResponse('<span class="text-green-500 text-xs">✓ Email resent</span>')
+        else:
+            return HTMLResponse('<span class="text-red-500 text-xs">Failed to send</span>')
+    
+    return {"success": email_sent}
 
 
 @router.delete("/{workspace_id}/invites/{invite_id}")

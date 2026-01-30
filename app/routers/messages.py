@@ -588,3 +588,278 @@ async def get_single_message(
         url=f"/workspaces/{workspace_id}/channels/{channel_id}",
         status_code=status.HTTP_302_FOUND,
     )
+
+
+# ============================================
+# Message Export Endpoints
+# ============================================
+
+def format_message_to_markdown(message: Message, include_metadata: bool = True) -> str:
+    """Format a single message to Markdown."""
+    lines = []
+    
+    # Header with author and timestamp
+    author = message.user.display_name if message.user else "Unknown"
+    timestamp = message.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if message.created_at else ""
+    
+    if include_metadata:
+        lines.append(f"**{author}** — {timestamp}")
+        if message.is_edited:
+            lines.append(" _(edited)_")
+        lines.append("\n")
+    else:
+        lines.append(f"> **{author}**\n")
+    
+    # Message body
+    body = message.body or ""
+    lines.append(f"{body}\n")
+    
+    return "".join(lines)
+
+
+def format_thread_to_markdown(
+    parent_message: Message,
+    replies: list[Message],
+    channel_name: str,
+    workspace_name: str,
+) -> str:
+    """Format a thread (parent + replies) to Markdown."""
+    lines = []
+    
+    # Document header
+    lines.append(f"# Thread Export\n\n")
+    lines.append(f"**Workspace:** {workspace_name}  \n")
+    lines.append(f"**Channel:** {channel_name}  \n")
+    lines.append(f"**Exported:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}  \n")
+    lines.append(f"**Messages:** {1 + len(replies)}\n\n")
+    lines.append("---\n\n")
+    
+    # Parent message
+    lines.append("## Original Message\n\n")
+    lines.append(format_message_to_markdown(parent_message))
+    lines.append("\n")
+    
+    # Replies
+    if replies:
+        lines.append("## Replies\n\n")
+        for i, reply in enumerate(replies, 1):
+            lines.append(f"### Reply {i}\n\n")
+            lines.append(format_message_to_markdown(reply))
+            lines.append("\n")
+    
+    return "".join(lines)
+
+
+def format_messages_to_markdown(
+    messages: list[Message],
+    channel_name: str,
+    workspace_name: str,
+    title: str = "Messages Export",
+) -> str:
+    """Format multiple messages to Markdown."""
+    lines = []
+    
+    # Document header
+    lines.append(f"# {title}\n\n")
+    lines.append(f"**Workspace:** {workspace_name}  \n")
+    lines.append(f"**Channel:** {channel_name}  \n")
+    lines.append(f"**Exported:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}  \n")
+    lines.append(f"**Messages:** {len(messages)}\n\n")
+    lines.append("---\n\n")
+    
+    # Messages
+    for message in messages:
+        lines.append(format_message_to_markdown(message))
+        lines.append("\n---\n\n")
+    
+    return "".join(lines)
+
+
+@router.get("/{message_id}/thread/export")
+async def export_thread(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    message_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Export a thread as a Markdown document."""
+    from fastapi.responses import Response
+    from app.models.workspace import Workspace
+    
+    channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Get workspace name
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
+    workspace = result.scalar_one_or_none()
+    workspace_name = workspace.name if workspace else "Unknown"
+    
+    # Get parent message
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.id == message_id,
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+        )
+        .options(selectinload(Message.user))
+    )
+    parent_message = result.scalar_one_or_none()
+    
+    if not parent_message:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    
+    # Get replies
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.parent_id == message_id,
+            Message.deleted_at == None,
+        )
+        .options(selectinload(Message.user))
+        .order_by(Message.created_at.asc())
+    )
+    replies = list(result.scalars().all())
+    
+    # Generate Markdown
+    markdown_content = format_thread_to_markdown(
+        parent_message=parent_message,
+        replies=replies,
+        channel_name=channel.display_name,
+        workspace_name=workspace_name,
+    )
+    
+    # Generate filename
+    safe_channel = channel.name.replace(" ", "-").replace("/", "-")[:30]
+    filename = f"thread-{safe_channel}-{message_id}.md"
+    
+    return Response(
+        content=markdown_content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.get("/export")
+async def export_messages(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    message_ids: str | None = Query(default=None, description="Comma-separated message IDs to export"),
+    limit: int = Query(default=50, le=200, description="Number of recent messages to export if no IDs specified"),
+    include_threads: bool = Query(default=False, description="Include thread replies for each message"),
+):
+    """Export messages as a Markdown document.
+    
+    - If message_ids is provided, exports those specific messages
+    - Otherwise, exports the most recent `limit` messages from the channel
+    """
+    from fastapi.responses import Response
+    from app.models.workspace import Workspace
+    
+    channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Get workspace name
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
+    workspace = result.scalar_one_or_none()
+    workspace_name = workspace.name if workspace else "Unknown"
+    
+    if message_ids:
+        # Export specific messages
+        ids = [int(id.strip()) for id in message_ids.split(",") if id.strip().isdigit()]
+        if not ids:
+            raise HTTPException(status_code=400, detail="Invalid message IDs")
+        
+        result = await db.execute(
+            select(Message)
+            .where(
+                Message.id.in_(ids),
+                Message.channel_id == channel_id,
+                Message.deleted_at == None,
+            )
+            .options(selectinload(Message.user))
+            .order_by(Message.created_at.asc())
+        )
+        messages = list(result.scalars().all())
+        title = f"Selected Messages from #{channel.name}"
+    else:
+        # Export recent messages
+        result = await db.execute(
+            select(Message)
+            .where(
+                Message.channel_id == channel_id,
+                Message.deleted_at == None,
+                Message.parent_id == None,  # Only top-level messages
+            )
+            .options(selectinload(Message.user))
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+        messages = list(reversed(result.scalars().all()))
+        title = f"Recent Messages from #{channel.name}"
+    
+    if not messages:
+        raise HTTPException(status_code=404, detail="No messages found")
+    
+    # If include_threads, fetch replies for each message
+    if include_threads:
+        lines = []
+        lines.append(f"# {title}\n\n")
+        lines.append(f"**Workspace:** {workspace_name}  \n")
+        lines.append(f"**Channel:** {channel.display_name}  \n")
+        lines.append(f"**Exported:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}  \n")
+        lines.append(f"**Messages:** {len(messages)} (with threads)\n\n")
+        lines.append("---\n\n")
+        
+        for msg in messages:
+            lines.append(format_message_to_markdown(msg))
+            
+            # Get replies if this message has any
+            if msg.thread_reply_count and msg.thread_reply_count > 0:
+                result = await db.execute(
+                    select(Message)
+                    .where(
+                        Message.parent_id == msg.id,
+                        Message.deleted_at == None,
+                    )
+                    .options(selectinload(Message.user))
+                    .order_by(Message.created_at.asc())
+                )
+                replies = result.scalars().all()
+                
+                if replies:
+                    lines.append("\n> **Thread Replies:**\n>\n")
+                    for reply in replies:
+                        author = reply.user.display_name if reply.user else "Unknown"
+                        timestamp = reply.created_at.strftime("%Y-%m-%d %H:%M") if reply.created_at else ""
+                        body = reply.body.replace("\n", "\n> ") if reply.body else ""
+                        lines.append(f"> **{author}** ({timestamp}):\n> {body}\n>\n")
+            
+            lines.append("\n---\n\n")
+        
+        markdown_content = "".join(lines)
+    else:
+        markdown_content = format_messages_to_markdown(
+            messages=messages,
+            channel_name=channel.display_name,
+            workspace_name=workspace_name,
+            title=title,
+        )
+    
+    # Generate filename
+    safe_channel = channel.name.replace(" ", "-").replace("/", "-")[:30]
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    filename = f"messages-{safe_channel}-{date_str}.md"
+    
+    return Response(
+        content=markdown_content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
