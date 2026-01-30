@@ -475,8 +475,8 @@ async def create_team_invite(
     db: DBSession,
     email: Annotated[str, Form()],
     name: Annotated[str | None, Form()] = None,
-    send_email: Annotated[bool, Form()] = True,
-    cc_self: Annotated[bool, Form()] = False,
+    send_email: Annotated[str | None, Form()] = None,
+    cc_self: Annotated[str | None, Form()] = None,
     cc_emails: Annotated[str | None, Form()] = None,
 ):
     """Create a new team invite (admin only).
@@ -484,10 +484,13 @@ async def create_team_invite(
     Args:
         email: Email address to invite
         name: Optional name of the invitee
-        send_email: Whether to send the invite email (default True)
-        cc_self: Whether to CC the inviter on the email
+        send_email: Whether to send the invite email (checkbox - "true" if checked)
+        cc_self: Whether to CC the inviter on the email (checkbox - "true" if checked)
         cc_emails: Comma-separated list of additional emails to CC
     """
+    # Convert checkbox values (checkboxes send "true" when checked, nothing when unchecked)
+    should_send_email = send_email == "true"
+    should_cc_self = cc_self == "true"
     # Check admin
     result = await db.execute(
         select(Membership).where(
@@ -550,12 +553,12 @@ async def create_team_invite(
     # Send email if requested
     email_sent = False
     email_status_msg = ""
-    if send_email:
+    if should_send_email:
         from app.services.email import send_invite_email, email_service
         
         # Build CC list
         cc_list: list[str] = []
-        if cc_self:
+        if should_cc_self:
             cc_list.append(user.email)
         if cc_emails:
             additional_ccs = [e.strip().lower() for e in cc_emails.split(",") if e.strip() and "@" in e]
