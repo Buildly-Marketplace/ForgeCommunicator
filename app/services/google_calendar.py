@@ -95,6 +95,36 @@ async def sync_user_calendar_status(user: User, db: AsyncSession) -> bool:
         return False
 
 
+async def sync_user_calendar_status_background(user_id: int) -> bool:
+    """
+    Background-safe version of calendar sync that creates its own db session.
+    
+    Use this when calling from asyncio.create_task() to avoid session conflicts.
+    
+    Args:
+        user_id: User ID to sync calendar for
+        
+    Returns:
+        True if sync was successful
+    """
+    from app.db import async_session_maker
+    
+    try:
+        async with async_session_maker() as db:
+            # Re-fetch user in this session
+            result = await db.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = result.scalar_one_or_none()
+            if not user or not user.has_google_linked:
+                return False
+            
+            return await sync_user_calendar_status(user, db)
+    except Exception as e:
+        logger.error(f"Background calendar sync failed for user {user_id}: {e}")
+        return False
+
+
 async def sync_all_calendar_statuses(db: AsyncSession) -> tuple[int, int]:
     """
     Sync calendar status for all users with Google linked.

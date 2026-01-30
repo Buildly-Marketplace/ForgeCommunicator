@@ -219,12 +219,13 @@ async def channel_view(
     workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
     
     # Sync Google Calendar status if linked (async, don't block)
+    # Use background-safe version that creates its own db session
     if user.has_google_linked:
         try:
-            from app.services.google_calendar import sync_user_calendar_status
+            from app.services.google_calendar import sync_user_calendar_status_background
             import asyncio
-            # Run in background - don't await
-            asyncio.create_task(sync_user_calendar_status(user, db))
+            # Run in background with its own session - don't await
+            asyncio.create_task(sync_user_calendar_status_background(user.id))
         except Exception:
             pass  # Calendar sync failures shouldn't block channel view
     
@@ -400,6 +401,7 @@ async def channel_view(
             "membership": membership,
             "members_json": members_json,
             "unread_channels": unread_channels,
+            "current_channel_id": channel_id,
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,
         },

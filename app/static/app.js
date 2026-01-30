@@ -248,8 +248,119 @@
         }
     });
 
+    // Track if we're navigating away to suppress spurious errors
+    let isNavigating = false;
+    let isInitialLoad = true; // Suppress errors during initial page load
+    let lastErrorTime = 0;
+    const ERROR_DEBOUNCE_MS = 1000; // Don't show multiple errors within 1 second
+    
+    // Clear initial load flag after page is fully loaded
+    window.addEventListener('load', function() {
+        setTimeout(() => { isInitialLoad = false; }, 2000);
+    });
+    
+    // Mark navigation start
+    document.body.addEventListener('htmx:beforeRequest', function(e) {
+        // Check if this is a full page navigation (hx-boost)
+        const target = e.detail.target;
+        if (target === document.body || e.detail.boosted) {
+            isNavigating = true;
+            // Reset after navigation should complete
+            setTimeout(() => { isNavigating = false; }, 5000);
+        }
+    });
+    
+    document.body.addEventListener('htmx:afterOnLoad', function(e) {
+        // Navigation completed
+        isNavigating = false;
+    });
+    
+    // Handle beforeSwap to catch redirect scenarios
+    document.body.addEventListener('htmx:beforeSwap', function(e) {
+        // If we're getting a 300-level response (redirect), htmx handles it
+        // Mark as navigating to suppress any subsequent errors
+        if (e.detail.xhr && e.detail.xhr.status >= 300 && e.detail.xhr.status < 400) {
+            isNavigating = true;
+            setTimeout(() => { isNavigating = false; }, 5000);
+        }
+    });
+
     document.body.addEventListener('htmx:responseError', function(e) {
+        // Don't show errors during page navigation or initial load
+        if (isNavigating || isInitialLoad) {
+            console.log('Suppressing error during navigation/initial load:', e.detail);
+            return;
+        }
+        
+        // Debounce: don't show multiple errors in quick succession
+        const now = Date.now();
+        if (now - lastErrorTime < ERROR_DEBOUNCE_MS) {
+            console.log('Debouncing error:', e.detail);
+            return;
+        }
+        lastErrorTime = now;
+        
+        // Don't show errors for aborted requests (user navigated away)
+        if (e.detail.xhr && e.detail.xhr.status === 0) {
+            console.log('Suppressing aborted request error');
+            return;
+        }
+        
+        // Don't show errors for redirect responses (302, 303, etc.)
+        if (e.detail.xhr && e.detail.xhr.status >= 300 && e.detail.xhr.status < 400) {
+            console.log('Suppressing redirect response error');
+            return;
+        }
+        
         showToast('An error occurred. Please try again.', 'error');
+    });
+    
+    // Also handle send errors (network failures during navigation)
+    document.body.addEventListener('htmx:sendError', function(e) {
+        // Don't show errors during page navigation or initial load
+        if (isNavigating || isInitialLoad) {
+            console.log('Suppressing send error during navigation/initial load:', e.detail);
+            return;
+        }
+        
+        // Debounce
+        const now = Date.now();
+        if (now - lastErrorTime < ERROR_DEBOUNCE_MS) {
+            return;
+        }
+        lastErrorTime = now;
+        
+        showToast('Network error. Please check your connection.', 'error');
+    });
+    
+    // Handle WebSocket errors (htmx ws extension)
+    document.body.addEventListener('htmx:wsError', function(e) {
+        // WebSocket errors during navigation or initial load are expected - suppress them
+        if (isNavigating || isInitialLoad) {
+            console.log('Suppressing WebSocket error during navigation/initial load:', e.detail);
+            return;
+        }
+        
+        // Debounce WebSocket errors
+        const now = Date.now();
+        if (now - lastErrorTime < ERROR_DEBOUNCE_MS) {
+            return;
+        }
+        lastErrorTime = now;
+        
+        // Only show error if it's a genuine connection issue
+        // and not during initial connection attempts
+        console.log('WebSocket error:', e.detail);
+    });
+    
+    // Handle WebSocket close events
+    document.body.addEventListener('htmx:wsClose', function(e) {
+        // WebSocket closing during navigation is expected
+        if (isNavigating) {
+            console.log('WebSocket closed during navigation (expected)');
+            return;
+        }
+        console.log('WebSocket closed:', e.detail);
     });
 
 })();
