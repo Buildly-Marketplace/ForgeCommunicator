@@ -61,6 +61,28 @@ async def add_request_id(request: Request, call_next):
     return response
 
 
+# Session refresh middleware - keeps cookies in sync with sliding sessions
+@app.middleware("http")
+async def refresh_session_cookie(request: Request, call_next):
+    """Refresh session cookie on authenticated requests to implement sliding sessions."""
+    response = await call_next(request)
+    
+    # Check if session was refreshed (marked by the dependency)
+    if hasattr(request.state, 'session_refreshed') and request.state.session_refreshed:
+        session_token = request.cookies.get('session_token')
+        if session_token:
+            response.set_cookie(
+                key="session_token",
+                value=session_token,
+                httponly=True,
+                secure=not settings.debug,
+                samesite="lax",
+                max_age=settings.session_expire_hours * 3600,
+            )
+    
+    return response
+
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -136,6 +158,10 @@ app.include_router(sync.router)
 app.include_router(admin.router)
 app.include_router(invites.router)
 app.include_router(notes.router)
+
+# Import and include integrations router
+from app.routers import integrations
+app.include_router(integrations.router)
 
 
 # Error handlers

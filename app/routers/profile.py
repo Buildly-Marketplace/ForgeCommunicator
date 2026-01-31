@@ -12,6 +12,7 @@ from app.deps import CurrentUser, DBSession
 from app.models.user import User, UserStatus
 from app.models.membership import Membership
 from app.models.workspace import Workspace
+from app.models.external_integration import ExternalIntegration, IntegrationType
 from app.settings import settings
 from app.templates_config import templates
 
@@ -87,6 +88,36 @@ async def update_profile(
         )
     
     return RedirectResponse(url="/profile", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/integrations", response_class=HTMLResponse)
+async def integrations_page(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    success: str | None = None,
+    error: str | None = None,
+):
+    """View and manage external integrations (Slack, Discord)."""
+    # Get user's integrations
+    result = await db.execute(
+        select(ExternalIntegration).where(ExternalIntegration.user_id == user.id)
+    )
+    integrations = {i.integration_type: i for i in result.scalars().all()}
+    
+    return templates.TemplateResponse(
+        "profile/integrations.html",
+        {
+            "request": request,
+            "user": user,
+            "slack_integration": integrations.get(IntegrationType.SLACK),
+            "discord_integration": integrations.get(IntegrationType.DISCORD),
+            "slack_enabled": settings.slack_enabled,
+            "discord_enabled": settings.discord_enabled,
+            "success": success,
+            "error": error,
+        },
+    )
 
 
 @router.post("/avatar", response_class=HTMLResponse)

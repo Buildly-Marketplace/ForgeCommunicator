@@ -35,13 +35,16 @@ async def get_current_user_optional(
     user = result.scalar_one_or_none()
     
     if user and user.is_session_valid():
-        # Refresh session expiry if less than half the time remains (sliding session)
+        # Refresh session expiry if less than 25% of the time remains (sliding session)
         # This extends active users' sessions without updating on every request
-        half_session_duration = timedelta(hours=settings.session_expire_hours / 2)
-        if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < half_session_duration:
+        # Refresh threshold: 6 hours remaining out of 24 hours total
+        refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
+        if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < refresh_threshold:
             user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
             user.update_last_seen()
             await db.commit()
+            # Mark that session was refreshed so middleware can update the cookie
+            request.state.session_refreshed = True
         return user
     return None
 

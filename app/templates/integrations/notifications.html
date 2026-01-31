@@ -1,0 +1,194 @@
+{% extends "layout.html" %}
+
+{% block title %}Notifications - Forge Communicator{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8 content-layer">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <a href="/profile/integrations" class="inline-flex items-center text-sm text-gray-400 hover:text-white transition-colors mb-4">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    Back to Integrations
+                </a>
+                <h1 class="text-3xl font-bold text-white">Notifications</h1>
+                <p class="mt-2 text-gray-400">
+                    Messages from Slack and Discord
+                    {% if unread_count > 0 %}
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                        {{ unread_count }} unread
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+            
+            {% if unread_count > 0 %}
+            <button hx-post="/integrations/notifications/read-all"
+                    hx-swap="innerHTML"
+                    hx-target="#mark-all-status"
+                    class="inline-flex items-center px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors text-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Mark all read
+            </button>
+            {% endif %}
+        </div>
+        
+        <div id="mark-all-status" class="mb-4"></div>
+        
+        <!-- Connected Integrations Summary -->
+        {% if integrations %}
+        <div class="flex flex-wrap gap-2 mb-6">
+            {% for integration in integrations %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm 
+                        {% if integration.integration_type.value == 'slack' %}bg-[#4A154B]/30 text-purple-300 border border-purple-500/30
+                        {% else %}bg-[#5865F2]/30 text-blue-300 border border-blue-500/30{% endif %}">
+                {% if integration.integration_type.value == 'slack' %}
+                <svg class="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/>
+                </svg>
+                {{ integration.external_team_name or 'Slack' }}
+                {% else %}
+                <svg class="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276z"/>
+                </svg>
+                {{ integration.external_username or 'Discord' }}
+                {% endif %}
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="glass-dark rounded-xl p-8 text-center border border-white/10 mb-6">
+            <svg class="w-12 h-12 mx-auto text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            <h3 class="text-lg font-medium text-white mb-2">No integrations connected</h3>
+            <p class="text-gray-400 mb-4">Connect Slack or Discord to receive notifications here</p>
+            <a href="/profile/integrations" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors">
+                Connect Integrations
+            </a>
+        </div>
+        {% endif %}
+        
+        <!-- Notifications List -->
+        {% if notifications %}
+        <div class="space-y-4" id="notifications-list">
+            {% for notification in notifications %}
+            <div class="glass-dark rounded-xl p-4 border border-white/10 {% if not notification.is_read %}border-l-4 border-l-blue-500{% endif %}"
+                 id="notification-{{ notification.id }}"
+                 {% if not notification.is_read %}
+                 hx-post="/integrations/notifications/{{ notification.id }}/read"
+                 hx-trigger="intersect once"
+                 hx-swap="none"
+                 {% endif %}>
+                <div class="flex items-start space-x-4">
+                    <!-- Platform Icon -->
+                    <div class="flex-shrink-0">
+                        {% if notification.platform == 'slack' %}
+                        <div class="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/>
+                            </svg>
+                        </div>
+                        {% else %}
+                        <div class="w-10 h-10 bg-[#5865F2] rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561z"/>
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="font-medium text-white">{{ notification.sender_name }}</span>
+                            
+                            <!-- Notification Type Badge -->
+                            {% if notification.notification_type == 'dm' %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-500/20 text-green-400">
+                                DM
+                            </span>
+                            {% elif notification.notification_type == 'mention' %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400">
+                                @mention
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-500/20 text-gray-400">
+                                Channel
+                            </span>
+                            {% endif %}
+                            
+                            {% if notification.channel_name %}
+                            <span class="text-xs text-gray-500">in #{{ notification.channel_name }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Message Preview -->
+                        <p class="text-gray-300 whitespace-pre-wrap break-words">{{ notification.message_preview }}</p>
+                        
+                        <!-- Footer -->
+                        <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                            <span>{{ notification.created_at.strftime('%b %d, %Y at %H:%M') }}</span>
+                            
+                            {% if notification.external_url %}
+                            <a href="{{ notification.external_url }}" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                                Open in {{ notification.platform | capitalize }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Unread indicator -->
+                    {% if not notification.is_read %}
+                    <div class="flex-shrink-0">
+                        <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if has_more %}
+        <div class="mt-6 text-center">
+            <a href="/integrations/notifications?page={{ page + 1 }}"
+               class="inline-flex items-center px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-colors">
+                Load More
+                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </a>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <!-- Empty State -->
+        <div class="glass-dark rounded-xl p-8 text-center border border-white/10">
+            <svg class="w-12 h-12 mx-auto text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <h3 class="text-lg font-medium text-white mb-2">No notifications yet</h3>
+            <p class="text-gray-400">
+                {% if integrations %}
+                Notifications from Slack and Discord will appear here
+                {% else %}
+                Connect Slack or Discord to start receiving notifications
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

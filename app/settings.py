@@ -133,7 +133,7 @@ class Settings(BaseSettings):
     
     # Auth - Local
     password_min_length: int = 8
-    session_expire_hours: int = 24
+    session_expire_hours: int = 168  # 7 days default, use SESSION_EXPIRE_HOURS env var to override
     
     # Auth - Google OAuth (optional, per-deployment)
     google_client_id: str | None = None
@@ -179,6 +179,16 @@ class Settings(BaseSettings):
     mailgun_api_key: str | None = None
     mailgun_domain: str | None = None
     
+    # Slack integration (for receiving notifications)
+    slack_client_id: str | None = None
+    slack_client_secret: str | None = None
+    slack_signing_secret: str | None = None  # For verifying webhook requests
+    
+    # Discord integration (for receiving notifications)
+    discord_client_id: str | None = None
+    discord_client_secret: str | None = None
+    discord_bot_token: str | None = None  # Optional bot token for extended features
+    
     # Base URL for links in emails
     base_url: str = "http://localhost:8000"
     
@@ -198,6 +208,16 @@ class Settings(BaseSettings):
     @property
     def push_enabled(self) -> bool:
         return bool(self.vapid_public_key and self.vapid_private_key)
+    
+    @property
+    def slack_enabled(self) -> bool:
+        """Check if Slack integration is configured."""
+        return bool(self.slack_client_id and self.slack_client_secret)
+    
+    @property
+    def discord_enabled(self) -> bool:
+        """Check if Discord integration is configured."""
+        return bool(self.discord_client_id and self.discord_client_secret)
     
     @property
     def email_configured(self) -> bool:

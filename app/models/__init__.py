@@ -10,6 +10,12 @@ from app.models.product import Product
 from app.models.push_subscription import PushSubscription
 from app.models.site_config import SiteConfig, ConfigKeys, THEME_PRESETS
 from app.models.note import Note, NoteShare, NoteVisibility, NoteSourceType
+from app.models.external_integration import (
+    ExternalIntegration,
+    NotificationLog,
+    IntegrationType,
+    NotificationSource,
+)
 
 __all__ = [
     "Base",
@@ -34,5 +40,9 @@ __all__ = [
     "NoteShare",
     "NoteVisibility",
     "NoteSourceType",
+    "ExternalIntegration",
+    "NotificationLog",
+    "IntegrationType",
+    "NotificationSource",
 ]
 
