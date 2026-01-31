@@ -1,10 +1,272 @@
 /**
  * Forge Communicator - Client-side JavaScript
- * Theme toggle, keyboard shortcuts, command palette, notifications, and @mentions
+ * Theme toggle, keyboard shortcuts, command palette, notifications, session monitoring, and @mentions
  */
 
 (function() {
     'use strict';
+
+    // ============================================
+    // Session Monitor - Prevents unexpected logouts
+    // ============================================
+    
+    window.sessionMonitor = {
+        // Configuration
+        WARNING_THRESHOLD_SECONDS: 300, // Show warning 5 minutes before expiry
+        CHECK_INTERVAL_MS: 60000, // Check every minute
+        COUNTDOWN_INTERVAL_MS: 1000, // Update countdown every second
+        
+        // State
+        checkIntervalId: null,
+        countdownIntervalId: null,
+        secondsRemaining: null,
+        warningShown: false,
+        hasUnsavedWork: false,
+        
+        // Initialize session monitoring
+        init: function() {
+            // Start periodic session checks
+            this.checkSession();
+            this.checkIntervalId = setInterval(() => this.checkSession(), this.CHECK_INTERVAL_MS);
+            
+            // Track unsaved work in forms
+            this.trackUnsavedWork();
+            
+            console.log('Session monitor initialized');
+        },
+        
+        // Check session status from server
+        checkSession: async function() {
+            try {
+                const response = await fetch('/auth/session-status');
+                if (!response.ok) {
+                    console.error('Session check failed:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data.authenticated) {
+                    // Session already expired
+                    this.showExpiredModal();
+                    return;
+                }
+                
+                this.secondsRemaining = data.seconds_remaining;
+                
+                // Check if we should show warning
+                if (this.secondsRemaining <= this.WARNING_THRESHOLD_SECONDS && !this.warningShown) {
+                    this.showWarningModal();
+                } else if (this.secondsRemaining > this.WARNING_THRESHOLD_SECONDS && this.warningShown) {
+                    // Session was extended, hide warning
+                    this.hideWarningModal();
+                }
+                
+            } catch (error) {
+                console.error('Session check error:', error);
+            }
+        },
+        
+        // Show warning modal with countdown
+        showWarningModal: function() {
+            this.warningShown = true;
+            
+            const modal = document.getElementById('session-timeout-modal');
+            const unsavedWarning = document.getElementById('unsaved-work-warning');
+            
+            if (modal) {
+                modal.classList.remove('hidden');
+                
+                // Show unsaved work warning if applicable
+                if (unsavedWarning) {
+                    if (this.hasUnsavedWork) {
+                        unsavedWarning.classList.remove('hidden');
+                    } else {
+                        unsavedWarning.classList.add('hidden');
+                    }
+                }
+            }
+            
+            // Start countdown
+            this.startCountdown();
+            
+            // Play warning sound
+            this.playWarningSound();
+        },
+        
+        // Hide warning modal
+        hideWarningModal: function() {
+            this.warningShown = false;
+            
+            const modal = document.getElementById('session-timeout-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+            
+            // Stop countdown
+            if (this.countdownIntervalId) {
+                clearInterval(this.countdownIntervalId);
+                this.countdownIntervalId = null;
+            }
+        },
+        
+        // Show expired modal
+        showExpiredModal: function() {
+            // Hide warning modal if showing
+            this.hideWarningModal();
+            
+            const modal = document.getElementById('session-expired-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+            
+            // Stop all intervals
+            if (this.checkIntervalId) {
+                clearInterval(this.checkIntervalId);
+            }
+        },
+        
+        // Start countdown timer in modal
+        startCountdown: function() {
+            const countdownEl = document.getElementById('session-countdown');
+            
+            const updateCountdown = () => {
+                if (this.secondsRemaining <= 0) {
+                    this.showExpiredModal();
+                    return;
+                }
+                
+                const minutes = Math.floor(this.secondsRemaining / 60);
+                const seconds = this.secondsRemaining % 60;
+                
+                if (countdownEl) {
+                    countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    // Change color as time runs out
+                    if (this.secondsRemaining <= 60) {
+                        countdownEl.classList.remove('text-yellow-400');
+                        countdownEl.classList.add('text-red-400');
+                    }
+                }
+                
+                this.secondsRemaining--;
+            };
+            
+            // Initial update
+            updateCountdown();
+            
+            // Update every second
+            this.countdownIntervalId = setInterval(updateCountdown, this.COUNTDOWN_INTERVAL_MS);
+        },
+        
+        // Extend session via server
+        extendSession: async function() {
+            try {
+                const response = await fetch('/auth/session-status?refresh=true');
+                const data = await response.json();
+                
+                if (data.authenticated) {
+                    this.secondsRemaining = data.seconds_remaining;
+                    this.hideWarningModal();
+                    
+                    // Show success toast
+                    if (window.showToast) {
+                        window.showToast('Session extended successfully', 'success');
+                    }
+                } else {
+                    this.showExpiredModal();
+                }
+            } catch (error) {
+                console.error('Failed to extend session:', error);
+                if (window.showToast) {
+                    window.showToast('Failed to extend session', 'error');
+                }
+            }
+        },
+        
+        // Log out user
+        logout: function() {
+            window.location.href = '/auth/logout';
+        },
+        
+        // Play warning sound
+        playWarningSound: function() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                // Two-tone warning beep
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(660, audioCtx.currentTime + 0.15);
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.45);
+            } catch (e) {
+                console.log('Could not play warning sound:', e);
+            }
+        },
+        
+        // Track unsaved work in forms/inputs
+        trackUnsavedWork: function() {
+            // Track changes on input fields
+            document.addEventListener('input', (e) => {
+                const target = e.target;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                    // Check if field has content
+                    if (target.value && target.value.trim().length > 0) {
+                        // Exclude search inputs and other non-critical fields
+                        if (!target.classList.contains('search-input') && 
+                            !target.id?.includes('search') &&
+                            !target.id?.includes('command')) {
+                            this.hasUnsavedWork = true;
+                        }
+                    }
+                }
+            });
+            
+            // Clear unsaved work flag on form submit
+            document.addEventListener('submit', () => {
+                this.hasUnsavedWork = false;
+            });
+            
+            // Clear unsaved work flag when htmx request succeeds
+            document.body.addEventListener('htmx:afterOnLoad', () => {
+                // Small delay to allow for any UI updates
+                setTimeout(() => {
+                    const activeInput = document.activeElement;
+                    if (!activeInput || !activeInput.value || activeInput.value.trim().length === 0) {
+                        this.hasUnsavedWork = false;
+                    }
+                }, 100);
+            });
+        },
+        
+        // Mark that user has unsaved work
+        markUnsavedWork: function() {
+            this.hasUnsavedWork = true;
+        },
+        
+        // Clear unsaved work flag
+        clearUnsavedWork: function() {
+            this.hasUnsavedWork = false;
+        }
+    };
+    
+    // Initialize session monitor when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only initialize if user is logged in (check for session-related elements)
+        // Session monitor will handle unauthenticated state gracefully
+        window.sessionMonitor.init();
+    });
 
     // ============================================
     // Notification Sound System (Global)
@@ -289,6 +551,16 @@
         // Don't show errors during page navigation or initial load
         if (isNavigating || isInitialLoad) {
             console.log('Suppressing error during navigation/initial load:', e.detail);
+            return;
+        }
+        
+        // Handle 401 Unauthorized - session expired
+        if (e.detail.xhr && e.detail.xhr.status === 401) {
+            console.log('Session expired (401 response)');
+            // Show session expired modal instead of generic error
+            if (window.sessionMonitor) {
+                window.sessionMonitor.showExpiredModal();
+            }
             return;
         }
         

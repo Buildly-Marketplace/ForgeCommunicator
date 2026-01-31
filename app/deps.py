@@ -24,7 +24,12 @@ async def get_current_user_optional(
     db: DBSession,
     session_token: str | None = Cookie(default=None),
 ) -> User | None:
-    """Get current user from session cookie (returns None if not authenticated)."""
+    """Get current user from session cookie (returns None if not authenticated).
+    
+    For OAuth users with valid refresh tokens:
+    - Session is automatically extended when less than 25% time remains
+    - Session can be restored even if recently expired (within 1 hour grace period)
+    """
     if not session_token:
         return None
     
@@ -34,10 +39,34 @@ async def get_current_user_optional(
     )
     user = result.scalar_one_or_none()
     
-    if user and user.is_session_valid():
+    if not user:
+        return None
+    
+    # Check if session is valid
+    session_valid = user.is_session_valid()
+    
+    # For OAuth users, try to restore recently expired sessions (1 hour grace period)
+    if not session_valid and user.session_expires_at:
+        grace_period = timedelta(hours=1)
+        time_since_expiry = datetime.now(timezone.utc) - user.session_expires_at
+        
+        # Check if within grace period and user has OAuth refresh capability
+        if time_since_expiry <= grace_period:
+            can_auto_refresh = (
+                (user.auth_provider.value == "google" and user.google_refresh_token) or
+                (user.auth_provider.value == "buildly" and user.labs_refresh_token)
+            )
+            if can_auto_refresh:
+                # Restore session for OAuth users with valid refresh tokens
+                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+                user.update_last_seen()
+                await db.commit()
+                request.state.session_refreshed = True
+                session_valid = True
+    
+    if session_valid:
         # Refresh session expiry if less than 25% of the time remains (sliding session)
         # This extends active users' sessions without updating on every request
-        # Refresh threshold: 6 hours remaining out of 24 hours total
         refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
         if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < refresh_threshold:
             user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
@@ -46,6 +75,7 @@ async def get_current_user_optional(
             # Mark that session was refreshed so middleware can update the cookie
             request.state.session_refreshed = True
         return user
+    
     return None
 
 

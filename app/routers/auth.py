@@ -262,6 +262,83 @@ async def register(
     return redirect
 
 
+@router.get("/session-status")
+async def session_status(
+    request: Request,
+    db: DBSession,
+    user: CurrentUserOptional,
+    refresh: bool = False,
+):
+    """
+    Get session status for client-side session monitoring.
+    
+    Returns JSON with:
+    - authenticated: bool
+    - expires_at: ISO datetime string (if authenticated)
+    - seconds_remaining: int (if authenticated)
+    - can_refresh: bool (if authenticated via OAuth)
+    
+    If refresh=true and user is authenticated via OAuth with valid refresh token,
+    extends the session automatically.
+    """
+    from datetime import datetime, timedelta, timezone
+    from app.settings import settings
+    
+    if not user:
+        return {
+            "authenticated": False,
+            "expires_at": None,
+            "seconds_remaining": 0,
+            "can_refresh": False,
+        }
+    
+    # Check if user can auto-refresh (has Google OAuth with refresh token)
+    can_refresh = bool(user.auth_provider.value == "google" and user.google_refresh_token)
+    
+    # Handle session refresh request
+    if refresh and user.session_expires_at:
+        if can_refresh:
+            # For OAuth users, extend session if they have valid refresh token
+            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+            user.update_last_seen()
+            await db.commit()
+        elif user.auth_provider.value == "local":
+            # For local users, only extend if less than 25% time remains (sliding window)
+            refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
+            time_remaining = user.session_expires_at - datetime.now(timezone.utc)
+            if time_remaining < refresh_threshold:
+                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+                user.update_last_seen()
+                await db.commit()
+    
+    # Calculate time remaining
+    seconds_remaining = 0
+    expires_at = None
+    if user.session_expires_at:
+        expires_at = user.session_expires_at.isoformat()
+        delta = user.session_expires_at - datetime.now(timezone.utc)
+        seconds_remaining = max(0, int(delta.total_seconds()))
+    
+    return {
+        "authenticated": True,
+        "expires_at": expires_at,
+        "seconds_remaining": seconds_remaining,
+        "can_refresh": can_refresh,
+        "auth_provider": user.auth_provider.value,
+    }
+
+
+@router.post("/session-status")
+async def session_status_post(
+    request: Request,
+    db: DBSession,
+    user: CurrentUserOptional,
+    refresh: bool = False,
+):
+    """POST version of session-status for HTMX compatibility."""
+    return await session_status(request, db, user, refresh)
+
+
 @router.post("/logout")
 async def logout(
     request: Request,

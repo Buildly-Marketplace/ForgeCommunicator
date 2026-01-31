@@ -266,6 +266,73 @@
     <!-- Toast notifications -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
     
+    <!-- Session timeout warning modal -->
+    <div id="session-timeout-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="session-timeout-title">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black bg-opacity-60 transition-opacity"></div>
+            <div class="relative glass-dark rounded-xl shadow-2xl transform transition-all w-full max-w-md p-6 glow-border">
+                <div class="text-center">
+                    <!-- Warning icon -->
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-500/20 mb-4">
+                        <svg class="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    
+                    <h3 id="session-timeout-title" class="text-xl font-semibold text-white mb-2">Session Expiring Soon</h3>
+                    <p class="text-gray-300 mb-2">Your session will expire in <span id="session-countdown" class="font-bold text-yellow-400">5:00</span></p>
+                    <p class="text-sm text-gray-400 mb-6" id="session-timeout-message">Please save any unsaved work before continuing.</p>
+                    
+                    <!-- Unsaved work indicator -->
+                    <div id="unsaved-work-warning" class="hidden bg-red-500/20 border border-red-500/40 rounded-lg p-3 mb-6">
+                        <div class="flex items-center text-red-300">
+                            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                            </svg>
+                            <span class="text-sm font-medium">You have unsaved changes that may be lost!</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="button" onclick="sessionMonitor.extendSession()" 
+                                class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                            Stay Logged In
+                        </button>
+                        <button type="button" onclick="sessionMonitor.logout()"
+                                class="flex-1 px-4 py-2.5 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                            Log Out Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Session expired modal (shown when session already expired) -->
+    <div id="session-expired-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black bg-opacity-70 transition-opacity"></div>
+            <div class="relative glass-dark rounded-xl shadow-2xl transform transition-all w-full max-w-md p-6 glow-border">
+                <div class="text-center">
+                    <!-- Error icon -->
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-500/20 mb-4">
+                        <svg class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                        </svg>
+                    </div>
+                    
+                    <h3 class="text-xl font-semibold text-white mb-2">Session Expired</h3>
+                    <p class="text-gray-300 mb-6">Your session has expired. Please log in again to continue.</p>
+                    
+                    <a href="/auth/login" 
+                       class="inline-block w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Log In Again
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Command palette -->
     <div id="command-palette" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-start justify-center min-h-screen pt-20 px-4 text-center">
