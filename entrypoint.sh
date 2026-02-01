@@ -39,11 +39,20 @@ echo "Database is ready!"
 
 # Run migrations
 echo "Running database migrations..."
+echo "Current alembic version before migration:"
+alembic current || echo "Could not get current version"
+echo "Available migration heads:"
+alembic heads || echo "Could not get heads"
 if alembic upgrade head; then
     echo "Migrations completed successfully"
+    echo "Current alembic version after migration:"
+    alembic current || echo "Could not get current version"
 else
-    echo "WARNING: Migration failed, but continuing startup..."
-    echo "You may need to run migrations manually"
+    echo "ERROR: Migration failed!"
+    echo "Alembic output above should show the error"
+    echo "Current alembic version:"
+    alembic current || echo "Could not get current version"
+    echo "Continuing startup anyway..."
 fi
 
 # Start the server
