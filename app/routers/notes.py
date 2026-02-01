@@ -696,6 +696,72 @@ async def unshare_note(
 
 
 # ============================================
+# Navigate to Source Message
+# ============================================
+
+@router.get("/{note_id}/source")
+async def go_to_source(
+    request: Request,
+    note_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Redirect to the original source message/thread that created this note."""
+    # Get note
+    result = await db.execute(
+        select(Note).where(Note.id == note_id, Note.deleted_at == None)
+    )
+    note = result.scalar_one_or_none()
+    
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    # Check access - must be owner or have note shared with them
+    if note.owner_id != user.id:
+        result = await db.execute(
+            select(NoteShare).where(
+                NoteShare.note_id == note_id,
+                NoteShare.shared_with_user_id == user.id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if note has a source message
+    if not note.source_message_id:
+        raise HTTPException(status_code=400, detail="Note does not have a source message")
+    
+    # Get the source message to build redirect URL
+    result = await db.execute(
+        select(Message)
+        .where(Message.id == note.source_message_id)
+        .options(selectinload(Message.channel))
+    )
+    message = result.scalar_one_or_none()
+    
+    if not message:
+        raise HTTPException(status_code=404, detail="Source message no longer exists")
+    
+    # Build URL to message
+    # For threads, the source_message_id is the thread parent
+    # For regular messages, it's the message itself
+    workspace_id = message.channel.workspace_id
+    channel_id = message.channel_id
+    
+    if note.source_type == NoteSourceType.THREAD:
+        # Redirect to thread view
+        redirect_url = f"/workspaces/{workspace_id}/channels/{channel_id}?thread={message.id}"
+    else:
+        # Redirect to channel with message highlighted
+        redirect_url = f"/workspaces/{workspace_id}/channels/{channel_id}?highlight={message.id}"
+    
+    return RedirectResponse(
+        url=redirect_url,
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+# ============================================
 # API for HTMX Updates (auto-save)
 # ============================================
 

@@ -19,24 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create integration_type enum
-    integration_type_enum = sa.Enum('slack', 'discord', name='integrationtype')
-    integration_type_enum.create(op.get_bind(), checkfirst=True)
-    
-    # Create notification_source enum
-    notification_source_enum = sa.Enum(
-        'slack_dm', 'slack_mention', 'slack_channel',
-        'discord_dm', 'discord_mention', 'discord_channel',
-        name='notificationsource'
-    )
-    notification_source_enum.create(op.get_bind(), checkfirst=True)
-    
-    # Create external_integrations table
+    # Create external_integrations table (using String instead of Enum for simplicity)
     op.create_table(
         'external_integrations',
         sa.Column('id', sa.Integer(), primary_key=True),
         sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('integration_type', integration_type_enum, nullable=False),
+        sa.Column('integration_type', sa.String(20), nullable=False),  # 'slack' or 'discord'
         
         # OAuth tokens
         sa.Column('access_token', sa.Text(), nullable=True),
@@ -81,7 +69,7 @@ def upgrade() -> None:
         sa.Column('integration_id', sa.Integer(), sa.ForeignKey('external_integrations.id', ondelete='CASCADE'), nullable=False),
         
         # Notification details
-        sa.Column('source', notification_source_enum, nullable=False),
+        sa.Column('source', sa.String(30), nullable=False),  # slack_dm, slack_mention, etc.
         
         # Sender info
         sa.Column('sender_name', sa.String(255), nullable=False),
@@ -124,7 +112,3 @@ def downgrade() -> None:
     # Drop external_integrations table and indexes
     op.drop_index('ix_external_integrations_user_type')
     op.drop_table('external_integrations')
-    
-    # Drop enums
-    sa.Enum(name='notificationsource').drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name='integrationtype').drop(op.get_bind(), checkfirst=True)

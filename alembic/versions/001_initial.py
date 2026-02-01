@@ -22,7 +22,7 @@ def upgrade() -> None:
     # Users table
     op.create_table(
         'users',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
         sa.Column('email', sa.String(255), unique=True, nullable=False, index=True),
         sa.Column('display_name', sa.String(100), nullable=False),
         sa.Column('password_hash', sa.String(255), nullable=True),
@@ -37,11 +37,11 @@ def upgrade() -> None:
     # Workspaces table
     op.create_table(
         'workspaces',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
         sa.Column('name', sa.String(100), nullable=False),
         sa.Column('slug', sa.String(100), unique=True, nullable=False, index=True),
         sa.Column('invite_code', sa.String(20), unique=True, nullable=True),
-        sa.Column('owner_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('owner_id', sa.Integer, sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
     )
@@ -49,9 +49,9 @@ def upgrade() -> None:
     # Memberships table
     op.create_table(
         'memberships',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('workspace_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('user_id', sa.Integer, sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('workspace_id', sa.Integer, sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
         sa.Column('role', sa.String(20), default='member', nullable=False),
         sa.Column('joined_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint('user_id', 'workspace_id', name='uq_membership'),
@@ -61,8 +61,8 @@ def upgrade() -> None:
     # Products table
     op.create_table(
         'products',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('workspace_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('workspace_id', sa.Integer, sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
         sa.Column('buildly_product_id', sa.String(100), nullable=True),
         sa.Column('name', sa.String(100), nullable=False),
         sa.Column('color', sa.String(7), nullable=True),
@@ -74,15 +74,15 @@ def upgrade() -> None:
     # Channels table
     op.create_table(
         'channels',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('workspace_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('product_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('products.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('workspace_id', sa.Integer, sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('product_id', sa.Integer, sa.ForeignKey('products.id', ondelete='SET NULL'), nullable=True),
         sa.Column('name', sa.String(80), nullable=False),
         sa.Column('display_name', sa.String(100), nullable=False),
         sa.Column('topic', sa.String(250), nullable=True),
         sa.Column('is_private', sa.Boolean, default=False, nullable=False),
         sa.Column('is_dm', sa.Boolean, default=False, nullable=False),
-        sa.Column('created_by_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('created_by_id', sa.Integer, sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
         sa.UniqueConstraint('workspace_id', 'name', name='uq_channel_name'),
@@ -92,9 +92,9 @@ def upgrade() -> None:
     # Channel memberships table
     op.create_table(
         'channel_memberships',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('channel_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('user_id', sa.Integer, sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('channel_id', sa.Integer, sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
         sa.Column('joined_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint('user_id', 'channel_id', name='uq_channel_membership'),
     )
@@ -103,13 +103,13 @@ def upgrade() -> None:
     # Messages table
     op.create_table(
         'messages',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('channel_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('author_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('channel_id', sa.Integer, sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('author_id', sa.Integer, sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('body', sa.Text, nullable=False),
         sa.Column('edited_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('is_deleted', sa.Boolean, default=False, nullable=False),
-        sa.Column('thread_parent_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('messages.id', ondelete='CASCADE'), nullable=True),
+        sa.Column('thread_parent_id', sa.Integer, sa.ForeignKey('messages.id', ondelete='CASCADE'), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index('ix_messages_channel_created', 'messages', ['channel_id', 'created_at'])
@@ -117,16 +117,16 @@ def upgrade() -> None:
     # Artifacts table
     op.create_table(
         'artifacts',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('channel_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('author_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('message_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('messages.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('channel_id', sa.Integer, sa.ForeignKey('channels.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('author_id', sa.Integer, sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('message_id', sa.Integer, sa.ForeignKey('messages.id', ondelete='SET NULL'), nullable=True),
         sa.Column('type', sa.String(20), nullable=False),  # decision, feature, issue, task
         sa.Column('title', sa.String(255), nullable=False),
         sa.Column('body', sa.Text, nullable=True),
         sa.Column('status', sa.String(30), nullable=False),
         sa.Column('tags', postgresql.ARRAY(sa.String(50)), default=[], nullable=True),
-        sa.Column('assignee_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('assignee_id', sa.Integer, sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('due_date', sa.Date, nullable=True),
         sa.Column('github_issue_url', sa.String(512), nullable=True),
         sa.Column('buildly_artifact_id', sa.String(100), nullable=True),

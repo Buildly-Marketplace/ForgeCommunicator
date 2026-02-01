@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -18,55 +19,50 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    # Get connection for raw SQL (needed for IF NOT EXISTS checks)
+def column_exists(table_name: str, column_name: str) -> bool:
+    """Check if a column exists in a table."""
     conn = op.get_bind()
-    
-    # Make user_id nullable for external messages (messages from Slack/Discord don't have a local user)
-    # Check if already nullable first
-    result = conn.execute(sa.text("""
-        SELECT is_nullable FROM information_schema.columns 
-        WHERE table_name = 'messages' AND column_name = 'user_id'
-    """))
-    row = result.fetchone()
-    if row and row[0] == 'NO':
-        op.alter_column('messages', 'user_id', existing_type=sa.Integer(), nullable=True)
-    
+    inspector = inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns(table_name)]
+    return column_name in columns
+
+
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists."""
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    return table_name in inspector.get_table_names()
+
+
+def index_exists(index_name: str, table_name: str) -> bool:
+    """Check if an index exists on a table."""
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    indexes = inspector.get_indexes(table_name)
+    return any(idx['name'] == index_name for idx in indexes)
+
+
+def upgrade() -> None:
     # Add external source fields to messages table (IF NOT EXISTS)
-    existing_columns = conn.execute(sa.text("""
-        SELECT column_name FROM information_schema.columns WHERE table_name = 'messages'
-    """))
-    existing_cols = {row[0] for row in existing_columns}
-    
-    if 'external_source' not in existing_cols:
+    if not column_exists('messages', 'external_source'):
         op.add_column('messages', sa.Column('external_source', sa.String(20), nullable=True))
-    if 'external_message_id' not in existing_cols:
+    if not column_exists('messages', 'external_message_id'):
         op.add_column('messages', sa.Column('external_message_id', sa.String(255), nullable=True))
-    if 'external_channel_id' not in existing_cols:
+    if not column_exists('messages', 'external_channel_id'):
         op.add_column('messages', sa.Column('external_channel_id', sa.String(255), nullable=True))
-    if 'external_thread_ts' not in existing_cols:
+    if not column_exists('messages', 'external_thread_ts'):
         op.add_column('messages', sa.Column('external_thread_ts', sa.String(255), nullable=True))
-    if 'external_author_name' not in existing_cols:
+    if not column_exists('messages', 'external_author_name'):
         op.add_column('messages', sa.Column('external_author_name', sa.String(255), nullable=True))
-    if 'external_author_avatar' not in existing_cols:
+    if not column_exists('messages', 'external_author_avatar'):
         op.add_column('messages', sa.Column('external_author_avatar', sa.Text(), nullable=True))
     
     # Create index on external_source for filtering (IF NOT EXISTS)
-    existing_indexes = conn.execute(sa.text("""
-        SELECT indexname FROM pg_indexes WHERE tablename = 'messages'
-    """))
-    existing_idx = {row[0] for row in existing_indexes}
-    
-    if 'ix_messages_external_source' not in existing_idx:
+    if not index_exists('ix_messages_external_source', 'messages'):
         op.create_index('ix_messages_external_source', 'messages', ['external_source'], unique=False)
     
     # Create bridged_channels table (IF NOT EXISTS)
-    existing_tables = conn.execute(sa.text("""
-        SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-    """))
-    existing_tbl = {row[0] for row in existing_tables}
-    
-    if 'bridged_channels' not in existing_tbl:
+    if not table_exists('bridged_channels'):
         op.create_table(
             'bridged_channels',
             sa.Column('id', sa.Integer(), primary_key=True),
@@ -113,16 +109,21 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop bridged_channels table
-    op.drop_table('bridged_channels')
+    if table_exists('bridged_channels'):
+        op.drop_table('bridged_channels')
     
     # Remove external source fields from messages
-    op.drop_index('ix_messages_external_source', table_name='messages')
-    op.drop_column('messages', 'external_author_avatar')
-    op.drop_column('messages', 'external_author_name')
-    op.drop_column('messages', 'external_thread_ts')
-    op.drop_column('messages', 'external_channel_id')
-    op.drop_column('messages', 'external_message_id')
-    op.drop_column('messages', 'external_source')
-    
-    # Revert user_id to NOT NULL (will fail if there are external messages - handle manually)
-    op.alter_column('messages', 'user_id', existing_type=sa.Integer(), nullable=False)
+    if index_exists('ix_messages_external_source', 'messages'):
+        op.drop_index('ix_messages_external_source', table_name='messages')
+    if column_exists('messages', 'external_author_avatar'):
+        op.drop_column('messages', 'external_author_avatar')
+    if column_exists('messages', 'external_author_name'):
+        op.drop_column('messages', 'external_author_name')
+    if column_exists('messages', 'external_thread_ts'):
+        op.drop_column('messages', 'external_thread_ts')
+    if column_exists('messages', 'external_channel_id'):
+        op.drop_column('messages', 'external_channel_id')
+    if column_exists('messages', 'external_message_id'):
+        op.drop_column('messages', 'external_message_id')
+    if column_exists('messages', 'external_source'):
+        op.drop_column('messages', 'external_source')

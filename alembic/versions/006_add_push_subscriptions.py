@@ -1,4 +1,4 @@
-"""Add push_subscriptions table with UUID user_id
+"""Add push_subscriptions table
 
 Revision ID: 006_add_push_subscriptions
 Revises: 005_extend_avatar_url
@@ -8,7 +8,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '006_add_push_subscriptions'
@@ -20,7 +19,7 @@ def upgrade() -> None:
     op.create_table(
         'push_subscriptions',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('endpoint', sa.Text(), nullable=False),
         sa.Column('p256dh_key', sa.String(255), nullable=False),
         sa.Column('auth_key', sa.String(255), nullable=False),

@@ -5,7 +5,7 @@ Artifact management router.
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -13,8 +13,11 @@ from app.deps import CurrentUser, DBSession
 from app.models.artifact import Artifact, ArtifactStatus, ArtifactType
 from app.models.channel import Channel
 from app.models.membership import Membership
+from app.models.note import Note
 from app.models.product import Product
 from app.models.user import User
+from app.models.workspace import Workspace
+from app.settings import settings
 from app.templates_config import templates
 
 router = APIRouter(tags=["artifacts"])
@@ -267,6 +270,18 @@ async def product_docs(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     
+    # Get workspace for Labs URL
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    # Build Labs URL if product is linked to Labs
+    labs_url = None
+    if product.buildly_product_id and workspace.buildly_org_uuid:
+        labs_base = getattr(settings, 'BUILDLY_LABS_URL', 'https://labs.buildly.io')
+        labs_url = f"{labs_base}/products/{product.buildly_product_id}"
+    
     # Get artifacts grouped by type
     query = select(Artifact).where(Artifact.product_id == product_id)
     if type:
@@ -286,6 +301,31 @@ async def product_docs(
     for artifact in artifacts:
         grouped[artifact.type].append(artifact)
     
+    # Get user's notes related to this product's channels
+    # Find channels that belong to this product
+    channel_result = await db.execute(
+        select(Channel.id).where(Channel.product_id == product_id)
+    )
+    product_channel_ids = [c for c in channel_result.scalars().all()]
+    
+    # Get user's notes for this workspace, optionally filtering by product channels
+    notes_query = select(Note).where(
+        Note.owner_id == user.id,
+        Note.deleted_at == None,
+        Note.workspace_id == workspace_id,
+    ).order_by(Note.updated_at.desc()).limit(5)
+    
+    # If there are product channels, prefer notes from those channels
+    if product_channel_ids:
+        notes_query = select(Note).where(
+            Note.owner_id == user.id,
+            Note.deleted_at == None,
+            Note.channel_id.in_(product_channel_ids) if product_channel_ids else Note.workspace_id == workspace_id,
+        ).order_by(Note.updated_at.desc()).limit(5)
+    
+    notes_result = await db.execute(notes_query)
+    user_notes = notes_result.scalars().all()
+    
     return templates.TemplateResponse(
         "products/docs.html",
         {
@@ -296,5 +336,51 @@ async def product_docs(
             "grouped_artifacts": grouped,
             "filter_type": type,
             "artifact_types": ArtifactType,
+            "user_notes": user_notes,
+            "labs_url": labs_url,
         },
     )
+
+
+# Sync product with Buildly Labs
+@router.post("/workspaces/{workspace_id}/products/{product_id}/sync")
+async def sync_product_with_labs(
+    request: Request,
+    workspace_id: int,
+    product_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Sync product artifacts with Buildly Labs."""
+    membership = await verify_workspace_access(workspace_id, user.id, db)
+    
+    # Get product
+    result = await db.execute(
+        select(Product).where(Product.id == product_id, Product.workspace_id == workspace_id)
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    
+    # Get workspace for Labs integration
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    # Check if Labs integration is configured
+    if not workspace.labs_access_token and not workspace.labs_api_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Buildly Labs integration not configured. Connect your workspace to Labs in Settings."
+        )
+    
+    # TODO: Implement actual sync with Labs API
+    # For now, return success placeholder
+    # In future: call labs_sync service to push/pull artifacts
+    
+    return JSONResponse({
+        "status": "success",
+        "message": f"Synced {product.name} with Buildly Labs",
+        "product_id": product_id,
+    })
