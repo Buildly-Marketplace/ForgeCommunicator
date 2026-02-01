@@ -149,6 +149,18 @@ async def init_db() -> None:
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_refresh_token TEXT",
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_token_expires_at TIMESTAMP WITH TIME ZONE",
                     "ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS labs_connected_by_id INTEGER",
+                    # User session columns (added 2026-02-01) - ensure session management works
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(64) UNIQUE",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_sub VARCHAR(255)",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC'",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS status_message VARCHAR(100)",
+                    "CREATE INDEX IF NOT EXISTS ix_users_session_token ON users(session_token)",
                     # Site config table (added 2026-01-20)
                     """CREATE TABLE IF NOT EXISTS site_configs (
                         id SERIAL PRIMARY KEY,
