@@ -77,6 +77,66 @@
             </div>
         </div>
         
+        <!-- Integration Status -->
+        {% if integration_status %}
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-8 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-4">Integration Status</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Slack -->
+                <div class="p-4 rounded-lg {% if integration_status.slack_enabled %}bg-green-900/20 border border-green-500/30{% else %}bg-red-900/20 border border-red-500/30{% endif %}">
+                    <div class="flex items-center mb-2">
+                        <i class="fab fa-slack text-xl {% if integration_status.slack_enabled %}text-green-400{% else %}text-red-400{% endif %} mr-2"></i>
+                        <span class="font-medium text-white">Slack</span>
+                    </div>
+                    <p class="text-xs {% if integration_status.slack_enabled %}text-green-400{% else %}text-red-400{% endif %}">
+                        {{ 'Enabled' if integration_status.slack_enabled else 'Not configured' }}
+                    </p>
+                    <div class="text-xs text-gray-400 mt-1">
+                        Client ID: {{ '✓' if integration_status.slack_client_id_set else '✗' }}
+                        Secret: {{ '✓' if integration_status.slack_client_secret_set else '✗' }}
+                    </div>
+                </div>
+                
+                <!-- Discord -->
+                <div class="p-4 rounded-lg {% if integration_status.discord_enabled %}bg-green-900/20 border border-green-500/30{% else %}bg-red-900/20 border border-red-500/30{% endif %}">
+                    <div class="flex items-center mb-2">
+                        <i class="fab fa-discord text-xl {% if integration_status.discord_enabled %}text-green-400{% else %}text-red-400{% endif %} mr-2"></i>
+                        <span class="font-medium text-white">Discord</span>
+                    </div>
+                    <p class="text-xs {% if integration_status.discord_enabled %}text-green-400{% else %}text-red-400{% endif %}">
+                        {{ 'Enabled' if integration_status.discord_enabled else 'Not configured' }}
+                    </p>
+                    <div class="text-xs text-gray-400 mt-1">
+                        Client ID: {{ '✓' if integration_status.discord_client_id_set else '✗' }}
+                        Secret: {{ '✓' if integration_status.discord_client_secret_set else '✗' }}
+                    </div>
+                </div>
+                
+                <!-- Google OAuth -->
+                <div class="p-4 rounded-lg {% if integration_status.google_oauth_enabled %}bg-green-900/20 border border-green-500/30{% else %}bg-yellow-900/20 border border-yellow-500/30{% endif %}">
+                    <div class="flex items-center mb-2">
+                        <i class="fab fa-google text-xl {% if integration_status.google_oauth_enabled %}text-green-400{% else %}text-yellow-400{% endif %} mr-2"></i>
+                        <span class="font-medium text-white">Google SSO</span>
+                    </div>
+                    <p class="text-xs {% if integration_status.google_oauth_enabled %}text-green-400{% else %}text-yellow-400{% endif %}">
+                        {{ 'Enabled' if integration_status.google_oauth_enabled else 'Not configured' }}
+                    </p>
+                </div>
+                
+                <!-- Push Notifications -->
+                <div class="p-4 rounded-lg {% if integration_status.push_enabled %}bg-green-900/20 border border-green-500/30{% else %}bg-yellow-900/20 border border-yellow-500/30{% endif %}">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-bell text-xl {% if integration_status.push_enabled %}text-green-400{% else %}text-yellow-400{% endif %} mr-2"></i>
+                        <span class="font-medium text-white">Push Notifications</span>
+                    </div>
+                    <p class="text-xs {% if integration_status.push_enabled %}text-green-400{% else %}text-yellow-400{% endif %}">
+                        {{ 'Enabled' if integration_status.push_enabled else 'VAPID keys not set' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Recent Users -->
         <div class="glass-dark shadow-xl rounded-xl p-6 border border-white/10">
             <div class="flex justify-between items-center mb-4">

@@ -610,6 +610,76 @@
         openDMModal();
     };
     
+    // Reply to external platform (Slack/Discord)
+    window.replyToExternal = function(platform, threadId, messageId) {
+        // Open a modal for replying to external message
+        const modal = document.getElementById('external-reply-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.getElementById('external-reply-platform').value = platform;
+            document.getElementById('external-reply-thread').value = threadId || '';
+            document.getElementById('external-reply-message-id').value = messageId;
+            document.getElementById('external-reply-input').focus();
+            
+            // Update modal title
+            const title = document.getElementById('external-reply-title');
+            if (title) {
+                title.innerHTML = `Reply on <span class="${platform === 'slack' ? 'text-purple-400' : 'text-indigo-400'}">${platform.charAt(0).toUpperCase() + platform.slice(1)}</span>`;
+            }
+        }
+    };
+    
+    window.closeExternalReplyModal = function() {
+        const modal = document.getElementById('external-reply-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.getElementById('external-reply-input').value = '';
+        }
+    };
+    
+    window.sendExternalReply = async function() {
+        const platform = document.getElementById('external-reply-platform').value;
+        const threadId = document.getElementById('external-reply-thread').value;
+        const content = document.getElementById('external-reply-input').value.trim();
+        
+        if (!content) return;
+        
+        // Find the bridge for this channel
+        // We need to get the bridge ID from channel data
+        const bridgeId = window.channelBridgeId;
+        if (!bridgeId) {
+            alert('No bridge configured for external replies. Set up a bridge first.');
+            closeExternalReplyModal();
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('content', content);
+            if (threadId) {
+                formData.append('thread_ts', threadId);
+            }
+            
+            const response = await fetch(`/integrations/bridges/${bridgeId}/reply`, {
+                method: 'POST',
+                body: formData,
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                closeExternalReplyModal();
+                // Optionally reload messages to show the sent message
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Failed to send reply: ' + (error.detail || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Failed to send external reply:', error);
+            alert('Failed to send reply');
+        }
+    };
+
     // WebSocket message handling
     {% if realtime_mode == 'ws' %}
     document.body.addEventListener('htmx:wsAfterMessage', function(e) {
@@ -841,6 +911,64 @@
 <!-- Thread Panel -->
 {% include "partials/thread_panel.html" %}
 
+<!-- External Reply Modal -->
+<div id="external-reply-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="external-reply-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onclick="closeExternalReplyModal()"></div>
+        
+        <!-- Modal panel -->
+        <div class="relative transform overflow-hidden rounded-xl glass-dark border border-white/10 shadow-xl transition-all w-full max-w-lg">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="external-reply-title" class="text-lg font-semibold text-white">Reply on External Platform</h3>
+                    <button onclick="closeExternalReplyModal()" class="text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <input type="hidden" id="external-reply-platform" value="">
+                <input type="hidden" id="external-reply-thread" value="">
+                <input type="hidden" id="external-reply-message-id" value="">
+                
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-2">Your reply will be sent with a branded prefix</label>
+                    <div class="p-3 bg-white/5 rounded-lg border border-white/10 text-sm text-gray-400">
+                        <span class="text-blue-400 font-medium">From Buildly Communicator:</span> Your message here...
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="external-reply-input" class="block text-sm text-gray-300 mb-2">Message</label>
+                    <textarea 
+                        id="external-reply-input"
+                        rows="3"
+                        placeholder="Type your reply..."
+                        class="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    ></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button 
+                        onclick="closeExternalReplyModal()"
+                        class="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onclick="sendExternalReply()"
+                        class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all"
+                    >
+                        <i class="fas fa-paper-plane mr-2"></i>Send Reply
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- DM Modal -->
 <div id="dm-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="dm-modal-title" role="dialog" aria-modal="true">
     <div class="flex min-h-screen items-center justify-center p-4">
@@ -922,6 +1050,7 @@
     window.workspaceId = {{ workspace.id }};
     window.channelId = {{ channel.id }};
     window.currentUserId = {{ user.id }};
+    window.channelBridgeId = {{ bridge.id if bridge else 'null' }};
     
     // Check for notification permission and prompt if not set
     (function() {

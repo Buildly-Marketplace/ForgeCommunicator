@@ -75,6 +75,20 @@ async def admin_dashboard(
     )
     recent_users = result.scalars().all()
     
+    # Integration status for debugging
+    integration_status = {
+        "slack_enabled": settings.slack_enabled,
+        "slack_client_id_set": bool(settings.slack_client_id),
+        "slack_client_secret_set": bool(settings.slack_client_secret),
+        "discord_enabled": settings.discord_enabled,
+        "discord_client_id_set": bool(settings.discord_client_id),
+        "discord_client_secret_set": bool(settings.discord_client_secret),
+        "google_oauth_enabled": settings.google_oauth_enabled,
+        "buildly_oauth_enabled": settings.buildly_oauth_enabled,
+        "push_enabled": settings.push_enabled,
+        "email_configured": settings.email_configured,
+    }
+    
     return templates.TemplateResponse(
         "admin/dashboard.html",
         {
@@ -84,6 +98,7 @@ async def admin_dashboard(
             "workspace_count": workspace_count,
             "recent_users": recent_users,
             "registration_mode": settings.registration_mode,
+            "integration_status": integration_status,
         },
     )
 

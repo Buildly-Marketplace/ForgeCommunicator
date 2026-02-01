@@ -156,6 +156,143 @@ class DiscordService:
             
             return response.json()
     
+    async def get_guild_channels(self, guild_id: str, bot_token: str | None = None) -> list[dict[str, Any]] | None:
+        """
+        Get channels in a guild (requires bot token with appropriate permissions).
+        
+        Args:
+            guild_id: Discord server/guild ID
+            bot_token: Bot token (uses configured bot token if not provided)
+        """
+        token = bot_token or self.bot_token
+        if not token:
+            logger.error("No bot token available for getting guild channels")
+            return None
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.API_BASE_URL}/guilds/{guild_id}/channels",
+                headers={"Authorization": f"Bot {token}"},
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Discord get guild channels failed: {response.status_code}")
+                return None
+            
+            # Filter to text channels only (type 0 = text, 5 = announcement)
+            channels = response.json()
+            return [c for c in channels if c.get("type") in [0, 5]]
+    
+    async def get_channel_messages(
+        self,
+        channel_id: str,
+        access_token: str | None = None,
+        bot_token: str | None = None,
+        limit: int = 10,
+        before: str | None = None,
+        after: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get message history from a Discord channel.
+        
+        Args:
+            channel_id: Discord channel ID
+            access_token: User OAuth token (for DMs)
+            bot_token: Bot token (for guild channels)
+            limit: Maximum number of messages (default 10, max 100)
+            before: Get messages before this message ID
+            after: Get messages after this message ID
+        
+        Returns:
+            List of message dictionaries (newest first)
+        """
+        # Prefer bot token for guild channels, user token for DMs
+        token = bot_token or self.bot_token or access_token
+        token_type = "Bot" if (bot_token or self.bot_token) else "Bearer"
+        
+        if not token:
+            logger.error("No token available for getting Discord messages")
+            return []
+        
+        async with httpx.AsyncClient() as client:
+            params = {"limit": min(limit, 100)}
+            if before:
+                params["before"] = before
+            if after:
+                params["after"] = after
+            
+            response = await client.get(
+                f"{self.API_BASE_URL}/channels/{channel_id}/messages",
+                headers={"Authorization": f"{token_type} {token}"},
+                params=params,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Discord get messages failed: {response.status_code} - {response.text}")
+                return []
+            
+            return response.json()
+    
+    async def post_message(
+        self,
+        channel_id: str,
+        content: str,
+        access_token: str | None = None,
+        bot_token: str | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Post a message to a Discord channel.
+        
+        Args:
+            channel_id: Discord channel ID
+            content: Message content (supports Discord markdown)
+            access_token: User OAuth token
+            bot_token: Bot token
+        
+        Returns:
+            Message data if successful, None if failed
+        """
+        token = bot_token or self.bot_token or access_token
+        token_type = "Bot" if (bot_token or self.bot_token) else "Bearer"
+        
+        if not token:
+            logger.error("No token available for posting Discord message")
+            return None
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE_URL}/channels/{channel_id}/messages",
+                headers={
+                    "Authorization": f"{token_type} {token}",
+                    "Content-Type": "application/json",
+                },
+                json={"content": content},
+            )
+            
+            if response.status_code not in [200, 201]:
+                logger.error(f"Discord post message failed: {response.status_code} - {response.text}")
+                return None
+            
+            return response.json()
+    
+    async def get_user(self, user_id: str, bot_token: str | None = None) -> dict[str, Any] | None:
+        """Get Discord user info by ID."""
+        token = bot_token or self.bot_token
+        if not token:
+            logger.error("No bot token available for getting user info")
+            return None
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.API_BASE_URL}/users/{user_id}",
+                headers={"Authorization": f"Bot {token}"},
+            )
+            
+            if response.status_code != 200:
+                return None
+            
+            return response.json()
+
     def build_message_url(
         self,
         guild_id: str | None,

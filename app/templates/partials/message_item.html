@@ -1,7 +1,28 @@
 <!-- Message Item Partial -->
-<div id="message-{{ message.id }}" class="message-item group flex space-x-3 hover:bg-white/5 rounded-lg p-2 -mx-2 transition-colors" data-message-id="{{ message.id }}">
-    <!-- Avatar -->
-    <div class="flex-shrink-0">
+<div id="message-{{ message.id }}" class="message-item group flex space-x-3 hover:bg-white/5 rounded-lg p-2 -mx-2 transition-colors {% if message.external_source %}external-message{% endif %}" data-message-id="{{ message.id }}" {% if message.external_source %}data-external-source="{{ message.external_source }}"{% endif %}>
+    <!-- Avatar with platform badge for external messages -->
+    <div class="flex-shrink-0 relative">
+        {% if message.external_source %}
+        <!-- External message avatar -->
+        {% if message.external_author_avatar %}
+        <img src="{{ message.external_author_avatar }}" alt="" class="h-10 w-10 rounded-full">
+        {% else %}
+        <div class="h-10 w-10 rounded-full bg-gray-500/20 border border-gray-400/30 flex items-center justify-center">
+            <span class="text-gray-400 font-medium">{{ (message.external_author_name or 'U')[0] }}</span>
+        </div>
+        {% endif %}
+        <!-- Platform badge -->
+        {% if message.external_source == 'slack' %}
+        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center border-2 border-dark-800" title="From Slack">
+            <i class="fab fa-slack text-white text-xs"></i>
+        </div>
+        {% elif message.external_source == 'discord' %}
+        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center border-2 border-dark-800" title="From Discord">
+            <i class="fab fa-discord text-white text-xs"></i>
+        </div>
+        {% endif %}
+        {% else %}
+        <!-- Regular user avatar -->
         <a href="/profile/user/{{ message.user.id }}" class="block">
             {% if message.user.avatar_url %}
             <img src="{{ message.user.avatar_url }}" alt="" class="h-10 w-10 rounded-full hover:ring-2 hover:ring-blue-400">
@@ -11,12 +32,23 @@
             </div>
             {% endif %}
         </a>
+        {% endif %}
     </div>
     
     <!-- Content -->
     <div class="flex-1 min-w-0">
         <div class="flex items-baseline space-x-2">
+            {% if message.external_source %}
+            <!-- External user name with platform indicator -->
+            <span class="font-medium text-white">{{ message.external_author_name or 'Unknown' }}</span>
+            {% if message.external_source == 'slack' %}
+            <span class="text-xs px-1.5 py-0.5 bg-purple-600/20 text-purple-400 rounded">Slack</span>
+            {% elif message.external_source == 'discord' %}
+            <span class="text-xs px-1.5 py-0.5 bg-indigo-600/20 text-indigo-400 rounded">Discord</span>
+            {% endif %}
+            {% else %}
             <a href="/profile/user/{{ message.user.id }}" class="font-medium text-white hover:text-blue-400 transition-colors">{{ message.user.display_name }}</a>
+            {% endif %}
             <span class="text-xs text-gray-500">{{ message.created_at.strftime('%H:%M') }}</span>
             {% if message.is_edited %}
             <span class="text-xs text-gray-500">(edited)</span>
@@ -44,6 +76,16 @@
                 </svg>
                 Reply in thread
             </button>
+            {% if message.external_source %}
+            <!-- Reply to external platform button -->
+            <button onclick="replyToExternal('{{ message.external_source }}', '{{ message.external_thread_ts or message.external_message_id }}', {{ message.id }})"
+                    class="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center text-xs {% if message.external_source == 'slack' %}text-purple-400 hover:text-purple-300{% else %}text-indigo-400 hover:text-indigo-300{% endif %}">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                </svg>
+                Reply on {{ message.external_source | title }}
+            </button>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -96,6 +138,16 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
         </button>
+        {% endif %}
+        {% if message.external_source %}
+        <!-- External message indicator badge -->
+        <div class="p-1 text-xs {% if message.external_source == 'slack' %}text-purple-400{% else %}text-indigo-400{% endif %}" title="Synced from {{ message.external_source | title }}">
+            {% if message.external_source == 'slack' %}
+            <i class="fab fa-slack"></i>
+            {% else %}
+            <i class="fab fa-discord"></i>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 </div>

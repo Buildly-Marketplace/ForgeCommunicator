@@ -1,11 +1,12 @@
 """
 External integrations router for Slack/Discord notifications.
 
-Handles OAuth flows, webhook callbacks, and notification settings.
+Handles OAuth flows, webhook callbacks, notification settings, and channel bridging.
 """
 
 import secrets
 import logging
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
@@ -20,6 +21,10 @@ from app.models.external_integration import (
     NotificationLog,
     NotificationSource,
 )
+from app.models.bridged_channel import BridgedChannel, BridgePlatform
+from app.models.message import Message
+from app.models.channel import Channel
+from app.models.user import User
 from app.services.slack import slack_service
 from app.services.discord import discord_service
 from app.settings import settings
@@ -643,3 +648,408 @@ async def discord_webhook(
     # This would require more complex bot setup
     
     return JSONResponse({"status": "ok"})
+
+
+# ==================== Channel Bridging ====================
+
+@router.get("/slack/channels")
+async def list_slack_channels(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """List available Slack channels to bridge."""
+    # Get user's Slack integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.slack,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    
+    if not integration or not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack integration not connected",
+        )
+    
+    channels = await slack_service.list_channels(integration.access_token)
+    return JSONResponse({"channels": channels})
+
+
+@router.get("/discord/channels")
+async def list_discord_channels(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    guild_id: str = Query(..., description="Discord server/guild ID"),
+):
+    """List available Discord channels to bridge."""
+    # Get user's Discord integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.discord,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    
+    if not integration or not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Discord integration not connected",
+        )
+    
+    channels = await discord_service.get_guild_channels(
+        integration.access_token, 
+        guild_id
+    )
+    return JSONResponse({"channels": channels})
+
+
+@router.get("/bridges", response_class=HTMLResponse)
+async def list_bridges(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """List all bridged channels for the user."""
+    result = await db.execute(
+        select(BridgedChannel)
+        .options(
+            selectinload(BridgedChannel.channel),
+            selectinload(BridgedChannel.integration),
+        )
+        .join(BridgedChannel.channel)
+        .where(Channel.owner_id == user.id)
+    )
+    bridges = result.scalars().all()
+    
+    return templates.TemplateResponse(
+        "integrations/bridges.html",
+        {
+            "request": request,
+            "user": user,
+            "bridges": bridges,
+        },
+    )
+
+
+@router.post("/bridges")
+async def create_bridge(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    channel_id: int = Form(...),
+    integration_id: int = Form(...),
+    external_channel_id: str = Form(...),
+    external_channel_name: str = Form(...),
+    sync_incoming: bool = Form(True),
+    sync_outgoing: bool = Form(True),
+    reply_prefix: str = Form("From Buildly Communicator:"),
+):
+    """Create a bridge between a Forge channel and an external channel."""
+    # Verify user owns the channel
+    result = await db.execute(
+        select(Channel).where(
+            Channel.id == channel_id,
+            Channel.owner_id == user.id,
+        )
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    # Verify user owns the integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.id == integration_id,
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    # Determine platform from integration type
+    platform = BridgePlatform.slack if integration.integration_type == IntegrationType.slack else BridgePlatform.discord
+    
+    # Check if bridge already exists
+    result = await db.execute(
+        select(BridgedChannel).where(
+            BridgedChannel.channel_id == channel_id,
+            BridgedChannel.external_channel_id == external_channel_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This channel is already bridged",
+        )
+    
+    # Create the bridge
+    bridge = BridgedChannel(
+        channel_id=channel_id,
+        integration_id=integration_id,
+        platform=platform,
+        external_channel_id=external_channel_id,
+        external_channel_name=external_channel_name,
+        sync_incoming=sync_incoming,
+        sync_outgoing=sync_outgoing,
+        reply_prefix=reply_prefix,
+    )
+    db.add(bridge)
+    await db.commit()
+    await db.refresh(bridge)
+    
+    return RedirectResponse(
+        url=f"/integrations/bridges?created={bridge.id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.delete("/bridges/{bridge_id}")
+async def delete_bridge(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    bridge_id: int,
+):
+    """Delete a channel bridge."""
+    result = await db.execute(
+        select(BridgedChannel)
+        .options(selectinload(BridgedChannel.channel))
+        .where(BridgedChannel.id == bridge_id)
+    )
+    bridge = result.scalar_one_or_none()
+    
+    if not bridge:
+        raise HTTPException(status_code=404, detail="Bridge not found")
+    
+    if bridge.channel.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    await db.delete(bridge)
+    await db.commit()
+    
+    return JSONResponse({"status": "deleted"})
+
+
+@router.post("/bridges/{bridge_id}/import")
+async def import_bridge_history(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    bridge_id: int,
+    limit: int = Query(10, ge=1, le=100),
+):
+    """Import message history from an external channel."""
+    result = await db.execute(
+        select(BridgedChannel)
+        .options(
+            selectinload(BridgedChannel.channel),
+            selectinload(BridgedChannel.integration),
+        )
+        .where(BridgedChannel.id == bridge_id)
+    )
+    bridge = result.scalar_one_or_none()
+    
+    if not bridge:
+        raise HTTPException(status_code=404, detail="Bridge not found")
+    
+    if bridge.channel.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    integration = bridge.integration
+    if not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Integration not properly connected",
+        )
+    
+    imported_count = 0
+    
+    if bridge.platform == BridgePlatform.slack:
+        # Fetch Slack history
+        messages = await slack_service.get_channel_history(
+            integration.access_token,
+            bridge.external_channel_id,
+            limit=limit,
+        )
+        
+        # Get user info for messages
+        user_ids = list(set(m.get("user") for m in messages if m.get("user")))
+        users_info = await slack_service.get_users_by_ids(
+            integration.access_token, 
+            user_ids
+        )
+        
+        for msg in messages:
+            # Check if already imported
+            result = await db.execute(
+                select(Message).where(
+                    Message.external_message_id == msg.get("ts"),
+                    Message.channel_id == bridge.channel_id,
+                )
+            )
+            if result.scalar_one_or_none():
+                continue  # Skip already imported
+            
+            user_info = users_info.get(msg.get("user"), {})
+            
+            # Create message in Forge
+            new_msg = Message(
+                channel_id=bridge.channel_id,
+                body=msg.get("text", ""),
+                external_source="slack",
+                external_message_id=msg.get("ts"),
+                external_channel_id=bridge.external_channel_id,
+                external_thread_ts=msg.get("thread_ts"),
+                external_author_name=user_info.get("name", "Unknown"),
+                external_author_avatar=user_info.get("avatar"),
+                created_at=datetime.fromtimestamp(
+                    float(msg.get("ts", 0)), 
+                    tz=timezone.utc
+                ),
+            )
+            db.add(new_msg)
+            imported_count += 1
+    
+    elif bridge.platform == BridgePlatform.discord:
+        # Fetch Discord history
+        messages = await discord_service.get_channel_messages(
+            integration.access_token,
+            bridge.external_channel_id,
+            limit=limit,
+        )
+        
+        for msg in messages:
+            # Check if already imported
+            result = await db.execute(
+                select(Message).where(
+                    Message.external_message_id == msg.get("id"),
+                    Message.channel_id == bridge.channel_id,
+                )
+            )
+            if result.scalar_one_or_none():
+                continue  # Skip already imported
+            
+            author = msg.get("author", {})
+            avatar_url = None
+            if author.get("avatar"):
+                avatar_url = f"https://cdn.discordapp.com/avatars/{author.get('id')}/{author.get('avatar')}.png"
+            
+            # Create message in Forge
+            new_msg = Message(
+                channel_id=bridge.channel_id,
+                body=msg.get("content", ""),
+                external_source="discord",
+                external_message_id=msg.get("id"),
+                external_channel_id=bridge.external_channel_id,
+                external_author_name=author.get("username", "Unknown"),
+                external_author_avatar=avatar_url,
+                created_at=datetime.fromisoformat(
+                    msg.get("timestamp", "").replace("Z", "+00:00")
+                ) if msg.get("timestamp") else datetime.now(timezone.utc),
+            )
+            db.add(new_msg)
+            imported_count += 1
+    
+    await db.commit()
+    
+    # Update last sync time
+    bridge.last_sync_at = datetime.now(timezone.utc)
+    await db.commit()
+    
+    return JSONResponse({
+        "status": "imported",
+        "count": imported_count,
+    })
+
+
+@router.post("/bridges/{bridge_id}/reply")
+async def reply_to_external(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    bridge_id: int,
+    content: str = Form(...),
+    thread_ts: str = Form(None),  # For Slack threads
+    reply_to_id: str = Form(None),  # For Discord replies
+):
+    """Send a reply to an external channel through a bridge."""
+    result = await db.execute(
+        select(BridgedChannel)
+        .options(
+            selectinload(BridgedChannel.channel),
+            selectinload(BridgedChannel.integration),
+        )
+        .where(BridgedChannel.id == bridge_id)
+    )
+    bridge = result.scalar_one_or_none()
+    
+    if not bridge:
+        raise HTTPException(status_code=404, detail="Bridge not found")
+    
+    if bridge.channel.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if not bridge.sync_outgoing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Outgoing sync is disabled for this bridge",
+        )
+    
+    integration = bridge.integration
+    if not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Integration not properly connected",
+        )
+    
+    # Format the message with bridge prefix
+    formatted_content = bridge.format_outgoing_message(content)
+    
+    external_message_id = None
+    
+    if bridge.platform == BridgePlatform.slack:
+        result = await slack_service.post_message(
+            integration.access_token,
+            bridge.external_channel_id,
+            formatted_content,
+            thread_ts=thread_ts,
+        )
+        external_message_id = result.get("ts")
+    
+    elif bridge.platform == BridgePlatform.discord:
+        result = await discord_service.post_message(
+            integration.access_token,
+            bridge.external_channel_id,
+            formatted_content,
+        )
+        external_message_id = result.get("id")
+    
+    # Create a record in Forge messages too
+    new_msg = Message(
+        channel_id=bridge.channel_id,
+        user_id=user.id,
+        body=content,
+        external_source=bridge.platform.value,
+        external_message_id=external_message_id,
+        external_channel_id=bridge.external_channel_id,
+        external_thread_ts=thread_ts,
+    )
+    db.add(new_msg)
+    await db.commit()
+    await db.refresh(new_msg)
+    
+    return JSONResponse({
+        "status": "sent",
+        "message_id": new_msg.id,
+        "external_message_id": external_message_id,
+    })

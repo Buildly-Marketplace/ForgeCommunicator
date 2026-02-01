@@ -1,0 +1,501 @@
+{% extends "layout.html" %}
+
+{% block title %}Channel Bridges - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Channel Bridges</h1>
+        <button 
+            onclick="document.getElementById('newBridgeModal').classList.remove('hidden')"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+            <i class="fas fa-plus mr-2"></i>New Bridge
+        </button>
+    </div>
+
+    <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Bridge your Forge channels with Slack or Discord to see messages inline and reply across platforms.
+    </p>
+
+    {% if bridges %}
+    <div class="space-y-4">
+        {% for bridge in bridges %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-start justify-between">
+                <div class="flex items-center space-x-4">
+                    <!-- Platform icon -->
+                    {% if bridge.platform.value == 'slack' %}
+                    <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                        <i class="fab fa-slack text-2xl text-purple-600 dark:text-purple-400"></i>
+                    </div>
+                    {% else %}
+                    <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                        <i class="fab fa-discord text-2xl text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div>
+                        <h3 class="font-semibold text-gray-900 dark:text-white">
+                            {{ bridge.channel.name }}
+                            <i class="fas fa-arrows-alt-h text-gray-400 mx-2"></i>
+                            #{{ bridge.external_channel_name }}
+                        </h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ bridge.platform.value | title }} • 
+                            {% if bridge.sync_incoming and bridge.sync_outgoing %}
+                            Two-way sync
+                            {% elif bridge.sync_incoming %}
+                            Incoming only
+                            {% elif bridge.sync_outgoing %}
+                            Outgoing only
+                            {% else %}
+                            Sync disabled
+                            {% endif %}
+                        </p>
+                        {% if bridge.last_sync_at %}
+                        <p class="text-xs text-gray-400 mt-1">
+                            Last synced: {{ bridge.last_sync_at.strftime('%Y-%m-%d %H:%M') }} UTC
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <!-- Import history button -->
+                    <button 
+                        onclick="importHistory({{ bridge.id }})"
+                        class="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                        title="Import recent messages"
+                    >
+                        <i class="fas fa-download mr-1"></i>Import
+                    </button>
+                    
+                    <!-- Delete button -->
+                    <button 
+                        onclick="deleteBridge({{ bridge.id }})"
+                        class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                        title="Delete bridge"
+                    >
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            {% if bridge.reply_prefix %}
+            <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Reply prefix:</span>
+                <code class="ml-2 text-blue-600 dark:text-blue-400">{{ bridge.reply_prefix }}</code>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+        <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-link text-2xl text-gray-400"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No bridges yet</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-4">
+            Connect your Forge channels to Slack or Discord to see messages inline.
+        </p>
+        <button 
+            onclick="document.getElementById('newBridgeModal').classList.remove('hidden')"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+            Create your first bridge
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Bridge Modal -->
+<div id="newBridgeModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Create Channel Bridge</h2>
+                <button 
+                    onclick="document.getElementById('newBridgeModal').classList.add('hidden')"
+                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <form action="/integrations/bridges" method="POST" class="p-6 space-y-6">
+            <!-- Step 1: Select platform -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Platform
+                </label>
+                <div class="grid grid-cols-2 gap-4">
+                    <button 
+                        type="button"
+                        onclick="selectPlatform('slack')"
+                        id="btn-slack"
+                        class="platform-btn p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-purple-500 transition-colors text-center"
+                    >
+                        <i class="fab fa-slack text-3xl text-purple-600 mb-2"></i>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">Slack</div>
+                    </button>
+                    <button 
+                        type="button"
+                        onclick="selectPlatform('discord')"
+                        id="btn-discord"
+                        class="platform-btn p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-indigo-500 transition-colors text-center"
+                    >
+                        <i class="fab fa-discord text-3xl text-indigo-600 mb-2"></i>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">Discord</div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Select Forge channel -->
+            <div>
+                <label for="channel_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Forge Channel
+                </label>
+                <select 
+                    name="channel_id" 
+                    id="channel_id"
+                    required
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                    <option value="">Select a channel...</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Step 3: Select external channel -->
+            <div id="externalChannelSection" class="hidden">
+                <label for="external_channel" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <span id="externalChannelLabel">External Channel</span>
+                </label>
+                <select 
+                    name="external_channel" 
+                    id="external_channel"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    onchange="updateExternalChannelFields()"
+                >
+                    <option value="">Loading channels...</option>
+                </select>
+                <input type="hidden" name="external_channel_id" id="external_channel_id">
+                <input type="hidden" name="external_channel_name" id="external_channel_name">
+                <input type="hidden" name="integration_id" id="integration_id">
+            </div>
+            
+            <!-- Discord: Guild selector -->
+            <div id="discordGuildSection" class="hidden">
+                <label for="discord_guild" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Discord Server
+                </label>
+                <select 
+                    name="discord_guild" 
+                    id="discord_guild"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    onchange="loadDiscordChannels()"
+                >
+                    <option value="">Select a server...</option>
+                </select>
+            </div>
+            
+            <!-- Sync options -->
+            <div class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Sync Options
+                </label>
+                <label class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        name="sync_incoming" 
+                        value="true"
+                        checked
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300"
+                    >
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                        Sync incoming messages (show external messages in Forge)
+                    </span>
+                </label>
+                <label class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        name="sync_outgoing" 
+                        value="true"
+                        checked
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300"
+                    >
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                        Sync outgoing messages (send replies to external platform)
+                    </span>
+                </label>
+            </div>
+            
+            <!-- Reply prefix -->
+            <div>
+                <label for="reply_prefix" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Reply Prefix
+                </label>
+                <input 
+                    type="text" 
+                    name="reply_prefix" 
+                    id="reply_prefix"
+                    value="From Buildly Communicator:"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    This prefix will be added to messages sent from Forge to the external platform.
+                </p>
+            </div>
+            
+            <!-- Import history option -->
+            <div class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                <label class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        name="import_history" 
+                        value="true"
+                        id="import_history"
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300"
+                    >
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                        Import last 10 messages after creating bridge
+                    </span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4">
+                <button 
+                    type="button"
+                    onclick="document.getElementById('newBridgeModal').classList.add('hidden')"
+                    class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                    Cancel
+                </button>
+                <button 
+                    type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    Create Bridge
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import History Modal -->
+<div id="importModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Import Message History</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+            How many messages would you like to import from the external channel?
+        </p>
+        <div class="mb-4">
+            <label for="import_limit" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Number of messages
+            </label>
+            <select 
+                id="import_limit"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+                <option value="10">Last 10 messages</option>
+                <option value="25">Last 25 messages</option>
+                <option value="50">Last 50 messages</option>
+                <option value="100">Last 100 messages</option>
+            </select>
+        </div>
+        <div class="flex justify-end space-x-3">
+            <button 
+                onclick="document.getElementById('importModal').classList.add('hidden')"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+                Cancel
+            </button>
+            <button 
+                onclick="confirmImport()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+                Import
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedPlatform = null;
+let currentBridgeId = null;
+
+function selectPlatform(platform) {
+    selectedPlatform = platform;
+    
+    // Update button styles
+    document.querySelectorAll('.platform-btn').forEach(btn => {
+        btn.classList.remove('border-purple-500', 'border-indigo-500', 'bg-purple-50', 'bg-indigo-50', 'dark:bg-purple-900/30', 'dark:bg-indigo-900/30');
+    });
+    
+    const btn = document.getElementById('btn-' + platform);
+    if (platform === 'slack') {
+        btn.classList.add('border-purple-500', 'bg-purple-50', 'dark:bg-purple-900/30');
+        document.getElementById('discordGuildSection').classList.add('hidden');
+        document.getElementById('externalChannelLabel').textContent = 'Slack Channel';
+        loadSlackChannels();
+    } else {
+        btn.classList.add('border-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-900/30');
+        document.getElementById('discordGuildSection').classList.remove('hidden');
+        document.getElementById('externalChannelLabel').textContent = 'Discord Channel';
+        loadDiscordGuilds();
+    }
+    
+    document.getElementById('externalChannelSection').classList.remove('hidden');
+}
+
+async function loadSlackChannels() {
+    const select = document.getElementById('external_channel');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    try {
+        const response = await fetch('/integrations/slack/channels');
+        const data = await response.json();
+        
+        if (data.channels && data.channels.length > 0) {
+            select.innerHTML = '<option value="">Select a channel...</option>';
+            data.channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({ id: channel.id, name: channel.name, integration_id: channel.integration_id });
+                option.textContent = '#' + channel.name;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">No channels available</option>';
+        }
+    } catch (error) {
+        console.error('Failed to load Slack channels:', error);
+        select.innerHTML = '<option value="">Failed to load channels</option>';
+    }
+}
+
+async function loadDiscordGuilds() {
+    // Discord requires selecting a guild first
+    const select = document.getElementById('discord_guild');
+    select.innerHTML = '<option value="">Loading servers...</option>';
+    
+    // For now, we'll need the user to enter the guild ID
+    // In a full implementation, you'd fetch the user's guilds
+    select.innerHTML = '<option value="">Enter server ID manually</option>';
+}
+
+async function loadDiscordChannels() {
+    const guildId = document.getElementById('discord_guild').value;
+    if (!guildId) return;
+    
+    const select = document.getElementById('external_channel');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    try {
+        const response = await fetch(`/integrations/discord/channels?guild_id=${guildId}`);
+        const data = await response.json();
+        
+        if (data.channels && data.channels.length > 0) {
+            select.innerHTML = '<option value="">Select a channel...</option>';
+            data.channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify({ id: channel.id, name: channel.name, integration_id: channel.integration_id });
+                option.textContent = '#' + channel.name;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">No channels available</option>';
+        }
+    } catch (error) {
+        console.error('Failed to load Discord channels:', error);
+        select.innerHTML = '<option value="">Failed to load channels</option>';
+    }
+}
+
+function updateExternalChannelFields() {
+    const select = document.getElementById('external_channel');
+    if (!select.value) return;
+    
+    try {
+        const data = JSON.parse(select.value);
+        document.getElementById('external_channel_id').value = data.id;
+        document.getElementById('external_channel_name').value = data.name;
+        document.getElementById('integration_id').value = data.integration_id || '';
+    } catch (e) {
+        console.error('Failed to parse channel data:', e);
+    }
+}
+
+function importHistory(bridgeId) {
+    currentBridgeId = bridgeId;
+    document.getElementById('importModal').classList.remove('hidden');
+}
+
+async function confirmImport() {
+    if (!currentBridgeId) return;
+    
+    const limit = document.getElementById('import_limit').value;
+    
+    try {
+        const response = await fetch(`/integrations/bridges/${currentBridgeId}/import?limit=${limit}`, {
+            method: 'POST',
+        });
+        const data = await response.json();
+        
+        if (data.status === 'imported') {
+            alert(`Successfully imported ${data.count} messages!`);
+            document.getElementById('importModal').classList.add('hidden');
+            location.reload();
+        } else {
+            alert('Failed to import messages');
+        }
+    } catch (error) {
+        console.error('Import failed:', error);
+        alert('Failed to import messages');
+    }
+}
+
+async function deleteBridge(bridgeId) {
+    if (!confirm('Are you sure you want to delete this bridge? This will not delete any imported messages.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/integrations/bridges/${bridgeId}`, {
+            method: 'DELETE',
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Failed to delete bridge');
+        }
+    } catch (error) {
+        console.error('Delete failed:', error);
+        alert('Failed to delete bridge');
+    }
+}
+
+// Load user's Forge channels on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // Fetch user's channels - we'll need to add this endpoint
+        const response = await fetch('/api/channels');
+        if (response.ok) {
+            const channels = await response.json();
+            const select = document.getElementById('channel_id');
+            channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = channel.id;
+                option.textContent = '#' + channel.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load channels:', error);
+    }
+});
+</script>
+{% endblock %}

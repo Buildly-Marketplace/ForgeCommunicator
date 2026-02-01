@@ -132,6 +132,166 @@ class SlackService:
             data = response.json()
             return data.get("channel") if data.get("ok") else None
     
+    async def list_channels(self, access_token: str, types: str = "public_channel,private_channel,mpim,im") -> list[dict[str, Any]]:
+        """
+        List all channels/conversations the user has access to.
+        
+        Args:
+            access_token: User's OAuth access token
+            types: Comma-separated list of channel types to include
+        
+        Returns:
+            List of channel dictionaries with id, name, is_private, etc.
+        """
+        channels = []
+        cursor = None
+        
+        async with httpx.AsyncClient() as client:
+            while True:
+                params = {
+                    "types": types,
+                    "limit": 200,
+                    "exclude_archived": "true",
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                
+                response = await client.get(
+                    f"{self.API_BASE_URL}/conversations.list",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params=params,
+                )
+                
+                if response.status_code != 200:
+                    logger.error(f"Failed to list Slack channels: {response.status_code}")
+                    break
+                
+                data = response.json()
+                if not data.get("ok"):
+                    logger.error(f"Slack API error: {data.get('error')}")
+                    break
+                
+                channels.extend(data.get("channels", []))
+                
+                # Pagination
+                cursor = data.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
+                    break
+        
+        return channels
+    
+    async def get_channel_history(
+        self, 
+        access_token: str, 
+        channel_id: str, 
+        limit: int = 10,
+        oldest: str | None = None,
+        latest: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get message history from a Slack channel.
+        
+        Args:
+            access_token: User's OAuth access token
+            channel_id: Slack channel ID
+            limit: Maximum number of messages to fetch (default 10)
+            oldest: Only messages after this timestamp
+            latest: Only messages before this timestamp
+        
+        Returns:
+            List of message dictionaries (newest first)
+        """
+        async with httpx.AsyncClient() as client:
+            params = {
+                "channel": channel_id,
+                "limit": min(limit, 1000),  # Slack max is 1000
+            }
+            if oldest:
+                params["oldest"] = oldest
+            if latest:
+                params["latest"] = latest
+            
+            response = await client.get(
+                f"{self.API_BASE_URL}/conversations.history",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params=params,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to get Slack history: {response.status_code}")
+                return []
+            
+            data = response.json()
+            if not data.get("ok"):
+                logger.error(f"Slack API error: {data.get('error')}")
+                return []
+            
+            return data.get("messages", [])
+    
+    async def post_message(
+        self,
+        access_token: str,
+        channel_id: str,
+        text: str,
+        thread_ts: str | None = None,
+        unfurl_links: bool = True,
+    ) -> dict[str, Any] | None:
+        """
+        Post a message to a Slack channel.
+        
+        Args:
+            access_token: User's OAuth access token (needs chat:write scope)
+            channel_id: Slack channel ID
+            text: Message text (supports Slack markdown)
+            thread_ts: Optional thread timestamp to reply in a thread
+            unfurl_links: Whether to unfurl URLs in the message
+        
+        Returns:
+            Message data if successful, None if failed
+        """
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "channel": channel_id,
+                "text": text,
+                "unfurl_links": unfurl_links,
+            }
+            if thread_ts:
+                payload["thread_ts"] = thread_ts
+            
+            response = await client.post(
+                f"{self.API_BASE_URL}/chat.postMessage",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to post Slack message: {response.status_code}")
+                return None
+            
+            data = response.json()
+            if not data.get("ok"):
+                logger.error(f"Slack API error posting message: {data.get('error')}")
+                return None
+            
+            return data
+    
+    async def get_users_by_ids(self, access_token: str, user_ids: list[str]) -> dict[str, dict[str, Any]]:
+        """
+        Get user info for multiple user IDs.
+        
+        Returns:
+            Dictionary mapping user_id to user info
+        """
+        users = {}
+        for user_id in user_ids:
+            user_info = await self.get_user_info(access_token, user_id)
+            if user_info:
+                users[user_id] = user_info
+        return users
+
     def verify_webhook_signature(
         self,
         signature: str,

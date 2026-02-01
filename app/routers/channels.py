@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
 from app.models.artifact import Artifact, ArtifactType
+from app.models.bridged_channel import BridgedChannel
 from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership, MembershipRole
 from app.models.message import Message
@@ -385,6 +386,14 @@ async def channel_view(
         for m in members
     ])
     
+    # Get bridged channel info for external replies
+    result = await db.execute(
+        select(BridgedChannel)
+        .where(BridgedChannel.channel_id == channel_id)
+        .limit(1)
+    )
+    bridge = result.scalar_one_or_none()
+    
     from app.settings import settings
     
     return templates.TemplateResponse(
@@ -404,6 +413,7 @@ async def channel_view(
             "current_channel_id": channel_id,
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,
+            "bridge": bridge,
         },
     )
 
