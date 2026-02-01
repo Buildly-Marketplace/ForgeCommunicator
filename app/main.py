@@ -180,34 +180,129 @@ from app.routers import integrations
 app.include_router(integrations.router)
 
 
-# Error handlers
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    """Custom 404 handler."""
-    if request.headers.get("HX-Request"):
-        return HTMLResponse(
-            '<div class="text-red-500 p-4">Page not found</div>',
+# Error handlers - Handle HTTPException from FastAPI
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import HTTPException
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Handle all HTTP exceptions with proper responses for PWA, HTMX, and API."""
+    status_code = exc.status_code
+    detail = exc.detail if hasattr(exc, 'detail') else str(exc)
+    
+    # For 401 Unauthorized - redirect to login
+    if status_code == 401:
+        # For HTMX requests, return redirect header
+        if request.headers.get("HX-Request"):
+            response = HTMLResponse("", status_code=200)
+            response.headers["HX-Redirect"] = "/auth/login"
+            return response
+        
+        # For API requests expecting JSON, return JSON error
+        accept = request.headers.get("Accept", "")
+        if "application/json" in accept and "text/html" not in accept:
+            return JSONResponse(
+                {"detail": detail or "Not authenticated"},
+                status_code=401,
+            )
+        
+        # For browser/PWA requests, redirect to login
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/auth/login", status_code=302)
+    
+    # For 403 Forbidden
+    if status_code == 403:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                '<div class="text-red-500 p-4">Access denied</div>',
+                status_code=403,
+            )
+        
+        accept = request.headers.get("Accept", "")
+        if "application/json" in accept and "text/html" not in accept:
+            return JSONResponse({"detail": detail or "Access denied"}, status_code=403)
+        
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": detail, "status_code": 403, "brand": getattr(request.state, 'brand', None)},
+            status_code=403,
+        )
+    
+    # For 404 Not Found
+    if status_code == 404:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                '<div class="text-red-500 p-4">Page not found</div>',
+                status_code=404,
+            )
+        
+        accept = request.headers.get("Accept", "")
+        if "application/json" in accept and "text/html" not in accept:
+            return JSONResponse({"detail": detail or "Not found"}, status_code=404)
+        
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": detail, "status_code": 404, "brand": getattr(request.state, 'brand', None)},
             status_code=404,
         )
+    
+    # For 5xx Server Errors
+    if status_code >= 500:
+        logger.error(f"Server error {status_code}: {detail}")
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                '<div class="text-red-500 p-4">Server error. Please try again.</div>',
+                status_code=status_code,
+            )
+        
+        accept = request.headers.get("Accept", "")
+        if "application/json" in accept and "text/html" not in accept:
+            return JSONResponse({"detail": "Server error"}, status_code=status_code)
+        
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "Server error", "status_code": status_code, "brand": getattr(request.state, 'brand', None)},
+            status_code=status_code,
+        )
+    
+    # For other HTTP errors, return appropriate response
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            f'<div class="text-red-500 p-4">{detail}</div>',
+            status_code=status_code,
+        )
+    
+    accept = request.headers.get("Accept", "")
+    if "application/json" in accept and "text/html" not in accept:
+        return JSONResponse({"detail": detail}, status_code=status_code)
+    
     return templates.TemplateResponse(
         "error.html",
-        {"request": request, "error": "Page not found", "status_code": 404},
-        status_code=404,
+        {"request": request, "error": detail, "status_code": status_code, "brand": getattr(request.state, 'brand', None)},
+        status_code=status_code,
     )
 
 
-@app.exception_handler(500)
-async def server_error_handler(request: Request, exc):
-    """Custom 500 handler."""
-    logger.error(f"Server error: {exc}", exc_info=True)
+# Generic exception handler for unhandled errors
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Handle unhandled exceptions - show error page instead of white screen."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    
     if request.headers.get("HX-Request"):
         return HTMLResponse(
-            '<div class="text-red-500 p-4">Server error</div>',
+            '<div class="text-red-500 p-4">An unexpected error occurred. Please try again.</div>',
             status_code=500,
         )
+    
+    accept = request.headers.get("Accept", "")
+    if "application/json" in accept and "text/html" not in accept:
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
+    
     return templates.TemplateResponse(
         "error.html",
-        {"request": request, "error": "Server error", "status_code": 500},
+        {"request": request, "error": "An unexpected error occurred", "status_code": 500, "brand": getattr(request.state, 'brand', None)},
         status_code=500,
     )
 

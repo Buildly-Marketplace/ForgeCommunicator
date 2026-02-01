@@ -10,20 +10,30 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
+        /* CRITICAL: Full scrolling reset for mobile/PWA */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            height: auto !important;
+            min-height: 100% !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior-y: auto !important;
+            touch-action: auto !important;
+        }
+        
         body {
             font-family: 'Inter', sans-serif;
-            /* Allow smooth scrolling on mobile/PWA */
-            -webkit-overflow-scrolling: touch;
-            overflow-y: auto;
-            touch-action: manipulation;
         }
         
         .splash-bg {
             background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f172a 100%);
             position: relative;
-            overflow-x: hidden;
-            overflow-y: auto;
             min-height: 100vh;
+            padding-bottom: 2rem;
         }
         
         .splash-bg::before {
@@ -118,7 +128,7 @@
         }
     </style>
 </head>
-<body class="splash-bg min-h-screen">
+<body class="splash-bg">
     <!-- Background effects -->
     <div class="stars"></div>
     <div class="floating-particles">
@@ -132,7 +142,7 @@
         <div class="particle"></div>
     </div>
     
-    <div class="min-h-screen flex flex-col lg:flex-row items-center justify-center relative z-10 px-4 py-8">
+    <div class="flex flex-col lg:flex-row items-center justify-center relative z-10 px-4 py-8 lg:min-h-screen">
         
         <!-- Left side - Branding -->
         <div class="lg:w-1/2 flex flex-col items-center lg:items-start text-center lg:text-left mb-12 lg:mb-0 lg:pr-12">

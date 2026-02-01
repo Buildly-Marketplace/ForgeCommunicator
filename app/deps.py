@@ -80,14 +80,26 @@ async def get_current_user_optional(
 
 
 async def get_current_user(
+    request: Request,
     user: Annotated[User | None, Depends(get_current_user_optional)],
 ) -> User:
-    """Get current user from session cookie (raises 401 if not authenticated)."""
+    """Get current user from session cookie (raises 401 if not authenticated).
+    
+    For browser requests, this will trigger a redirect to /auth/login via the
+    401 exception handler in main.py.
+    """
     if not user:
+        # Check if this is an HTMX request
+        if request.headers.get("HX-Request"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"HX-Redirect": "/auth/login"},
+            )
+        # For regular browser requests, just raise 401 - the exception handler will redirect
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
-            headers={"HX-Redirect": "/auth/login"},
         )
     return user
 
