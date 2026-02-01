@@ -64,20 +64,36 @@ async def add_request_id(request: Request, call_next):
 # Session refresh middleware - keeps cookies in sync with sliding sessions
 @app.middleware("http")
 async def refresh_session_cookie(request: Request, call_next):
-    """Refresh session cookie on authenticated requests to implement sliding sessions."""
+    """Refresh session cookie on authenticated requests to implement sliding sessions.
+    
+    PWA Note: Uses longer expiration (30 days for PWA vs 7 days for browser) to handle
+    iOS Safari's aggressive cookie clearing in standalone mode.
+    """
     response = await call_next(request)
     
     # Check if session was refreshed (marked by the dependency)
     if hasattr(request.state, 'session_refreshed') and request.state.session_refreshed:
         session_token = request.cookies.get('session_token')
         if session_token:
+            # Detect PWA mode from Sec-Fetch-Dest header or display-mode
+            is_pwa = request.headers.get('Sec-Fetch-Dest') == 'document' and \
+                     request.headers.get('Sec-Fetch-Mode') == 'navigate' and \
+                     'standalone' in request.headers.get('Sec-Fetch-Site', '')
+            
+            # Use longer expiration for PWA to prevent frequent logouts on iOS
+            # iOS Safari in PWA mode can be aggressive about clearing cookies
+            max_age = settings.session_expire_hours * 3600
+            if is_pwa or request.headers.get('X-PWA-Mode') == 'standalone':
+                max_age = max(max_age, 30 * 24 * 3600)  # At least 30 days for PWA
+            
             response.set_cookie(
                 key="session_token",
                 value=session_token,
                 httponly=True,
                 secure=not settings.debug,
                 samesite="lax",
-                max_age=settings.session_expire_hours * 3600,
+                max_age=max_age,
+                path="/",  # Explicit path ensures cookie works across all routes
             )
     
     return response

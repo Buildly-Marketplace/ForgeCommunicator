@@ -67,6 +67,19 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/ws.js"></script>
     <script>
+        // Detect PWA/standalone mode
+        (function() {
+            var isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                               window.navigator.standalone === true;
+            
+            // Add PWA mode header to all HTMX requests for better session handling
+            if (isStandalone) {
+                document.body.addEventListener('htmx:configRequest', function(evt) {
+                    evt.detail.headers['X-PWA-Mode'] = 'standalone';
+                });
+            }
+        })();
+        
         // Suppress WebSocket close errors from htmx ws extension during navigation
         (function() {
             var originalError = console.error;
@@ -542,11 +555,34 @@
                 }
             });
             
-            // Show iOS-specific install banner
+            // Show iOS-specific install banner (detects Safari vs Chrome)
             function showIOSInstallBanner() {
                 const banner = document.createElement('div');
                 banner.id = 'ios-install-banner';
                 banner.className = 'fixed bottom-0 left-0 right-0 bg-dark-900/95 border-t border-white/10 p-4 z-50 backdrop-blur-lg transform transition-transform duration-300';
+                
+                // Detect if using Chrome on iOS (CriOS) vs Safari
+                const isChromeIOS = /CriOS/.test(navigator.userAgent);
+                const isFirefoxIOS = /FxiOS/.test(navigator.userAgent);
+                const isEdgeIOS = /EdgiOS/.test(navigator.userAgent);
+                const isOtherBrowser = isChromeIOS || isFirefoxIOS || isEdgeIOS;
+                
+                // Safari share icon (square with arrow up)
+                const safariShareIcon = `<svg class="w-4 h-4 mx-1 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a1 1 0 0 1 1 1v10.586l2.293-2.293a1 1 0 0 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1z" transform="rotate(180 12 12)"/><path d="M5 17a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z" transform="rotate(180 12 12)"/></svg>`;
+                
+                // Chrome menu icon (three dots)
+                const chromeMenuIcon = `<svg class="w-4 h-4 mx-1 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
+                
+                let instructions;
+                if (isChromeIOS) {
+                    instructions = `Tap the <span class="inline-flex items-center">${chromeMenuIcon}</span> menu, then tap <strong class="text-white">Add to Home Screen</strong>`;
+                } else if (isFirefoxIOS || isEdgeIOS) {
+                    instructions = `Open this page in Safari, tap <span class="inline-flex items-center">${safariShareIcon}</span> Share, then <strong class="text-white">Add to Home Screen</strong>`;
+                } else {
+                    // Safari or unknown - assume Safari
+                    instructions = `Tap <span class="inline-flex items-center">${safariShareIcon}</span> Share at the bottom, scroll down, and tap <strong class="text-white">Add to Home Screen</strong>`;
+                }
+                
                 banner.innerHTML = `
                     <div class="max-w-lg mx-auto flex items-center space-x-4">
                         <img src="/static/icons/icon-72x72.png" alt="Forge" class="w-12 h-12 rounded-xl">
@@ -561,9 +597,7 @@
                         </button>
                     </div>
                     <div class="max-w-lg mx-auto mt-3">
-                        <p class="text-gray-400 text-xs">
-                            Tap <span class="inline-flex items-center"><svg class="w-4 h-4 mx-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></span> then <strong class="text-white">Add to Home Screen</strong>
-                        </p>
+                        <p class="text-gray-400 text-xs">${instructions}</p>
                     </div>
                 `;
                 document.body.appendChild(banner);

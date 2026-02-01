@@ -12,12 +12,18 @@
         
         body {
             font-family: 'Inter', sans-serif;
+            /* Allow smooth scrolling on mobile/PWA */
+            -webkit-overflow-scrolling: touch;
+            overflow-y: auto;
+            touch-action: manipulation;
         }
         
         .splash-bg {
             background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f172a 100%);
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
         }
         
         .splash-bg::before {
@@ -154,12 +160,12 @@
             
             <!-- Logo and Title -->
             <div class="mb-8">
-                <!-- Large Logo with 3D effect -->
-                <div class="flex justify-center lg:justify-start mb-6">
+                <!-- Logo with 3D effect -->
+                <div class="flex justify-center lg:justify-start mb-4">
                     <div class="relative">
                         <img src="{{ brand.logo_url }}" alt="{{ brand.company }}" 
-                             class="h-[28rem] w-[28rem] rounded-2xl shadow-xl"
-                             style="box-shadow: 0 10px 30px rgba(59, 130, 246, 0.15), 0 4px 10px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1); transform: perspective(500px) rotateX(5deg);">
+                             class="h-32 w-32 lg:h-36 lg:w-36 rounded-xl shadow-lg"
+                             style="box-shadow: 0 8px 20px rgba(59, 130, 246, 0.12), 0 3px 8px rgba(0,0,0,0.15); transform: perspective(500px) rotateX(3deg);">
                         <!-- Subtle reflection/shine -->
                         <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none"></div>
                     </div>
@@ -243,6 +249,8 @@
                 <div class="space-y-4 mb-6">
                     {% if 'google' in oauth_providers %}
                     <a href="/auth/oauth/google"
+                       rel="noopener"
+                       onclick="handleOAuthClick(event, '/auth/oauth/google')"
                        class="btn-oauth w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl bg-white text-gray-800 font-medium hover:bg-gray-100">
                         <svg class="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -256,6 +264,8 @@
                     
                     {% if 'buildly' in oauth_providers %}
                     <a href="/auth/oauth/buildly"
+                       rel="noopener"
+                       onclick="handleOAuthClick(event, '/auth/oauth/buildly')"
                        class="btn-oauth w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-700 hover:to-purple-700">
                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 2 7 12 12 22 7 12 2"/>
@@ -382,5 +392,40 @@
     
     <!-- City silhouette at bottom -->
     <div class="city-silhouette"></div>
+    
+    <script>
+        // Detect PWA/standalone mode
+        var isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true;
+        
+        // Add PWA mode header to HTMX requests for better session handling on iOS
+        (function() {
+            if (isStandalone) {
+                document.body.addEventListener('htmx:configRequest', function(evt) {
+                    evt.detail.headers['X-PWA-Mode'] = 'standalone';
+                });
+            }
+        })();
+        
+        // Handle OAuth clicks - in PWA mode, open in system browser to avoid cookie issues
+        function handleOAuthClick(event, url) {
+            if (isStandalone) {
+                // In PWA/standalone mode, OAuth redirects can fail due to cookie isolation
+                // Open the OAuth URL in the system browser instead
+                event.preventDefault();
+                
+                // For iOS, window.open with _system or _blank opens in Safari
+                // For Android PWA, window.open opens in Chrome
+                var opened = window.open(url, '_blank');
+                
+                // If popup was blocked, fall back to direct navigation
+                // This will exit the PWA but at least the auth will work
+                if (!opened) {
+                    window.location.href = url;
+                }
+            }
+            // In regular browser mode, let the link work normally
+        }
+    </script>
 </body>
 </html>

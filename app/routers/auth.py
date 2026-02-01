@@ -29,6 +29,29 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def set_session_cookie(response: Response, session_token: str, request: Request = None):
+    """Set session cookie with appropriate settings for browser and PWA.
+    
+    iOS Safari in PWA/standalone mode can be aggressive about clearing cookies,
+    so we use longer expiration for PWA mode.
+    """
+    # Detect PWA mode from header (set by client-side JS)
+    is_pwa = request and request.headers.get('X-PWA-Mode') == 'standalone'
+    max_age = settings.session_expire_hours * 3600
+    if is_pwa:
+        max_age = max(max_age, 30 * 24 * 3600)  # At least 30 days for PWA
+    
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=not settings.debug,
+        samesite="lax",
+        max_age=max_age,
+        path="/",  # Explicit path ensures cookie works across all routes
+    )
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,
@@ -111,26 +134,12 @@ async def login(
     
     # Set cookie and redirect
     redirect = RedirectResponse(url=next, status_code=status.HTTP_302_FOUND)
-    redirect.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=not settings.debug,
-        samesite="lax",
-        max_age=settings.session_expire_hours * 3600,
-    )
+    set_session_cookie(redirect, session_token, request)
     
     if request.headers.get("HX-Request"):
         response = HTMLResponse("")
         response.headers["HX-Redirect"] = next
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=not settings.debug,
-            samesite="lax",
-            max_age=settings.session_expire_hours * 3600,
-        )
+        set_session_cookie(response, session_token, request)
         return response
     
     return redirect
@@ -237,26 +246,12 @@ async def register(
     
     # Set cookie and redirect
     redirect = RedirectResponse(url="/workspaces", status_code=status.HTTP_302_FOUND)
-    redirect.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=not settings.debug,
-        samesite="lax",
-        max_age=settings.session_expire_hours * 3600,
-    )
+    set_session_cookie(redirect, session_token, request)
     
     if request.headers.get("HX-Request"):
         response = HTMLResponse("")
         response.headers["HX-Redirect"] = "/workspaces"
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=not settings.debug,
-            samesite="lax",
-            max_age=settings.session_expire_hours * 3600,
-        )
+        set_session_cookie(response, session_token, request)
         return response
     
     return redirect
@@ -507,14 +502,7 @@ async def oauth_callback(
         
         # Redirect with session cookie
         response = RedirectResponse(url="/workspaces", status_code=status.HTTP_302_FOUND)
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=not settings.debug,
-            samesite="lax",
-            max_age=settings.session_expire_hours * 3600,
-        )
+        set_session_cookie(response, session_token, request)
         response.delete_cookie("oauth_state")
         return response
         
