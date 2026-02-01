@@ -54,6 +54,9 @@
         htmx.ajax('GET', `/workspaces/${window.workspaceId}/channels/${window.channelId}/messages/${messageId}/thread`, {
             target: '#thread-content',
             swap: 'innerHTML'
+        }).then(() => {
+            // Ensure HTMX processes new content (delete buttons, forms, etc.)
+            htmx.process(document.getElementById('thread-content'));
         });
     };
 
@@ -92,6 +95,8 @@
     // Handle thread reply form submission
     document.addEventListener('htmx:afterSwap', function(e) {
         if (e.detail.target.id === 'thread-replies') {
+            // Ensure HTMX processes new content (delete buttons on new replies)
+            htmx.process(document.getElementById('thread-replies'));
             // Clear the input
             const input = document.querySelector('#thread-reply-form textarea');
             if (input) {

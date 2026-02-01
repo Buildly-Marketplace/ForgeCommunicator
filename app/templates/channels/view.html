@@ -687,12 +687,16 @@
             const data = JSON.parse(e.detail.message);
             if (data.type === 'new_message') {
                 const messageList = document.getElementById('message-list');
+                // Check for duplicate - message might already exist from HTMX response
+                const existingMsg = document.getElementById('message-' + data.message_id);
+                if (existingMsg) {
+                    console.log('Skipping duplicate message:', data.message_id);
+                    return;
+                }
                 messageList.insertAdjacentHTML('beforeend', data.html);
                 scrollToBottom();
-                // Play notification sound if not from current user and not muted
-                if (data.user_id !== window.currentUserId) {
-                    playNotificationSound();
-                }
+                // Play notification sound (already excluded sender on server side)
+                playNotificationSound();
             } else if (data.type === 'message_deleted') {
                 const msg = document.getElementById('message-' + data.message_id);
                 if (msg) msg.remove();

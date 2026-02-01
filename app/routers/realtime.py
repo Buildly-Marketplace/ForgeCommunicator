@@ -25,45 +25,54 @@ class ConnectionManager:
     """Manage WebSocket connections per channel."""
     
     def __init__(self):
-        # channel_id -> set of WebSocket connections
-        self.active_connections: dict[int, set[WebSocket]] = defaultdict(set)
+        # channel_id -> dict of user_id -> WebSocket connection
+        self.active_connections: dict[int, dict[int, WebSocket]] = defaultdict(dict)
         self._lock = asyncio.Lock()
     
-    async def connect(self, websocket: WebSocket, channel_id: int) -> None:
+    async def connect(self, websocket: WebSocket, channel_id: int, user_id: int) -> None:
         """Accept and register a WebSocket connection."""
         await websocket.accept()
         async with self._lock:
-            self.active_connections[channel_id].add(websocket)
-        logger.info(f"WebSocket connected to channel {channel_id}")
+            self.active_connections[channel_id][user_id] = websocket
+        logger.info(f"WebSocket connected to channel {channel_id} for user {user_id}")
     
-    async def disconnect(self, websocket: WebSocket, channel_id: int) -> None:
+    async def disconnect(self, websocket: WebSocket, channel_id: int, user_id: int) -> None:
         """Remove a WebSocket connection."""
         async with self._lock:
-            self.active_connections[channel_id].discard(websocket)
-            if not self.active_connections[channel_id]:
-                del self.active_connections[channel_id]
-        logger.info(f"WebSocket disconnected from channel {channel_id}")
+            if channel_id in self.active_connections:
+                self.active_connections[channel_id].pop(user_id, None)
+                if not self.active_connections[channel_id]:
+                    del self.active_connections[channel_id]
+        logger.info(f"WebSocket disconnected from channel {channel_id} for user {user_id}")
     
-    async def broadcast_to_channel(self, channel_id: int, message: dict[str, Any]) -> None:
-        """Broadcast a message to all connections in a channel."""
+    async def broadcast_to_channel(
+        self, 
+        channel_id: int, 
+        message: dict[str, Any],
+        exclude_user_id: int | None = None,
+    ) -> None:
+        """Broadcast a message to all connections in a channel, optionally excluding sender."""
         async with self._lock:
-            connections = self.active_connections.get(channel_id, set()).copy()
+            connections = dict(self.active_connections.get(channel_id, {}))
         
         disconnected = []
-        for connection in connections:
+        for user_id, connection in connections.items():
+            # Skip the sender to avoid duplicate messages
+            if exclude_user_id and user_id == exclude_user_id:
+                continue
             try:
                 await connection.send_json(message)
             except Exception as e:
-                logger.warning(f"Failed to send to WebSocket: {e}")
-                disconnected.append(connection)
+                logger.warning(f"Failed to send to WebSocket for user {user_id}: {e}")
+                disconnected.append((connection, user_id))
         
         # Clean up disconnected
-        for conn in disconnected:
-            await self.disconnect(conn, channel_id)
+        for conn, uid in disconnected:
+            await self.disconnect(conn, channel_id, uid)
     
     def get_connection_count(self, channel_id: int) -> int:
         """Get number of active connections for a channel."""
-        return len(self.active_connections.get(channel_id, set()))
+        return len(self.active_connections.get(channel_id, {}))
 
 
 # Global connection manager
@@ -138,8 +147,8 @@ async def websocket_channel(
         await websocket.close(code=4003)
         return
     
-    # Connect
-    await manager.connect(websocket, channel_id)
+    # Connect with user_id for tracking
+    await manager.connect(websocket, channel_id, user.id)
     
     try:
         # Send connection confirmation
@@ -164,7 +173,7 @@ async def websocket_channel(
                         "type": "typing",
                         "user_id": user.id,
                         "user_name": user.display_name,
-                    })
+                    }, exclude_user_id=user.id)
                 
             except WebSocketDisconnect:
                 break
@@ -172,7 +181,7 @@ async def websocket_channel(
                 continue
     
     finally:
-        await manager.disconnect(websocket, channel_id)
+        await manager.disconnect(websocket, channel_id, user.id)
 
 
 async def broadcast_new_message(
@@ -182,14 +191,14 @@ async def broadcast_new_message(
     user_id: int,
     user_name: str,
 ) -> None:
-    """Broadcast a new message to channel subscribers."""
+    """Broadcast a new message to channel subscribers (excludes sender)."""
     await manager.broadcast_to_channel(channel_id, {
         "type": "new_message",
         "message_id": message_id,
         "user_id": user_id,
         "user_name": user_name,
         "html": message_html,
-    })
+    }, exclude_user_id=user_id)  # Exclude sender - they already got the message from HTMX response
 
 
 async def broadcast_message_update(
