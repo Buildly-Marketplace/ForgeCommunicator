@@ -293,7 +293,7 @@ async def session_status(
         }
     
     # Check if user can auto-refresh (has Google OAuth with refresh token)
-    can_refresh = bool(user.auth_provider.value == "google" and user.google_refresh_token)
+    can_refresh = bool(user.auth_provider == "google" and user.google_refresh_token)
     
     # Handle session refresh request
     if refresh and user.session_expires_at:
@@ -302,7 +302,7 @@ async def session_status(
             user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
             user.update_last_seen()
             await db.commit()
-        elif user.auth_provider.value == "local":
+        elif user.auth_provider == "local":
             # For local users, only extend if less than 25% time remains (sliding window)
             refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
             time_remaining = user.session_expires_at - datetime.now(timezone.utc)
@@ -324,7 +324,7 @@ async def session_status(
         "expires_at": expires_at,
         "seconds_remaining": seconds_remaining,
         "can_refresh": can_refresh,
-        "auth_provider": user.auth_provider.value,
+        "auth_provider": user.auth_provider,
     }
 
 
