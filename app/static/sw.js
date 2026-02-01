@@ -1,7 +1,8 @@
 // Service Worker for Forge Communicator
 // Handles push notifications and offline caching for PWA
+// iOS 16.4+ and Android Chrome support Web Push when installed as PWA
 
-const CACHE_NAME = 'forge-communicator-v4';
+const CACHE_NAME = 'forge-communicator-v6';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -117,20 +118,27 @@ self.addEventListener('push', (event) => {
         }
     }
     
+    // iOS Safari has limited notification options - use compatible subset
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
     const options = {
         body: data.body,
         icon: data.icon,
         badge: data.badge,
         tag: data.tag || 'forge-notification',
-        renotify: true,
-        requireInteraction: false,
-        silent: false,  // Ensure system notification sound plays
-        vibrate: [100, 50, 100, 50, 100],  // More noticeable vibration pattern
         data: data.data,
-        actions: [
-            { action: 'open', title: 'Open' },
-            { action: 'dismiss', title: 'Dismiss' }
-        ]
+        // iOS doesn't support these - only include on non-iOS
+        ...(isIOS ? {} : {
+            renotify: true,
+            requireInteraction: false,
+            silent: false,
+            vibrate: [100, 50, 100, 50, 100],
+            actions: [
+                { action: 'open', title: 'Open' },
+                { action: 'dismiss', title: 'Dismiss' }
+            ]
+        })
     };
     
     // Show notification and play sound

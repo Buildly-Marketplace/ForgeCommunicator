@@ -16,7 +16,7 @@ except ImportError:
     exit(1)
 
 
-SIZES = [72, 96, 128, 144, 152, 192, 384, 512]
+SIZES = [72, 96, 128, 144, 152, 180, 192, 384, 512, 1024]
 OUTPUT_DIR = Path(__file__).parent.parent / "app" / "static" / "icons"
 
 

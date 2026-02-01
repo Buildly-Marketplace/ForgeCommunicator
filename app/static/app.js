@@ -270,26 +270,142 @@
 
     // ============================================
     // Notification Sound System (Global)
+    // Cross-platform: Desktop, iOS, Android
     // ============================================
     
     window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
     
-    // Notification sound using chirp.mp3
-    let globalNotificationAudio = null;
+    // Audio context for generating sounds (works better on mobile)
+    let audioContext = null;
+    let notificationBuffer = null;
+    let audioInitialized = false;
     
+    // Initialize audio on first user interaction (required by browsers)
+    function initAudio() {
+        if (audioInitialized) return Promise.resolve();
+        
+        return new Promise((resolve) => {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Preload the notification sound
+                fetch('/static/chirp.mp3')
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                    .then(buffer => {
+                        notificationBuffer = buffer;
+                        audioInitialized = true;
+                        console.log('Notification sound loaded');
+                        resolve();
+                    })
+                    .catch(e => {
+                        console.log('Could not load notification sound:', e);
+                        audioInitialized = true; // Mark as initialized to use fallback
+                        resolve();
+                    });
+            } catch (e) {
+                console.log('AudioContext not available:', e);
+                audioInitialized = true;
+                resolve();
+            }
+        });
+    }
+    
+    // Initialize audio on first user interaction
+    const initAudioOnInteraction = () => {
+        initAudio();
+        // Also resume suspended audio context (required on iOS/Android)
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Remove listeners after first interaction
+        document.removeEventListener('click', initAudioOnInteraction);
+        document.removeEventListener('touchstart', initAudioOnInteraction);
+        document.removeEventListener('keydown', initAudioOnInteraction);
+    };
+    
+    document.addEventListener('click', initAudioOnInteraction);
+    document.addEventListener('touchstart', initAudioOnInteraction);
+    document.addEventListener('keydown', initAudioOnInteraction);
+    
+    // Play notification sound using Web Audio API (best cross-platform support)
     window.playNotificationSound = function() {
         if (!window.notificationSoundEnabled) return;
         
-        try {
-            if (!globalNotificationAudio) {
-                globalNotificationAudio = new Audio('/static/chirp.mp3');
-                globalNotificationAudio.volume = 0.5;
-            }
-            globalNotificationAudio.currentTime = 0;
-            globalNotificationAudio.play().catch(e => console.log('Audio play failed:', e));
-        } catch (e) {
-            console.log('Notification sound not available:', e);
+        // Resume audio context if suspended (mobile browsers)
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume();
         }
+        
+        // Try to play the preloaded sound
+        if (audioContext && notificationBuffer) {
+            try {
+                const source = audioContext.createBufferSource();
+                const gainNode = audioContext.createGain();
+                source.buffer = notificationBuffer;
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.value = 0.5;
+                source.start(0);
+                console.log('Playing notification sound');
+                return;
+            } catch (e) {
+                console.log('Buffer playback failed:', e);
+            }
+        }
+        
+        // Fallback: try HTML5 Audio
+        try {
+            const audio = new Audio('/static/chirp.mp3');
+            audio.volume = 0.5;
+            const playPromise = audio.play();
+            if (playPromise) {
+                playPromise.catch(e => {
+                    console.log('HTML5 Audio failed:', e);
+                    playFallbackBeep();
+                });
+            }
+        } catch (e) {
+            console.log('HTML5 Audio not available:', e);
+            playFallbackBeep();
+        }
+    };
+    
+    // Fallback: Generate a beep using oscillator
+    function playFallbackBeep() {
+        try {
+            const ctx = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume();
+            
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+            oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
+            
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+            console.log('Fallback beep failed:', e);
+        }
+    }
+    
+    // Test sound function (for settings page)
+    window.testNotificationSound = function() {
+        const wasEnabled = window.notificationSoundEnabled;
+        window.notificationSoundEnabled = true;
+        initAudio().then(() => {
+            window.playNotificationSound();
+            window.notificationSoundEnabled = wasEnabled;
+        });
     };
     
     window.toggleGlobalNotificationSound = function() {

@@ -723,31 +723,21 @@
     });
     
     // ============================================
-    // Notification Sound System
+    // Notification Sound System (Channel-specific)
+    // Uses global playNotificationSound from app.js
     // ============================================
     window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
     window.mutedChannels = JSON.parse(localStorage.getItem('mutedChannels') || '[]');
     
-    // Notification sound using chirp.mp3
-    let notificationAudio = null;
-    
-    function createNotificationSound() {
-        if (!notificationAudio) {
-            notificationAudio = new Audio('/static/chirp.mp3');
-            notificationAudio.volume = 0.5;
-        }
-        notificationAudio.currentTime = 0;
-        notificationAudio.play().catch(e => console.log('Audio play failed:', e));
-    }
-    
+    // Override the global playNotificationSound to check channel mute status
+    const originalPlaySound = window.playNotificationSound;
     window.playNotificationSound = function() {
         if (!window.notificationSoundEnabled) return;
         if (window.mutedChannels.includes(window.channelId)) return;
         
-        try {
-            createNotificationSound();
-        } catch (e) {
-            console.log('Audio not available:', e);
+        // Use the global sound player
+        if (originalPlaySound) {
+            originalPlaySound();
         }
     };
     
