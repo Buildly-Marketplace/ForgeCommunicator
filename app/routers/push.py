@@ -125,3 +125,37 @@ async def send_test_notification(
             {"status": "no_subscriptions", "message": "No active push subscriptions found"},
             status_code=status.HTTP_404_NOT_FOUND
         )
+
+
+@router.get("/status")
+async def get_push_status(
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Get push notification status for debugging."""
+    # Check if VAPID is configured
+    vapid_configured = bool(settings.vapid_public_key and settings.vapid_private_key)
+    
+    # Get user's subscriptions
+    result = await db.execute(
+        select(PushSubscription).where(PushSubscription.user_id == user.id)
+    )
+    subscriptions = result.scalars().all()
+    
+    sub_info = []
+    for sub in subscriptions:
+        # Extract endpoint domain for debugging
+        from urllib.parse import urlparse
+        endpoint_domain = urlparse(sub.endpoint).netloc if sub.endpoint else "unknown"
+        sub_info.append({
+            "id": sub.id,
+            "endpoint_domain": endpoint_domain,
+            "user_agent": sub.user_agent[:50] if sub.user_agent else None,
+            "created_at": sub.created_at.isoformat() if hasattr(sub, 'created_at') and sub.created_at else None,
+        })
+    
+    return JSONResponse({
+        "vapid_configured": vapid_configured,
+        "subscription_count": len(subscriptions),
+        "subscriptions": sub_info,
+    })

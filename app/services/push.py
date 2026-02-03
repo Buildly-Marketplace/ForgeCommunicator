@@ -26,6 +26,11 @@ class PushNotificationService:
         self.vapid_claims = {
             "sub": f"mailto:{settings.vapid_contact_email}"
         }
+        # Log VAPID configuration status at startup
+        if self.vapid_private_key and self.vapid_public_key:
+            logger.info("Push notifications enabled - VAPID keys configured")
+        else:
+            logger.warning("Push notifications disabled - VAPID keys not configured")
     
     async def send_notification(
         self,
@@ -42,7 +47,7 @@ class PushNotificationService:
         Returns the number of successful notifications sent.
         """
         if not self.vapid_private_key:
-            logger.warning("VAPID keys not configured, skipping push notification")
+            logger.warning("VAPID keys not configured, skipping push notification for user %s", user_id)
             return 0
         
         # Get user's push subscriptions
@@ -52,7 +57,11 @@ class PushNotificationService:
         subscriptions = result.scalars().all()
         
         if not subscriptions:
+            logger.debug("No push subscriptions found for user %s", user_id)
             return 0
+        
+        logger.info("Sending push notification to user %s (%d subscriptions): %s", 
+                   user_id, len(subscriptions), title)
         
         # Build notification payload
         payload = {
@@ -87,10 +96,13 @@ class PushNotificationService:
                     vapid_claims=self.vapid_claims,
                 )
                 sent_count += 1
+                logger.debug("Successfully sent push to subscription %s", sub.id)
             except WebPushException as e:
-                logger.error(f"Push notification failed: {e}")
+                logger.error("Push notification failed for subscription %s: %s (status: %s)", 
+                           sub.id, str(e), getattr(e.response, 'status_code', 'N/A') if e.response else 'N/A')
                 # If subscription is expired/invalid, mark for deletion
                 if e.response and e.response.status_code in (404, 410):
+                    logger.info("Marking expired subscription %s for deletion", sub.id)
                     failed_subscriptions.append(sub)
         
         # Clean up invalid subscriptions

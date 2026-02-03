@@ -45,6 +45,13 @@ async def get_current_user_optional(
     # Check if session is valid
     session_valid = user.is_session_valid()
     
+    # Detect PWA mode for session duration
+    is_pwa = (
+        request.headers.get('X-PWA-Mode') == 'standalone' or
+        'standalone' in request.headers.get('Sec-Fetch-Dest', '')
+    )
+    session_hours = settings.session_expire_hours_pwa if is_pwa else settings.session_expire_hours
+    
     # For OAuth users, try to restore recently expired sessions (1 hour grace period)
     if not session_valid and user.session_expires_at:
         grace_period = timedelta(hours=1)
@@ -58,7 +65,7 @@ async def get_current_user_optional(
             )
             if can_auto_refresh:
                 # Restore session for OAuth users with valid refresh tokens
-                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=session_hours)
                 user.update_last_seen()
                 await db.commit()
                 request.state.session_refreshed = True
@@ -67,9 +74,9 @@ async def get_current_user_optional(
     if session_valid:
         # Refresh session expiry if less than 25% of the time remains (sliding session)
         # This extends active users' sessions without updating on every request
-        refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
+        refresh_threshold = timedelta(hours=session_hours * 0.25)
         if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < refresh_threshold:
-            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=session_hours)
             user.update_last_seen()
             await db.commit()
             # Mark that session was refreshed so middleware can update the cookie

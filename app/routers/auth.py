@@ -29,17 +29,31 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def is_pwa_request(request: Request) -> bool:
+    """Detect if request is from a PWA/standalone app."""
+    if not request:
+        return False
+    # Check X-PWA-Mode header (set by client-side JS)
+    if request.headers.get('X-PWA-Mode') == 'standalone':
+        return True
+    # Check display-mode media query hint
+    if 'standalone' in request.headers.get('Sec-Fetch-Dest', ''):
+        return True
+    # Check referer for PWA indicators
+    referer = request.headers.get('Referer', '')
+    if '?utm_source=pwa' in referer or '?mode=standalone' in referer:
+        return True
+    return False
+
+
 def set_session_cookie(response: Response, session_token: str, request: Request = None):
     """Set session cookie with appropriate settings for browser and PWA.
     
     iOS Safari in PWA/standalone mode can be aggressive about clearing cookies,
-    so we use longer expiration for PWA mode.
+    so we use longer expiration for PWA mode (30 days vs 7 days for browser).
     """
-    # Detect PWA mode from header (set by client-side JS)
-    is_pwa = request and request.headers.get('X-PWA-Mode') == 'standalone'
-    max_age = settings.session_expire_hours * 3600
-    if is_pwa:
-        max_age = max(max_age, 30 * 24 * 3600)  # At least 30 days for PWA
+    is_pwa = is_pwa_request(request)
+    max_age = settings.session_expire_hours_pwa * 3600 if is_pwa else settings.session_expire_hours * 3600
     
     response.set_cookie(
         key="session_token",
@@ -371,6 +385,7 @@ async def logout_get(
 async def oauth_start(
     request: Request,
     provider: str,
+    pwa: str = Query(default="0"),  # PWA indicator from client
 ):
     """Start OAuth flow."""
     oauth_provider = get_oauth_provider(provider)
@@ -379,6 +394,9 @@ async def oauth_start(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"OAuth provider '{provider}' not available",
         )
+    
+    # Detect PWA mode from query param or header
+    is_pwa = pwa == "1" or is_pwa_request(request)
     
     # Generate state token
     state = secrets.token_urlsafe(32)
@@ -398,6 +416,16 @@ async def oauth_start(
         samesite="lax",
         max_age=600,  # 10 minutes
     )
+    # Store PWA mode indicator for callback
+    if is_pwa:
+        response.set_cookie(
+            key="oauth_pwa",
+            value="1",
+            httponly=True,
+            secure=not settings.debug,
+            samesite="lax",
+            max_age=600,  # 10 minutes
+        )
     return response
 
 
@@ -500,10 +528,29 @@ async def oauth_callback(
         user.update_last_seen()
         await db.commit()
         
+        # Check if this OAuth flow was started from PWA (for longer session)
+        is_pwa_flow = request.cookies.get("oauth_pwa") == "1"
+        
         # Redirect with session cookie
         response = RedirectResponse(url="/workspaces", status_code=status.HTTP_302_FOUND)
-        set_session_cookie(response, session_token, request)
+        
+        # Use PWA session duration if OAuth was started from PWA
+        if is_pwa_flow:
+            max_age = settings.session_expire_hours_pwa * 3600
+            response.set_cookie(
+                key="session_token",
+                value=session_token,
+                httponly=True,
+                secure=not settings.debug,
+                samesite="lax",
+                max_age=max_age,
+                path="/",
+            )
+        else:
+            set_session_cookie(response, session_token, request)
+        
         response.delete_cookie("oauth_state")
+        response.delete_cookie("oauth_pwa")  # Clean up PWA indicator
         return response
         
     except Exception as e:

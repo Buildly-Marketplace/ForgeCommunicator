@@ -133,7 +133,8 @@ class Settings(BaseSettings):
     
     # Auth - Local
     password_min_length: int = 8
-    session_expire_hours: int = 168  # 7 days default, use SESSION_EXPIRE_HOURS env var to override
+    session_expire_hours: int = 168  # 7 days default for browser
+    session_expire_hours_pwa: int = 720  # 30 days for PWA mode (iOS Safari clears cookies aggressively)
     
     # Auth - Google OAuth (optional, per-deployment)
     google_client_id: str | None = None

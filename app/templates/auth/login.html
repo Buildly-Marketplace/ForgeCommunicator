@@ -417,25 +417,79 @@
             }
         })();
         
-        // Handle OAuth clicks - in PWA mode, open in system browser to avoid cookie issues
+        // Handle OAuth clicks - in PWA mode, we need special handling
         function handleOAuthClick(event, url) {
             if (isStandalone) {
-                // In PWA/standalone mode, OAuth redirects can fail due to cookie isolation
-                // Open the OAuth URL in the system browser instead
                 event.preventDefault();
                 
-                // For iOS, window.open with _system or _blank opens in Safari
-                // For Android PWA, window.open opens in Chrome
-                var opened = window.open(url, '_blank');
-                
-                // If popup was blocked, fall back to direct navigation
-                // This will exit the PWA but at least the auth will work
-                if (!opened) {
-                    window.location.href = url;
-                }
+                // Show a message to the user about what's happening
+                var oauthModal = document.createElement('div');
+                oauthModal.id = 'oauth-modal';
+                oauthModal.innerHTML = `
+                    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem;">
+                        <div style="background: #1e293b; border-radius: 1rem; padding: 2rem; max-width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                            <svg style="width: 48px; height: 48px; margin: 0 auto 1rem; color: #3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Opening Sign In...</h3>
+                            <p style="color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.875rem;">
+                                You'll be redirected to sign in. After signing in, <strong style="color: white;">return to this app</strong> to continue.
+                            </p>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <button onclick="proceedWithOAuth('${url}')" style="background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; border: none; cursor: pointer;">
+                                    Continue to Sign In
+                                </button>
+                                <button onclick="closeOAuthModal()" style="background: transparent; color: #94a3b8; padding: 0.5rem; border: none; cursor: pointer;">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(oauthModal);
             }
             // In regular browser mode, let the link work normally
         }
+        
+        function proceedWithOAuth(url) {
+            closeOAuthModal();
+            // Mark that we're doing OAuth so we can check session when user returns
+            localStorage.setItem('oauth_pending', Date.now().toString());
+            // Add PWA indicator to OAuth URL so server knows to use longer session
+            var separator = url.includes('?') ? '&' : '?';
+            var oauthUrl = url + separator + 'pwa=1';
+            // Open OAuth in same window - user will be redirected back after auth
+            window.location.href = oauthUrl;
+        }
+        
+        function closeOAuthModal() {
+            var modal = document.getElementById('oauth-modal');
+            if (modal) modal.remove();
+        }
+        
+        // Check if user is returning from OAuth flow
+        (function checkOAuthReturn() {
+            var oauthPending = localStorage.getItem('oauth_pending');
+            if (oauthPending && isStandalone) {
+                // Clear the flag
+                localStorage.removeItem('oauth_pending');
+                
+                // Check if we now have a session (OAuth callback sets cookie and redirects to /workspaces)
+                // If we're still on login page, auth likely failed
+                var timeSinceOAuth = Date.now() - parseInt(oauthPending);
+                if (timeSinceOAuth < 300000) { // Within 5 minutes
+                    // Check if we have a session by making a request
+                    fetch('/auth/session-status', { credentials: 'same-origin' })
+                        .then(function(resp) { return resp.json(); })
+                        .then(function(data) {
+                            if (data.authenticated) {
+                                window.location.href = '/workspaces';
+                            }
+                        })
+                        .catch(function() {});
+                }
+            }
+        })();
     </script>
 </body>
 </html>
