@@ -71,6 +71,23 @@ class User(Base, TimestampMixin):
     labs_refresh_token: Mapped[str | None]
     labs_token_expires_at: Mapped[datetime | None]
     
+    # Buildly CollabHub (community/profile sync)
+    collabhub_user_uuid: Mapped[str | None]    # CollabHub user UUID
+    collabhub_org_uuid: Mapped[str | None]     # CollabHub organization UUID
+    collabhub_synced_at: Mapped[datetime | None]  # Last sync timestamp
+    
+    # Social Profiles (synced across Labs/CollabHub)
+    github_url: Mapped[str | None]          # GitHub profile URL
+    linkedin_url: Mapped[str | None]        # LinkedIn profile URL
+    twitter_url: Mapped[str | None]         # Twitter/X profile URL
+    website_url: Mapped[str | None]         # Personal website URL
+    
+    # Community Stats (from CollabHub)
+    community_reputation: Mapped[int | None]    # Reputation score
+    projects_count: Mapped[int | None]          # Number of projects
+    contributions_count: Mapped[int | None]     # Number of contributions
+    collabhub_roles: Mapped[dict | None]        # {"community": "member", "dev_team": true, "customer": false}
+    
     # Google Integration
     google_sub: Mapped[str | None]
     google_access_token: Mapped[str | None]

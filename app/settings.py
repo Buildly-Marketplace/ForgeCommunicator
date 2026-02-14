@@ -154,6 +154,11 @@ class Settings(BaseSettings):
     labs_api_key: str | None = None  # Optional - falls back to user's OAuth token
     labs_api_url: str = "https://labs.buildly.io/api/v1"
     
+    # Buildly CollabHub API (for community/profile sync)
+    # CollabHub shares Labs identity but has separate profile and community data
+    collabhub_api_url: str = "https://collab.buildly.io/api"
+    collabhub_api_key: str | None = None  # Optional API key for service-to-service auth
+    
     # Rate limiting
     rate_limit_auth_per_minute: int = 10
     rate_limit_api_per_minute: int = 60

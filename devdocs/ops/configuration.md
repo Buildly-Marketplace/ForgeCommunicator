@@ -83,6 +83,19 @@ DATABASE_URL=postgresql://user:pass@host.db.ondigitalocean.com:25060/forge?sslmo
 | `BUILDLY_REDIRECT_URI` | string | *(null)* | OAuth callback URL |
 | `LABS_API_URL` | string | `https://api.buildly.io` | Buildly Labs API base URL |
 
+#### Buildly CollabHub Integration
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `COLLABHUB_API_URL` | string | `https://collab.buildly.io/api` | CollabHub API base URL |
+| `COLLABHUB_API_KEY` | string | *(null)* | Optional API key for service-to-service auth |
+
+CollabHub shares authentication with Labs (users log in once via Labs OAuth).
+The integration provides:
+- **Profile sync**: GitHub, LinkedIn, Twitter, website URLs
+- **Community data**: Reputation, projects, contributions
+- **Team roles**: Community member, dev team, customer status
+
 ### Push Notifications (VAPID)
 
 | Variable | Type | Default | Description |

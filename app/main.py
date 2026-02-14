@@ -159,7 +159,7 @@ async def root(request: Request):
 
 
 # Import and include routers
-from app.routers import admin, artifacts, auth, channels, invites, messages, notes, profile, push, realtime, sync, workspaces
+from app.routers import admin, api, artifacts, auth, channels, invites, messages, notes, profile, push, realtime, sync, workspaces
 
 app.include_router(auth.router)
 app.include_router(workspaces.router)
@@ -174,6 +174,7 @@ app.include_router(sync.router)
 app.include_router(admin.router)
 app.include_router(invites.router)
 app.include_router(notes.router)
+app.include_router(api.router)  # DRF-compatible API for CollabHub
 
 # Import and include integrations router
 from app.routers import integrations

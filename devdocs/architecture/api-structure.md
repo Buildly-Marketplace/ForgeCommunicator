@@ -17,6 +17,7 @@ Forge Communicator exposes a RESTful API with HTML (HTMX) and JSON response form
 | `realtime` | `/ws` | realtime | WebSocket connections |
 | `sync` | `/sync` | sync | Buildly Labs sync |
 | `invites` | `/invite` | invites | Team invitations |
+| `api` | `/api` | api | DRF-compatible API for CollabHub |
 
 ## Endpoint Conventions
 
@@ -210,6 +211,79 @@ CORS is enabled with configurable origins:
 ```python
 # settings.py
 cors_origins: list[str] = ["http://localhost:3000", "https://app.example.com"]
+```
+
+## CollabHub Integration API (`/api`)
+
+The `/api` router provides a Django REST Framework-compatible API for integration
+with Buildly CollabHub. This enables bi-directional profile sync and data sharing
+across the Buildly ecosystem.
+
+### Authentication
+
+Supports both DRF Token auth and OAuth Bearer auth:
+
+```bash
+# DRF-style Token auth
+curl -H "Authorization: Token <api_key>" https://comms.buildly.io/api/users/me/
+
+# OAuth Bearer auth (Labs access token)
+curl -H "Authorization: Bearer <labs_token>" https://comms.buildly.io/api/users/me/
+```
+
+### User Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users/me/` | Get current user profile |
+| PATCH | `/api/users/me/` | Update current user profile |
+| GET | `/api/users/{id}/` | Get user by ID |
+| GET | `/api/users/` | List users (paginated, filterable) |
+
+### Workspace Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/workspaces/` | List user's workspaces |
+| GET | `/api/workspaces/{id}/members/` | List workspace members |
+
+### Activity & Stats Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/activity/` | Get activity feed |
+| GET | `/api/stats/` | Get user statistics |
+| POST | `/api/sync/profile/` | Sync profile with CollabHub |
+
+### Response Format
+
+All responses follow DRF pagination format:
+
+```json
+{
+  "count": 42,
+  "next": "https://comms.buildly.io/api/users/?offset=50",
+  "previous": null,
+  "results": [...]
+}
+```
+
+### Profile Sync
+
+The `/api/sync/profile/` endpoint supports bi-directional sync:
+
+```bash
+# Pull profile from CollabHub
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"direction": "pull"}' \
+  https://comms.buildly.io/api/sync/profile/
+
+# Push profile to CollabHub
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"direction": "push"}' \
+  https://comms.buildly.io/api/sync/profile/
 ```
 
 ---

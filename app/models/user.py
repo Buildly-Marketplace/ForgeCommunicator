@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -61,6 +61,25 @@ class User(Base, TimestampMixin):
     labs_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth access token for Labs API
     labs_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth refresh token
     labs_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Buildly CollabHub - community profile sync (shares Labs identity)
+    collabhub_user_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)  # CollabHub user UUID
+    collabhub_org_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)  # CollabHub organization UUID
+    collabhub_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # Last sync
+    
+    # Social profiles - shared across Labs/CollabHub ecosystem
+    github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)  # GitHub profile URL
+    linkedin_url: Mapped[str | None] = mapped_column(String(255), nullable=True)  # LinkedIn profile URL
+    twitter_url: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Twitter/X profile URL
+    website_url: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Personal website URL
+    
+    # Public stats (synced from CollabHub)
+    community_reputation: Mapped[int | None] = mapped_column(nullable=True, default=0)  # Community reputation score
+    projects_count: Mapped[int | None] = mapped_column(nullable=True, default=0)  # Number of projects
+    contributions_count: Mapped[int | None] = mapped_column(nullable=True, default=0)  # Number of contributions
+    
+    # Team memberships (synced from CollabHub)
+    collabhub_roles: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {"community": "member", "dev_team": true, "customer": true}
     
     # Google Workspace integration - for calendar-based status
     google_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Google subject ID
@@ -235,6 +254,98 @@ class User(Base, TimestampMixin):
             and self.google_calendar_status == "away"
             and self.google_calendar_message == "On vacation"
         )
+    
+    @property
+    def has_collabhub_linked(self) -> bool:
+        """Check if user has CollabHub account linked."""
+        return bool(self.collabhub_user_uuid)
+    
+    @property
+    def is_community_member(self) -> bool:
+        """Check if user is a community member in CollabHub."""
+        if not self.collabhub_roles:
+            return False
+        return self.collabhub_roles.get("community") is not None
+    
+    @property
+    def is_dev_team_member(self) -> bool:
+        """Check if user is on a dev team in CollabHub."""
+        if not self.collabhub_roles:
+            return False
+        return self.collabhub_roles.get("dev_team", False)
+    
+    @property
+    def is_customer(self) -> bool:
+        """Check if user is a customer in CollabHub."""
+        if not self.collabhub_roles:
+            return False
+        return self.collabhub_roles.get("customer", False)
+    
+    @property
+    def social_profiles(self) -> dict[str, str | None]:
+        """Get all social profile URLs."""
+        return {
+            "github": self.github_url,
+            "linkedin": self.linkedin_url,
+            "twitter": self.twitter_url,
+            "website": self.website_url,
+        }
+    
+    def update_from_collabhub(
+        self,
+        user_uuid: str | None = None,
+        org_uuid: str | None = None,
+        github_url: str | None = None,
+        linkedin_url: str | None = None,
+        twitter_url: str | None = None,
+        website_url: str | None = None,
+        reputation: int | None = None,
+        projects: int | None = None,
+        contributions: int | None = None,
+        roles: dict | None = None,
+    ) -> None:
+        """Update user profile from CollabHub sync."""
+        if user_uuid:
+            self.collabhub_user_uuid = user_uuid
+        if org_uuid:
+            self.collabhub_org_uuid = org_uuid
+        if github_url is not None:
+            self.github_url = github_url
+        if linkedin_url is not None:
+            self.linkedin_url = linkedin_url
+        if twitter_url is not None:
+            self.twitter_url = twitter_url
+        if website_url is not None:
+            self.website_url = website_url
+        if reputation is not None:
+            self.community_reputation = reputation
+        if projects is not None:
+            self.projects_count = projects
+        if contributions is not None:
+            self.contributions_count = contributions
+        if roles is not None:
+            self.collabhub_roles = roles
+        self.collabhub_synced_at = datetime.now(timezone.utc)
+    
+    def to_public_profile(self) -> dict:
+        """Return public profile data for API responses."""
+        return {
+            "id": self.id,
+            "email": self.email,
+            "display_name": self.display_name,
+            "bio": self.bio,
+            "title": self.title,
+            "avatar_url": self.avatar_url,
+            "status": self.effective_status_value,
+            "status_message": self.effective_status_message,
+            "social_profiles": self.social_profiles,
+            "community_reputation": self.community_reputation,
+            "projects_count": self.projects_count,
+            "contributions_count": self.contributions_count,
+            "is_community_member": self.is_community_member,
+            "is_dev_team_member": self.is_dev_team_member,
+            "is_customer": self.is_customer,
+        }
     
     def __repr__(self) -> str:
         return f"<User {self.email}>"
