@@ -19,8 +19,16 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.channel import Channel
+from app.models.membership import Membership, MembershipRole
 from app.models.user import AuthProvider, User
+from app.models.workspace import Workspace
 from app.settings import settings
+
+# Community workspace constants
+COMMUNITY_WORKSPACE_SLUG = "community"
+COMMUNITY_WORKSPACE_NAME = "Buildly Community"
+COMMUNITY_WORKSPACE_DESCRIPTION = "Welcome to the Buildly Community! Connect with developers, share ideas, and collaborate on projects."
 
 
 class CollabHubSyncError(Exception):
@@ -322,6 +330,13 @@ class CollabHubSyncService:
             
             print(f"[CollabHub Sync] Synced profile for user {user.email}")
             
+            # Auto-join community workspace if user is a community member
+            if roles.get("community") or user.collabhub_user_uuid:
+                community_result = await ensure_community_membership(db, user)
+                if community_result["joined"]:
+                    stats["fields_updated"].append("community_workspace_joined")
+                    print(f"[CollabHub Sync] Added {user.email} to Community workspace")
+            
         except CollabHubSyncError as e:
             stats["error"] = str(e)
             print(f"[CollabHub Sync] Error syncing profile for {user.email}: {e}")
@@ -449,3 +464,155 @@ class CollabHubSyncService:
             raise
         
         return stats
+
+
+# -------------------------------------------------------------------------
+# Community Workspace Helper Functions
+# -------------------------------------------------------------------------
+
+async def get_or_create_community_workspace(db: AsyncSession) -> tuple[Workspace, bool]:
+    """
+    Get or create the Community workspace.
+    
+    Returns:
+        Tuple of (workspace, created) where created is True if newly created.
+    """
+    # Try to find existing community workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.slug == COMMUNITY_WORKSPACE_SLUG)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    if workspace:
+        return workspace, False
+    
+    # Create the community workspace
+    workspace = Workspace(
+        name=COMMUNITY_WORKSPACE_NAME,
+        slug=COMMUNITY_WORKSPACE_SLUG,
+        description=COMMUNITY_WORKSPACE_DESCRIPTION,
+    )
+    db.add(workspace)
+    await db.flush()  # Get the workspace ID
+    
+    # Create default channels for the community
+    default_channels = [
+        ("welcome", "Welcome to Buildly Community", "Welcome new members and introductions", True),
+        ("general", "General discussion", "General chat for community members", True),
+        ("help", "Help & Support", "Get help from the community", False),
+        ("showcase", "Project Showcase", "Share your projects and get feedback", False),
+        ("announcements", "Announcements", "Official announcements from Buildly", False),
+    ]
+    
+    for name, topic, description, is_default in default_channels:
+        channel = Channel(
+            workspace_id=workspace.id,
+            name=name,
+            topic=topic,
+            description=description,
+            is_default=is_default,
+        )
+        db.add(channel)
+    
+    await db.commit()
+    print(f"[CollabHub Sync] Created Community workspace with default channels")
+    
+    return workspace, True
+
+
+async def ensure_community_membership(
+    db: AsyncSession,
+    user: User,
+) -> dict[str, Any]:
+    """
+    Ensure a user is a member of the Community workspace.
+    
+    Creates the workspace if it doesn't exist, then adds the user as a member
+    if they aren't already.
+    
+    Returns:
+        Dict with {"joined": bool, "workspace_id": int, "created_workspace": bool}
+        Returns {"skipped": True} if CollabHub plugin is disabled.
+    """
+    # Check if CollabHub Community workspace feature is enabled
+    if not settings.collabhub_enabled or not settings.collabhub_community_workspace_enabled:
+        return {"skipped": True, "reason": "CollabHub Community workspace feature is disabled"}
+    
+    result = {
+        "joined": False,
+        "workspace_id": None,
+        "workspace_created": False,
+        "already_member": False,
+    }
+    
+    # Get or create the community workspace
+    workspace, created = await get_or_create_community_workspace(db)
+    result["workspace_id"] = workspace.id
+    result["workspace_created"] = created
+    
+    # Check if user is already a member
+    membership_result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace.id,
+            Membership.user_id == user.id,
+        )
+    )
+    existing_membership = membership_result.scalar_one_or_none()
+    
+    if existing_membership:
+        result["already_member"] = True
+        return result
+    
+    # Add user as a member
+    membership = Membership(
+        workspace_id=workspace.id,
+        user_id=user.id,
+        role=MembershipRole.MEMBER,
+    )
+    db.add(membership)
+    await db.commit()
+    
+    result["joined"] = True
+    print(f"[CollabHub Sync] User {user.email} joined Community workspace")
+    
+    return result
+
+
+async def sync_collabhub_users_to_community(
+    db: AsyncSession,
+) -> dict[str, int]:
+    """
+    Sync all CollabHub users to the Community workspace.
+    
+    Finds all users with collabhub_user_uuid set and ensures they're members
+    of the Community workspace.
+    
+    Returns:
+        Dict with counts: {"added": N, "already_members": N, "total_users": N}
+        Returns {"skipped": True} if CollabHub plugin is disabled.
+    """
+    # Check if CollabHub Community workspace feature is enabled
+    if not settings.collabhub_enabled or not settings.collabhub_community_workspace_enabled:
+        return {"skipped": True, "reason": "CollabHub Community workspace feature is disabled"}
+    
+    stats = {"added": 0, "already_members": 0, "total_users": 0}
+    
+    # Get all CollabHub users
+    result = await db.execute(
+        select(User).where(
+            User.collabhub_user_uuid.isnot(None),
+            User.is_active == True,
+        )
+    )
+    users = result.scalars().all()
+    stats["total_users"] = len(users)
+    
+    for user in users:
+        membership_result = await ensure_community_membership(db, user)
+        if membership_result["joined"]:
+            stats["added"] += 1
+        elif membership_result["already_member"]:
+            stats["already_members"] += 1
+    
+    print(f"[CollabHub Sync] Community sync complete: {stats}")
+    return stats

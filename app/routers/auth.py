@@ -528,6 +528,16 @@ async def oauth_callback(
         user.update_last_seen()
         await db.commit()
         
+        # Auto-join Community workspace for Buildly OAuth users (if CollabHub plugin enabled)
+        if provider == "buildly" and settings.collabhub_enabled and settings.collabhub_community_workspace_enabled:
+            try:
+                from app.services.collabhub_sync import ensure_community_membership
+                await ensure_community_membership(db, user)
+            except Exception as e:
+                # Don't block login if community join fails
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to auto-join Community: {e}")
+        
         # Check if this OAuth flow was started from PWA (for longer session)
         is_pwa_flow = request.cookies.get("oauth_pwa") == "1"
         

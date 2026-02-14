@@ -27,11 +27,30 @@ from app.models.workspace import Workspace
 from app.services.collabhub_sync import CollabHubSyncService, CollabHubSyncError
 from app.settings import settings
 
-router = APIRouter(prefix="/api", tags=["api"])
+
+def require_collabhub_enabled():
+    """Dependency that ensures CollabHub integration is enabled."""
+    if not settings.collabhub_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CollabHub integration is not enabled on this server",
+        )
+    return True
+
+
+router = APIRouter(
+    prefix="/api",
+    tags=["api"],
+    dependencies=[Depends(require_collabhub_enabled)],
+)
 
 # Security schemes (DRF-compatible)
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 http_bearer = HTTPBearer(auto_error=False)
+
+
+# Apply CollabHub guard to all routes in this router
+CollabHubEnabled = Annotated[bool, Depends(require_collabhub_enabled)]
 
 
 # -------------------------------------------------------------------------

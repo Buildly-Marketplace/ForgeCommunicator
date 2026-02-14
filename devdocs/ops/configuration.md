@@ -83,12 +83,36 @@ DATABASE_URL=postgresql://user:pass@host.db.ondigitalocean.com:25060/forge?sslmo
 | `BUILDLY_REDIRECT_URI` | string | *(null)* | OAuth callback URL |
 | `LABS_API_URL` | string | `https://api.buildly.io` | Buildly Labs API base URL |
 
-#### Buildly CollabHub Integration
+#### Buildly CollabHub Integration (Plugin)
+
+The CollabHub integration is an optional plugin that can be enabled per deployment.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
+| `COLLABHUB_ENABLED` | bool | `false` | **Master switch** - enables CollabHub API endpoints |
+| `COLLABHUB_COMMUNITY_WORKSPACE_ENABLED` | bool | `false` | Auto-join users to Community workspace on login |
 | `COLLABHUB_API_URL` | string | `https://collab.buildly.io/api` | CollabHub API base URL |
 | `COLLABHUB_API_KEY` | string | *(null)* | Optional API key for service-to-service auth |
+
+**Enabling the plugin:**
+
+```bash
+# Enable CollabHub integration
+export COLLABHUB_ENABLED=true
+
+# Also enable Community workspace auto-join (optional)
+export COLLABHUB_COMMUNITY_WORKSPACE_ENABLED=true
+```
+
+When `COLLABHUB_ENABLED=false` (default):
+- The `/api/*` endpoints return 404
+- CollabHub sync functions return `{"skipped": true}`
+- No Community workspace is created
+
+When `COLLABHUB_ENABLED=true`:
+- DRF-compatible API endpoints are available at `/api/*`
+- Profile sync with CollabHub is active
+- If `COLLABHUB_COMMUNITY_WORKSPACE_ENABLED=true`, users auto-join the Community workspace on Buildly OAuth login
 
 CollabHub shares authentication with Labs (users log in once via Labs OAuth).
 The integration provides:

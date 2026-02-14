@@ -156,6 +156,9 @@ class Settings(BaseSettings):
     
     # Buildly CollabHub API (for community/profile sync)
     # CollabHub shares Labs identity but has separate profile and community data
+    # This is a plugin that can be enabled/disabled per deployment
+    collabhub_enabled: bool = False  # Master switch for CollabHub integration
+    collabhub_community_workspace_enabled: bool = False  # Auto-join users to Community workspace
     collabhub_api_url: str = "https://collab.buildly.io/api"
     collabhub_api_key: str | None = None  # Optional API key for service-to-service auth
     
