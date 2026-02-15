@@ -96,7 +96,7 @@
                                 Personal
                                 {% endif %}
                             </span>
-                            <span>{{ note.updated_at.strftime('%b %d, %Y') }}</span>
+                            <span>{{ note.updated_at.strftime('%b %d, %Y') if note.updated_at else '' }}</span>
                         </div>
                     </a>
                     {% endfor %}
@@ -155,7 +155,7 @@
                             </p>
                             
                             <div class="text-xs text-gray-500">
-                                {{ note.updated_at.strftime('%b %d, %Y') }}
+                                {{ note.updated_at.strftime('%b %d, %Y') if note.updated_at else '' }}
                             </div>
                         </a>
                         {% endfor %}
