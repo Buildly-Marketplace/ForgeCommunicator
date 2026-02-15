@@ -92,15 +92,16 @@
                         <div class="flex-1 min-w-0">
                             <h3 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h3>
                             <p class="text-sm text-gray-500 truncate mt-1">
-                                {{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}
+                                {{ (note.content or '')[:100] }}{% if (note.content or '')|length > 100 %}...{% endif %}
                             </p>
                         </div>
                         <div class="ml-4 flex-shrink-0 flex flex-col items-end">
-                            {% if note.source_type.value != 'manual' %}
+                            {% set src_type = note.source_type.value|default(note.source_type, true)|default('manual', true) %}
+                            {% if src_type not in ['manual', 'MANUAL'] %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                {% if note.source_type.value == 'message' %}From Message
-                                {% elif note.source_type.value == 'thread' %}From Thread
-                                {% elif note.source_type.value == 'channel' %}From Channel
+                                {% if src_type == 'message' %}From Message
+                                {% elif src_type == 'thread' %}From Thread
+                                {% elif src_type == 'channel' %}From Channel
                                 {% endif %}
                             </span>
                             {% if note.source_message_id %}

@@ -57,10 +57,11 @@
             <!-- Footer -->
             <div class="px-6 py-4 bg-dark-800/30 border-t border-white/10 flex items-center justify-between text-sm text-gray-500">
                 <span>Last updated: {{ note.updated_at.strftime('%b %d, %Y at %H:%M') }}</span>
-                {% if note.source_type.value != 'manual' %}
+                {% set src_type = note.source_type.value|default(note.source_type, true)|default('manual', true) %}
+                {% if src_type not in ['manual', 'MANUAL'] %}
                 <div class="flex items-center space-x-4">
                     <span class="text-blue-400">
-                        Created from {{ note.source_type.value }}
+                        Created from {{ src_type }}
                     </span>
                     {% if note.source_message_id %}
                     <a href="/notes/{{ note.id }}/source" 
