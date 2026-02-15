@@ -17,6 +17,54 @@
     <p class="text-gray-600 dark:text-gray-400 mb-6">
         Bridge your Forge channels with Slack or Discord to see messages inline and reply across platforms.
     </p>
+    
+    <!-- Auto-Sync Section -->
+    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 mb-6 border border-purple-200 dark:border-purple-800">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <i class="fas fa-sync-alt mr-2 text-purple-500"></i>Auto-Sync Channels
+        </h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Automatically create Forge channels from your connected Slack or Discord workspaces. 
+            Channels will be prefixed with <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">SLACK:</code> or 
+            <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">DISCORD:</code> for easy identification.
+        </p>
+        
+        <div class="flex flex-wrap gap-4">
+            <!-- Slack Sync -->
+            <form action="/integrations/slack/sync-channels" method="POST" class="flex items-center gap-2">
+                <select name="workspace_id" 
+                    class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm">
+                    <option value="">Select Workspace</option>
+                    {% for ws in workspaces %}
+                    <option value="{{ ws.id }}">{{ ws.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" 
+                    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2">
+                    <i class="fab fa-slack"></i>
+                    Sync Slack Channels
+                </button>
+            </form>
+            
+            <!-- Discord Sync -->
+            <form action="/integrations/discord/sync-channels" method="POST" class="flex items-center gap-2">
+                <select name="workspace_id" 
+                    class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm">
+                    <option value="">Select Workspace</option>
+                    {% for ws in workspaces %}
+                    <option value="{{ ws.id }}">{{ ws.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" 
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2">
+                    <i class="fab fa-discord"></i>
+                    Sync Discord Channels
+                </button>
+            </form>
+        </div>
+        
+        <div id="sync-result" class="mt-4"></div>
+    </div>
 
     {% if bridges %}
     <div class="space-y-4">

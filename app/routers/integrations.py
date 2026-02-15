@@ -24,6 +24,8 @@ from app.models.external_integration import (
 from app.models.bridged_channel import BridgedChannel, BridgePlatform
 from app.models.message import Message
 from app.models.channel import Channel
+from app.models.membership import ChannelMembership, WorkspaceMembership
+from app.models.workspace import Workspace
 from app.models.user import User
 from app.services.slack import slack_service
 from app.services.discord import discord_service
@@ -189,6 +191,141 @@ async def slack_disconnect(
     )
 
 
+@router.post("/slack/sync-channels")
+async def slack_sync_channels(
+    request: Request,
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: int = Form(...),
+):
+    """
+    Auto-sync Slack channels to a Forge workspace.
+    Creates Forge channels with 'SLACK:' prefix for each Slack channel
+    and creates bridges between them.
+    """
+    # Get user's active Slack integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.SLACK,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    
+    if not integration or not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active Slack integration found",
+        )
+    
+    # Verify user has access to the workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # Fetch Slack channels
+    slack_channels = await slack_service.list_channels(
+        integration.access_token,
+        types="public_channel,private_channel"  # Only sync actual channels, not DMs
+    )
+    
+    if not slack_channels:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-yellow-500">No Slack channels found to sync</div>')
+        return RedirectResponse(
+            url=f"/integrations/bridges?warning=no_channels",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
+    synced_count = 0
+    skipped_count = 0
+    
+    for slack_channel in slack_channels:
+        channel_id = slack_channel.get("id")
+        channel_name = slack_channel.get("name", "unnamed")
+        is_private = slack_channel.get("is_private", False)
+        
+        # Skip if already bridged
+        result = await db.execute(
+            select(BridgedChannel).where(
+                BridgedChannel.external_channel_id == channel_id,
+                BridgedChannel.integration_id == integration.id,
+            )
+        )
+        if result.scalar_one_or_none():
+            skipped_count += 1
+            continue
+        
+        # Create Forge channel with SLACK: prefix
+        forge_channel_name = f"SLACK:{channel_name}"
+        
+        # Check if channel with this name already exists in workspace
+        result = await db.execute(
+            select(Channel).where(
+                Channel.workspace_id == workspace_id,
+                Channel.name == forge_channel_name,
+            )
+        )
+        existing_channel = result.scalar_one_or_none()
+        
+        if existing_channel:
+            # Use existing channel
+            forge_channel = existing_channel
+        else:
+            # Create new channel
+            forge_channel = Channel(
+                workspace_id=workspace_id,
+                name=forge_channel_name,
+                description=f"Synced from Slack: #{channel_name}",
+                is_private=is_private,
+                is_dm=False,
+                is_archived=False,
+            )
+            db.add(forge_channel)
+            await db.flush()
+            
+            # Add user as member of the channel
+            membership = ChannelMembership(
+                channel_id=forge_channel.id,
+                user_id=user.id,
+                is_owner=True,
+            )
+            db.add(membership)
+        
+        # Create bridge
+        bridge = BridgedChannel(
+            channel_id=forge_channel.id,
+            integration_id=integration.id,
+            platform=BridgePlatform.slack,
+            external_channel_id=channel_id,
+            external_channel_name=channel_name,
+            sync_incoming=True,
+            sync_outgoing=True,
+            reply_prefix="From Forge:",
+        )
+        db.add(bridge)
+        synced_count += 1
+    
+    await db.commit()
+    
+    message = f"Synced {synced_count} Slack channels"
+    if skipped_count > 0:
+        message += f" (skipped {skipped_count} already bridged)"
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(f'<div class="text-green-500">{message}</div>')
+    
+    return RedirectResponse(
+        url=f"/integrations/bridges?synced={synced_count}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 # ==================== Discord OAuth ====================
 
 @router.get("/discord/connect")
@@ -344,6 +481,149 @@ async def discord_disconnect(
     
     return RedirectResponse(
         url="/profile/integrations",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/discord/sync-channels")
+async def discord_sync_channels(
+    request: Request,
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: int = Form(...),
+):
+    """
+    Auto-sync Discord channels to a Forge workspace.
+    Creates Forge channels with 'DISCORD:' prefix for each Discord channel
+    and creates bridges between them.
+    """
+    # Get user's active Discord integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.DISCORD,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    
+    if not integration or not integration.access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active Discord integration found",
+        )
+    
+    # Verify user has access to the workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # Fetch Discord guilds the user has access to
+    guilds = await discord_service.get_user_guilds(integration.access_token)
+    
+    if not guilds:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<div class="text-yellow-500">No Discord servers found</div>')
+        return RedirectResponse(
+            url=f"/integrations/bridges?warning=no_guilds",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
+    synced_count = 0
+    skipped_count = 0
+    
+    # For now, sync text channels from guilds
+    for guild in guilds:
+        guild_id = guild.get("id")
+        guild_name = guild.get("name", "unnamed")
+        
+        # Try to get guild channels (requires bot with appropriate permissions)
+        channels = await discord_service.get_guild_channels(guild_id)
+        
+        if not channels:
+            continue
+        
+        for discord_channel in channels:
+            # Only sync text channels
+            if discord_channel.get("type") != 0:  # 0 = text channel
+                continue
+            
+            channel_id = discord_channel.get("id")
+            channel_name = discord_channel.get("name", "unnamed")
+            
+            # Skip if already bridged
+            result = await db.execute(
+                select(BridgedChannel).where(
+                    BridgedChannel.external_channel_id == channel_id,
+                    BridgedChannel.integration_id == integration.id,
+                )
+            )
+            if result.scalar_one_or_none():
+                skipped_count += 1
+                continue
+            
+            # Create Forge channel with DISCORD: prefix
+            forge_channel_name = f"DISCORD:{guild_name}:{channel_name}"[:80]  # Limit name length
+            
+            # Check if channel with this name already exists in workspace
+            result = await db.execute(
+                select(Channel).where(
+                    Channel.workspace_id == workspace_id,
+                    Channel.name == forge_channel_name,
+                )
+            )
+            existing_channel = result.scalar_one_or_none()
+            
+            if existing_channel:
+                forge_channel = existing_channel
+            else:
+                forge_channel = Channel(
+                    workspace_id=workspace_id,
+                    name=forge_channel_name,
+                    description=f"Synced from Discord: {guild_name} #{channel_name}",
+                    is_private=False,
+                    is_dm=False,
+                    is_archived=False,
+                )
+                db.add(forge_channel)
+                await db.flush()
+                
+                membership = ChannelMembership(
+                    channel_id=forge_channel.id,
+                    user_id=user.id,
+                    is_owner=True,
+                )
+                db.add(membership)
+            
+            # Create bridge
+            bridge = BridgedChannel(
+                channel_id=forge_channel.id,
+                integration_id=integration.id,
+                platform=BridgePlatform.discord,
+                external_channel_id=channel_id,
+                external_channel_name=f"{guild_name}#{channel_name}",
+                sync_incoming=True,
+                sync_outgoing=True,
+                reply_prefix="From Forge:",
+            )
+            db.add(bridge)
+            synced_count += 1
+    
+    await db.commit()
+    
+    message = f"Synced {synced_count} Discord channels"
+    if skipped_count > 0:
+        message += f" (skipped {skipped_count} already bridged)"
+    
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(f'<div class="text-green-500">{message}</div>')
+    
+    return RedirectResponse(
+        url=f"/integrations/bridges?synced={synced_count}",
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -728,12 +1008,21 @@ async def list_bridges(
     )
     bridges = result.scalars().all()
     
+    # Get user's workspaces for sync dropdown
+    result = await db.execute(
+        select(Workspace)
+        .join(WorkspaceMembership, Workspace.id == WorkspaceMembership.workspace_id)
+        .where(WorkspaceMembership.user_id == user.id)
+    )
+    workspaces = result.scalars().all()
+    
     return templates.TemplateResponse(
         "integrations/bridges.html",
         {
             "request": request,
             "user": user,
             "bridges": bridges,
+            "workspaces": workspaces,
         },
     )
 

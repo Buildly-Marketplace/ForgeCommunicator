@@ -234,11 +234,22 @@ async def channel_view(
     result = await db.execute(
         select(Channel)
         .where(Channel.id == channel_id, Channel.workspace_id == workspace_id)
-        .options(selectinload(Channel.product))
+        .options(selectinload(Channel.product), selectinload(Channel.memberships))
     )
     channel = result.scalar_one_or_none()
     if not channel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    
+    # For DM channels, get the other user's profile
+    dm_partner = None
+    if channel.is_dm and channel.memberships:
+        # Get user IDs of all DM participants except current user
+        partner_ids = [m.user_id for m in channel.memberships if m.user_id != user.id]
+        if partner_ids:
+            result = await db.execute(
+                select(User).where(User.id == partner_ids[0])
+            )
+            dm_partner = result.scalar_one_or_none()
     
     # Check access to private channel
     if channel.is_private:
@@ -414,6 +425,7 @@ async def channel_view(
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,
             "bridge": bridge,
+            "dm_partner": dm_partner,
         },
     )
 
