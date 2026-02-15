@@ -24,7 +24,7 @@ from app.models.external_integration import (
 from app.models.bridged_channel import BridgedChannel, BridgePlatform
 from app.models.message import Message
 from app.models.channel import Channel
-from app.models.membership import ChannelMembership, WorkspaceMembership
+from app.models.membership import ChannelMembership, Membership
 from app.models.workspace import Workspace
 from app.models.user import User
 from app.services.slack import slack_service
@@ -1011,8 +1011,8 @@ async def list_bridges(
     # Get user's workspaces for sync dropdown
     result = await db.execute(
         select(Workspace)
-        .join(WorkspaceMembership, Workspace.id == WorkspaceMembership.workspace_id)
-        .where(WorkspaceMembership.user_id == user.id)
+        .join(Membership, Workspace.id == Membership.workspace_id)
+        .where(Membership.user_id == user.id)
     )
     workspaces = result.scalars().all()
     
