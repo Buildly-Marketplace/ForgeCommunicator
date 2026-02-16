@@ -382,7 +382,6 @@ async def channel_view(
     artifacts = result.scalars().all()
     
     # Get workspace members for @mentions
-    from app.models.user import User
     result = await db.execute(
         select(User)
         .join(Membership, Membership.user_id == User.id)
