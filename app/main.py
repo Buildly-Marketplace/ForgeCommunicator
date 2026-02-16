@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import close_db, init_db
 from app.settings import settings
+from app.github_error_reporter import CombinedErrorReporter
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +21,16 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s" if settings.log_format == "text" else None,
 )
 logger = logging.getLogger(__name__)
+
+# Initialize error reporter for GitHub Issues and Labs Punchlist
+error_reporter = CombinedErrorReporter(
+    github_repo=settings.github_error_repo,
+    github_token=settings.github_error_token,
+    github_max_comments=settings.github_error_max_comments,
+    labs_api_url=settings.labs_api_url,
+    labs_api_token=settings.labs_api_key,
+    labs_product_uuid=settings.labs_error_product_uuid,
+) if settings.github_error_reporting_enabled or settings.labs_error_reporting_enabled else None
 
 
 @asynccontextmanager
@@ -250,7 +261,40 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     
     # For 5xx Server Errors
     if status_code >= 500:
+        import traceback
+        from datetime import datetime, timezone
+        
         logger.error(f"Server error {status_code}: {detail}")
+        
+        # Report 5xx errors to GitHub/Labs
+        if error_reporter:
+            try:
+                user = getattr(request.state, 'user', None)
+                user_display = None
+                if user and hasattr(user, 'email'):
+                    user_display = user.email
+                elif user and hasattr(user, 'id'):
+                    user_display = f"User ID: {user.id}"
+                
+                error_context = {
+                    'error_type': f'HTTPException_{status_code}',
+                    'error_message': str(detail),
+                    'path': str(request.url.path),
+                    'method': request.method,
+                    'user': user_display,
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                }
+                traceback_text = f"HTTP {status_code} Error\nDetail: {detail}\nPath: {request.url.path}"
+                
+                import asyncio
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(
+                    None,
+                    lambda: error_reporter.report_error(error_context, traceback_text)
+                )
+            except Exception as report_exc:
+                logger.warning(f"Failed to report error to GitHub/Labs: {report_exc}")
+        
         if request.headers.get("HX-Request"):
             return HTMLResponse(
                 '<div class="text-red-500 p-4">Server error. Please try again.</div>',
@@ -289,7 +333,41 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     """Handle unhandled exceptions - show error page instead of white screen."""
+    import traceback
+    from datetime import datetime, timezone
+    
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    
+    # Report to GitHub Issues and Labs Punchlist
+    if error_reporter:
+        try:
+            # Get user info if available
+            user = getattr(request.state, 'user', None)
+            user_display = None
+            if user and hasattr(user, 'email'):
+                user_display = user.email
+            elif user and hasattr(user, 'id'):
+                user_display = f"User ID: {user.id}"
+            
+            error_context = {
+                'error_type': type(exc).__name__,
+                'error_message': str(exc),
+                'path': str(request.url.path),
+                'method': request.method,
+                'user': user_display,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+            }
+            traceback_text = traceback.format_exc()
+            
+            # Report async-safe (fire and forget in background)
+            import asyncio
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(
+                None,
+                lambda: error_reporter.report_error(error_context, traceback_text)
+            )
+        except Exception as report_exc:
+            logger.warning(f"Failed to report error to GitHub/Labs: {report_exc}")
     
     if request.headers.get("HX-Request"):
         return HTMLResponse(

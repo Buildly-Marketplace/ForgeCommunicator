@@ -198,6 +198,15 @@ class Settings(BaseSettings):
     discord_client_secret: str | None = None
     discord_bot_token: str | None = None  # Optional bot token for extended features
     
+    # Error reporting - GitHub Issues
+    github_error_repo: str | None = None  # e.g. "owner/repo"
+    github_error_token: str | None = None  # GitHub PAT with repo access
+    github_error_max_comments: int = 3  # After this, reactions are used
+    
+    # Error reporting - Labs Punchlist (syncs with GitHub issues)
+    labs_error_product_uuid: str | None = None  # Labs product UUID for error tracking
+    # Note: labs_api_url and labs_api_key are already defined above
+    
     # Base URL for links in emails
     base_url: str = "http://localhost:8000"
     
@@ -236,6 +245,16 @@ class Settings(BaseSettings):
             self.sendgrid_api_key or
             (self.mailgun_api_key and self.mailgun_domain)
         )
+    
+    @property
+    def github_error_reporting_enabled(self) -> bool:
+        """Check if GitHub error reporting is configured."""
+        return bool(self.github_error_repo and self.github_error_token)
+    
+    @property
+    def labs_error_reporting_enabled(self) -> bool:
+        """Check if Labs error reporting is configured."""
+        return bool(self.labs_error_product_uuid and self.labs_api_key)
     
     @property
     def admin_emails_list(self) -> list[str]:
