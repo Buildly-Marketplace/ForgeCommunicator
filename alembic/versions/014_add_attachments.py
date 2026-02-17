@@ -36,14 +36,6 @@ def index_exists(index_name: str, table_name: str) -> bool:
     return any(idx['name'] == index_name for idx in indexes)
 
 
-def column_exists(table_name: str, column_name: str) -> bool:
-    """Check if a column exists in a table."""
-    conn = op.get_bind()
-    inspector = inspect(conn)
-    columns = [col['name'] for col in inspector.get_columns(table_name)]
-    return column_name in columns
-
-
 def upgrade() -> None:
     # Create attachments table
     if not table_exists('attachments'):
@@ -60,7 +52,6 @@ def upgrade() -> None:
             sa.Column('channel_id', sa.Integer(), nullable=True),
             sa.Column('user_id', sa.Integer(), nullable=False),
             sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-            sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
             sa.ForeignKeyConstraint(['message_id'], ['messages.id'], ondelete='CASCADE'),
             sa.ForeignKeyConstraint(['channel_id'], ['channels.id'], ondelete='CASCADE'),
             sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
@@ -73,10 +64,6 @@ def upgrade() -> None:
         op.create_index('ix_attachments_user_id', 'attachments', ['user_id'], unique=False)
         op.create_index('ix_attachments_storage_key', 'attachments', ['storage_key'], unique=True)
         op.create_index('ix_attachments_created_at', 'attachments', ['created_at'], unique=False)
-    else:
-        # Table exists - add any missing columns for existing databases
-        if not column_exists('attachments', 'updated_at'):
-            op.add_column('attachments', sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False))
 
 
 def downgrade() -> None:
