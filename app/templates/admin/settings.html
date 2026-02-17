@@ -211,8 +211,10 @@
                         Labs API
                     </dt>
                     <dd>
-                        {% if settings.buildly_labs_api_url %}
+                        {% if settings.labs_api_url and settings.labs_api_key %}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">Configured</span>
+                        {% elif settings.labs_api_url %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">URL Set (No API Key)</span>
                         {% else %}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-gray-400 border border-white/20">Not Configured</span>
                         {% endif %}
@@ -240,8 +242,8 @@
             <div class="mt-4 pt-4 border-t border-white/10">
                 <p class="text-xs text-gray-500">
                     <strong class="text-gray-400">Environment variables:</strong><br>
-                    <code class="text-xs text-blue-400">BUILDLY_LABS_API_URL</code><br>
-                    <code class="text-xs text-blue-400">COLLABHUB_API_URL</code>
+                    <code class="text-xs text-blue-400">LABS_API_URL</code>, <code class="text-xs text-blue-400">LABS_API_KEY</code><br>
+                    <code class="text-xs text-blue-400">COLLABHUB_API_URL</code>, <code class="text-xs text-blue-400">COLLABHUB_API_KEY</code>
                 </p>
             </div>
         </div>

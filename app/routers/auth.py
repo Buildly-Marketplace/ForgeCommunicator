@@ -12,6 +12,7 @@ from sqlalchemy import select
 from app.db import get_db
 from app.deps import CurrentUser, CurrentUserOptional, DBSession
 from app.models.user import AuthProvider, User
+from app.models.user_session import UserSession
 from app.services.auth_providers import get_available_providers, get_oauth_provider
 from app.services.password import hash_password, validate_password, verify_password
 from app.services.rate_limiter import auth_rate_limiter
@@ -64,6 +65,23 @@ def set_session_cookie(response: Response, session_token: str, request: Request 
         max_age=max_age,
         path="/",  # Explicit path ensures cookie works across all routes
     )
+
+
+async def create_user_session(db: DBSession, user: User, request: Request) -> str:
+    """Create a new session for the user and return the session token.
+    
+    This creates a UserSession record in the database, allowing the user
+    to be logged in on multiple devices simultaneously.
+    """
+    is_pwa = is_pwa_request(request)
+    session = UserSession.create_session(
+        user_id=user.id,
+        request=request,
+        is_pwa=is_pwa,
+    )
+    db.add(session)
+    user.update_last_seen()
+    return session.session_token
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -141,9 +159,8 @@ async def login(
             status_code=status.HTTP_302_FOUND,
         )
     
-    # Create session
-    session_token = user.generate_session_token()
-    user.update_last_seen()
+    # Create session (multi-device: doesn't invalidate other sessions)
+    session_token = await create_user_session(db, user, request)
     await db.commit()
     
     # Set cookie and redirect
@@ -254,8 +271,11 @@ async def register(
         auth_provider=AuthProvider.LOCAL,
         is_platform_admin=settings.is_admin_email(email),
     )
-    session_token = user.generate_session_token()
     db.add(user)
+    await db.flush()  # Get user.id before creating session
+    
+    # Create session (multi-device support)
+    session_token = await create_user_session(db, user, request)
     await db.commit()
     
     # Set cookie and redirect
@@ -354,10 +374,17 @@ async def logout(
     db: DBSession,
     user: CurrentUserOptional,
 ):
-    """Handle logout."""
-    if user:
-        user.clear_session()
-        await db.commit()
+    """Handle logout - only invalidates current session, not other devices."""
+    session_token = request.cookies.get("session_token")
+    if session_token:
+        # Delete only the current session from user_sessions table
+        result = await db.execute(
+            select(UserSession).where(UserSession.session_token == session_token)
+        )
+        session = result.scalar_one_or_none()
+        if session:
+            await db.delete(session)
+            await db.commit()
     
     response = RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("session_token")
@@ -522,10 +549,10 @@ async def oauth_callback(
                 user.labs_refresh_token = refresh_token
                 user.labs_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
             db.add(user)
+            await db.flush()  # Get user.id before creating session
         
-        # Create session
-        session_token = user.generate_session_token()
-        user.update_last_seen()
+        # Create session (multi-device: doesn't invalidate other sessions)
+        session_token = await create_user_session(db, user, request)
         await db.commit()
         
         # Auto-join Community workspace for Buildly OAuth users (if CollabHub plugin enabled)

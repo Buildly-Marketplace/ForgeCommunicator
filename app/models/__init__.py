@@ -17,6 +17,7 @@ from app.models.external_integration import (
     NotificationSource,
 )
 from app.models.bridged_channel import BridgedChannel, BridgePlatform
+from app.models.user_session import UserSession
 
 __all__ = [
     "Base",
@@ -48,5 +49,6 @@ __all__ = [
     "NotificationSource",
     "BridgedChannel",
     "BridgePlatform",
+    "UserSession",
 ]
 

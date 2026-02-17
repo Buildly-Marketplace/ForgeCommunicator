@@ -8,10 +8,12 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models.membership import Membership, MembershipRole
 from app.models.user import User
+from app.models.user_session import UserSession
 from app.models.workspace import Workspace
 from app.settings import settings
 
@@ -26,36 +28,62 @@ async def get_current_user_optional(
 ) -> User | None:
     """Get current user from session cookie (returns None if not authenticated).
     
-    For OAuth users with valid refresh tokens:
-    - Session is automatically extended when less than 25% time remains
-    - Session can be restored even if recently expired (within 1 hour grace period)
+    Uses the user_sessions table for multi-device session support.
+    Each device/browser has its own session, so logging in on one device
+    doesn't invalidate sessions on other devices.
+    
+    Session behavior:
+    - Sessions are automatically refreshed (sliding window) when < 50% time remains
+    - PWA sessions have longer expiration (30 days vs 7 days for browser)
+    - For OAuth users, recently expired sessions (1 hour grace) can be restored
     """
     if not session_token:
         return None
     
-    # Look up user by session token
+    # Look up session in user_sessions table
     result = await db.execute(
-        select(User).where(User.session_token == session_token)
+        select(UserSession)
+        .where(UserSession.session_token == session_token)
+        .options(selectinload(UserSession.user))
     )
-    user = result.scalar_one_or_none()
+    session = result.scalar_one_or_none()
     
-    if not user:
+    if not session or not session.user:
+        # Fallback: Check old single-session token on user table (for migration)
+        # This can be removed after all sessions have been migrated
+        result = await db.execute(
+            select(User).where(User.session_token == session_token)
+        )
+        user = result.scalar_one_or_none()
+        if user and user.is_session_valid():
+            # Migrate this session to the new table
+            is_pwa = _detect_pwa_mode(request)
+            new_session = UserSession.create_session(
+                user_id=user.id,
+                request=request,
+                is_pwa=is_pwa,
+            )
+            # Use the same token for seamless migration
+            new_session.session_token = session_token
+            db.add(new_session)
+            # Clear old token from user table
+            user.session_token = None
+            user.session_expires_at = None
+            user.update_last_seen()
+            await db.commit()
+            request.state.session_refreshed = True
+            return user
         return None
     
-    # Check if session is valid
-    session_valid = user.is_session_valid()
+    user = session.user
     
-    # Detect PWA mode for session duration
-    is_pwa = (
-        request.headers.get('X-PWA-Mode') == 'standalone' or
-        'standalone' in request.headers.get('Sec-Fetch-Dest', '')
-    )
-    session_hours = settings.session_expire_hours_pwa if is_pwa else settings.session_expire_hours
+    # Check if session is valid (not expired)
+    session_valid = session.is_valid()
     
     # For OAuth users, try to restore recently expired sessions (1 hour grace period)
-    if not session_valid and user.session_expires_at:
+    if not session_valid:
         grace_period = timedelta(hours=1)
-        time_since_expiry = datetime.now(timezone.utc) - user.session_expires_at
+        time_since_expiry = datetime.now(timezone.utc) - session.expires_at
         
         # Check if within grace period and user has OAuth refresh capability
         if time_since_expiry <= grace_period:
@@ -65,25 +93,35 @@ async def get_current_user_optional(
             )
             if can_auto_refresh:
                 # Restore session for OAuth users with valid refresh tokens
-                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=session_hours)
+                expire_hours = settings.session_expire_hours_pwa if session.is_pwa else settings.session_expire_hours
+                session.expires_at = datetime.now(timezone.utc) + timedelta(hours=expire_hours)
+                session.last_used_at = datetime.now(timezone.utc)
                 user.update_last_seen()
                 await db.commit()
                 request.state.session_refreshed = True
                 session_valid = True
     
     if session_valid:
-        # Refresh session expiry if less than 25% of the time remains (sliding session)
-        # This extends active users' sessions without updating on every request
-        refresh_threshold = timedelta(hours=session_hours * 0.25)
-        if user.session_expires_at and (user.session_expires_at - datetime.now(timezone.utc)) < refresh_threshold:
-            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=session_hours)
-            user.update_last_seen()
+        # Refresh session using sliding window
+        session.refresh()
+        user.update_last_seen()
+        
+        # Commit if session was extended
+        if session in db.dirty:
             await db.commit()
-            # Mark that session was refreshed so middleware can update the cookie
             request.state.session_refreshed = True
+        
         return user
     
     return None
+
+
+def _detect_pwa_mode(request: Request) -> bool:
+    """Detect if request is from a PWA (installed app mode)."""
+    return (
+        request.headers.get('X-PWA-Mode') == 'standalone' or
+        'standalone' in request.headers.get('Sec-Fetch-Dest', '')
+    )
 
 
 async def get_current_user(

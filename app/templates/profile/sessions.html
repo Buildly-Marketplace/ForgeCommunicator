@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block title %}Active Sessions - {{ brand.full_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8 content-layer">
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <a href="/profile" class="inline-flex items-center text-sm text-gray-400 hover:text-white transition-colors mb-4">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back to Profile
+            </a>
+            <h1 class="text-3xl font-bold text-white">Active Sessions</h1>
+            <p class="mt-2 text-gray-400">Manage devices where you're currently signed in</p>
+        </div>
+        
+        <div class="glass-dark shadow-xl rounded-xl overflow-hidden border border-white/10">
+            <!-- Actions -->
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-medium text-white">Signed-in Devices</h2>
+                    <p class="text-sm text-gray-400 mt-1">
+                        {% if sessions | length == 1 %}
+                        You have 1 active session
+                        {% else %}
+                        You have {{ sessions | length }} active sessions
+                        {% endif %}
+                    </p>
+                </div>
+                {% if sessions | length > 1 %}
+                <form hx-post="/profile/sessions/revoke-all-others" 
+                      hx-target="#revoke-all-status"
+                      hx-swap="innerHTML">
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-red-500/50 text-sm font-medium rounded-lg text-red-400 hover:bg-red-900/30 transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        Sign Out All Others
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            
+            <div id="revoke-all-status" class="px-6"></div>
+            
+            <!-- Sessions List -->
+            <div id="sessions-list" class="divide-y divide-white/10">
+                {% for session in sessions %}
+                <div class="p-6 flex items-center justify-between hover:bg-white/5 transition-colors"
+                     id="session-{{ session.id }}">
+                    <div class="flex items-center space-x-4">
+                        <!-- Device Icon -->
+                        <div class="w-12 h-12 rounded-full glass border border-white/20 flex items-center justify-center">
+                            {% if session.device_type == 'mobile' or session.device_type == 'pwa' %}
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                            {% elif session.device_type == 'tablet' %}
+                            <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                            {% else %}
+                            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Session Info -->
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <p class="font-medium text-white">
+                                    {{ session.device_name or 'Unknown Device' }}
+                                </p>
+                                {% if session.session_token == current_token %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                                    This device
+                                </span>
+                                {% endif %}
+                                {% if session.is_pwa %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                    PWA
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-1 text-sm text-gray-400 space-y-0.5">
+                                {% if session.ip_address %}
+                                <p>IP: {{ session.ip_address }}</p>
+                                {% endif %}
+                                <p>
+                                    Last active: 
+                                    {% if session.last_used_at %}
+                                    {{ session.last_used_at.strftime('%b %d, %Y at %H:%M UTC') }}
+                                    {% else %}
+                                    {{ session.created_at.strftime('%b %d, %Y at %H:%M UTC') }}
+                                    {% endif %}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    Signed in: {{ session.created_at.strftime('%b %d, %Y') }}
+                                    · Expires: {{ session.expires_at.strftime('%b %d, %Y') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Revoke Button -->
+                    <form hx-post="/profile/sessions/{{ session.id }}/revoke"
+                          hx-target="#session-{{ session.id }}"
+                          hx-swap="outerHTML">
+                        <button type="submit" 
+                                class="inline-flex items-center px-3 py-1.5 border border-white/20 text-sm font-medium rounded-lg text-gray-300 hover:bg-white/10 hover:text-red-400 hover:border-red-500/50 transition-colors"
+                                title="Sign out this device">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            {% if session.session_token == current_token %}
+                            Sign Out
+                            {% else %}
+                            Revoke
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="p-12 text-center">
+                    <svg class="w-12 h-12 mx-auto text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <p class="text-gray-400">No active sessions found.</p>
+                    <p class="text-sm text-gray-500 mt-1">This is unexpected - you should have at least one session.</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Help Text -->
+            <div class="p-6 bg-dark-800/30 border-t border-white/10">
+                <div class="flex items-start space-x-3">
+                    <svg class="w-5 h-5 text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm text-gray-400">
+                            <strong class="text-gray-300">What is this?</strong>
+                            This page shows all devices and browsers where you are currently signed in.
+                            If you see a device you don't recognize, revoke it immediately and consider changing your password.
+                        </p>
+                        <p class="text-sm text-gray-500 mt-2">
+                            PWA sessions (installed apps) have longer expiration times to prevent frequent sign-outs on mobile devices.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Refresh sessions list when "revoke all" succeeds
+document.body.addEventListener('sessions-updated', function() {
+    htmx.ajax('GET', '/profile/sessions', {target: '#sessions-list', swap: 'innerHTML', select: '#sessions-list > *'});
+});
+</script>
+{% endblock %}

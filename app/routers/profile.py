@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.deps import CurrentUser, DBSession
 from app.models.user import User, UserStatus
+from app.models.user_session import UserSession
 from app.models.membership import Membership
 from app.models.workspace import Workspace
 from app.models.external_integration import ExternalIntegration, IntegrationType
@@ -318,3 +319,119 @@ async def request_meeting(
                 status_code=500,
             )
         raise HTTPException(status_code=500, detail=f"Failed to create meeting")
+
+
+# =============================================================================
+# Session Management - View and revoke active sessions
+# =============================================================================
+
+@router.get("/sessions", response_class=HTMLResponse)
+async def list_sessions(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """View all active sessions for current user."""
+    # Get all sessions for user
+    result = await db.execute(
+        select(UserSession)
+        .where(UserSession.user_id == user.id)
+        .order_by(UserSession.last_used_at.desc())
+    )
+    sessions = result.scalars().all()
+    
+    # Identify current session
+    current_token = request.cookies.get("session_token")
+    
+    return templates.TemplateResponse(
+        "profile/sessions.html",
+        {
+            "request": request,
+            "user": user,
+            "sessions": sessions,
+            "current_token": current_token,
+        },
+    )
+
+
+@router.post("/sessions/{session_id}/revoke")
+async def revoke_session(
+    request: Request,
+    session_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Revoke a specific session."""
+    # Find the session
+    result = await db.execute(
+        select(UserSession).where(
+            UserSession.id == session_id,
+            UserSession.user_id == user.id,  # Only allow revoking own sessions
+        )
+    )
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Check if trying to revoke current session
+    current_token = request.cookies.get("session_token")
+    is_current = session.session_token == current_token
+    
+    # Delete the session
+    await db.delete(session)
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        if is_current:
+            # If revoking current session, redirect to login
+            response = HTMLResponse("")
+            response.headers["HX-Redirect"] = "/auth/login"
+            response.delete_cookie("session_token")
+            return response
+        else:
+            # Just remove the row from the table
+            return HTMLResponse("")
+    
+    if is_current:
+        response = RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
+        response.delete_cookie("session_token")
+        return response
+    
+    return RedirectResponse(url="/profile/sessions", status_code=status.HTTP_302_FOUND)
+
+
+@router.post("/sessions/revoke-all-others")
+async def revoke_all_other_sessions(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Revoke all sessions except the current one."""
+    current_token = request.cookies.get("session_token")
+    
+    # Get all other sessions
+    result = await db.execute(
+        select(UserSession).where(
+            UserSession.user_id == user.id,
+            UserSession.session_token != current_token,
+        )
+    )
+    other_sessions = result.scalars().all()
+    
+    # Delete them
+    for session in other_sessions:
+        await db.delete(session)
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        # Return success message and trigger table refresh
+        return HTMLResponse(
+            '''<div class="bg-green-500/20 border border-green-500/30 rounded-lg p-3 text-green-400 text-sm mb-4">
+                All other sessions have been signed out.
+            </div>''',
+            headers={"HX-Trigger": "sessions-updated"},
+        )
+    
+    return RedirectResponse(url="/profile/sessions?success=1", status_code=status.HTTP_302_FOUND)

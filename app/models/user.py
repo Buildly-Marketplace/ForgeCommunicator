@@ -109,6 +109,7 @@ class User(Base, TimestampMixin):
     notes = relationship("Note", back_populates="owner", foreign_keys="Note.owner_id", lazy="noload")
     external_integrations = relationship("ExternalIntegration", back_populates="user", lazy="noload")
     notification_logs = relationship("NotificationLog", back_populates="user", lazy="noload")
+    sessions = relationship("UserSession", back_populates="user", lazy="noload", cascade="all, delete-orphan")
     
     def generate_session_token(self) -> str:
         """Generate a new session token and set expiry."""
