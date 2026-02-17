@@ -4,11 +4,12 @@ Attachment model for file uploads in messages.
 
 from enum import Enum
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.models.base import TimestampMixin
 
 
 class AttachmentType(str, Enum):
@@ -86,7 +87,7 @@ def is_allowed_extension(filename: str) -> bool:
     return ext in ALLOWED_EXTENSIONS
 
 
-class Attachment(Base, TimestampMixin):
+class Attachment(Base):
     """
     File attachment model.
     
@@ -98,6 +99,14 @@ class Attachment(Base, TimestampMixin):
     __tablename__ = "attachments"
     
     id: Mapped[int] = mapped_column(primary_key=True)
+    
+    # Timestamp (no updated_at for attachments - they're immutable after upload)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True
+    )
     
     # Ownership
     message_id: Mapped[int | None] = mapped_column(
