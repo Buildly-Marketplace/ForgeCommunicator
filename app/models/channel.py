@@ -40,6 +40,7 @@ class Channel(Base, TimestampMixin):
     messages = relationship("Message", back_populates="channel", lazy="noload", order_by="Message.created_at")
     memberships = relationship("ChannelMembership", back_populates="channel", lazy="selectin")
     artifacts = relationship("Artifact", back_populates="channel", lazy="noload")
+    attachments = relationship("Attachment", back_populates="channel", lazy="noload")
     
     @property
     def display_name(self) -> str:

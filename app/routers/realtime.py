@@ -11,10 +11,13 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
+from sqlalchemy.orm import selectinload
+
 from app.db import async_session_maker
 from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership
 from app.models.user import User
+from app.models.user_session import UserSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["realtime"])
@@ -90,14 +93,24 @@ async def verify_websocket_access(
         return None
     
     async with async_session_maker() as db:
-        # Get user from session
+        # Get user from UserSession table (multi-device support)
         result = await db.execute(
-            select(User).where(User.session_token == session_token)
+            select(UserSession)
+            .where(UserSession.session_token == session_token)
+            .options(selectinload(UserSession.user))
         )
-        user = result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
         
-        if not user or not user.is_session_valid():
-            return None
+        if session and session.is_valid() and session.user:
+            user = session.user
+        else:
+            # Fallback: Check old single-session token on user table (for migration)
+            result = await db.execute(
+                select(User).where(User.session_token == session_token)
+            )
+            user = result.scalar_one_or_none()
+            if not user or not user.is_session_valid():
+                return None
         
         # Check workspace membership
         result = await db.execute(

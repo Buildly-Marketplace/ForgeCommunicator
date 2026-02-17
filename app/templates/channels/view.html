@@ -349,6 +349,17 @@
                             </svg>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">DM user</span>
                         </button>
+                        {% if settings.file_storage_enabled %}
+                        <div class="w-px h-6 bg-white/20 mx-1"></div>
+                        <button type="button" onclick="triggerFileUpload()"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                title="Upload file">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">Upload file</span>
+                        </button>
+                        {% endif %}
                         <div class="flex-1"></div>
                         <button type="button" onclick="openCommandPalette()"
                                 class="p-2 rounded hover:bg-white/10 text-gray-400 text-xs transition-colors"
@@ -375,6 +386,30 @@
                         </button>
                     </div>
                 </form>
+                
+                <!-- Hidden file upload form -->
+                {% if settings.file_storage_enabled %}
+                <form id="file-upload-form" 
+                      hx-post="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/upload"
+                      hx-target="#message-list"
+                      hx-swap="beforeend"
+                      hx-encoding="multipart/form-data"
+                      hx-on::after-request="handleUploadComplete(event)"
+                      class="hidden">
+                    <input type="file" id="file-input" name="file"
+                           accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.json,.xml,.yaml,.yml,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.go,.rs,.zip,.tar,.gz,.rar,.7z">
+                    <input type="hidden" name="message_body" id="upload-message-body">
+                </form>
+                <div id="upload-progress" class="hidden mt-2 px-4">
+                    <div class="flex items-center space-x-3 text-sm text-gray-400">
+                        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Uploading file...</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </main>
     </div>
@@ -908,6 +943,67 @@
             alert('Failed to create DM. Please try again.');
         });
     };
+    
+    // ============================================
+    // File Upload Functions
+    // ============================================
+    {% if settings.file_storage_enabled %}
+    window.triggerFileUpload = function() {
+        document.getElementById('file-input').click();
+    };
+    
+    // Handle file selection
+    document.getElementById('file-input')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Check file size (client-side validation)
+        const maxSize = {{ settings.upload_max_size_bytes }};
+        if (file.size > maxSize) {
+            alert(`File size exceeds maximum allowed ({{ settings.upload_max_size_mb }}MB)`);
+            this.value = '';
+            return;
+        }
+        
+        // Copy current message body to hidden field (optional context)
+        const messageInput = document.getElementById('message-input');
+        const uploadMessageBody = document.getElementById('upload-message-body');
+        if (uploadMessageBody && messageInput.value.trim()) {
+            uploadMessageBody.value = messageInput.value.trim();
+        }
+        
+        // Show upload progress
+        document.getElementById('upload-progress')?.classList.remove('hidden');
+        
+        // Submit the form via HTMX
+        htmx.trigger(document.getElementById('file-upload-form'), 'submit');
+    });
+    
+    window.handleUploadComplete = function(event) {
+        // Hide progress indicator
+        document.getElementById('upload-progress')?.classList.add('hidden');
+        
+        // Reset file input
+        document.getElementById('file-input').value = '';
+        document.getElementById('upload-message-body').value = '';
+        
+        // Clear main message input if it was used as context
+        document.getElementById('message-input').value = '';
+        
+        // Scroll to bottom to show new message
+        scrollToBottom();
+        
+        // Check for errors
+        if (event.detail.xhr?.status >= 400) {
+            try {
+                const error = JSON.parse(event.detail.xhr.responseText);
+                alert('Upload failed: ' + (error.detail || 'Unknown error'));
+            } catch {
+                alert('Upload failed. Please try again.');
+            }
+        }
+    };
+    {% endif %}
 })();
 </script>
 

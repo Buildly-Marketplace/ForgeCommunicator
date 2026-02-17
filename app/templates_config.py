@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 import markdown
 
 from app.brand import get_brand
+from app.settings import settings
 
 
 def markdown_filter(text: str) -> Markup:
@@ -105,6 +106,9 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Add brand to all template contexts globally
 templates.env.globals["brand"] = get_brand()
+
+# Add settings for feature flags and configuration
+templates.env.globals["settings"] = settings
 
 # Add markdown filters
 templates.env.filters["markdown"] = markdown_filter

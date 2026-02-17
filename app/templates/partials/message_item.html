@@ -57,6 +57,47 @@
         
         <div class="mt-1 text-gray-300 whitespace-pre-wrap break-words message-body">{{ message.body | md }}</div>
         
+        <!-- Attachments -->
+        {% if message.attachments %}
+        <div class="mt-2 flex flex-wrap gap-2">
+            {% for attachment in message.attachments %}
+            {% set public_url = settings.storage_public_url ~ '/' ~ attachment.storage_key if settings.storage_public_url else 'https://' ~ settings.storage_bucket ~ '.' ~ settings.storage_region ~ '.digitaloceanspaces.com/' ~ attachment.storage_key %}
+            {% if attachment.attachment_type == 'image' %}
+            <!-- Image preview -->
+            <a href="{{ public_url }}" target="_blank" class="block group/attach">
+                <img src="{{ public_url }}" alt="{{ attachment.filename }}" class="max-w-xs max-h-48 rounded-lg border border-white/10 hover:border-blue-400 transition-colors">
+            </a>
+            {% else %}
+            <!-- File attachment -->
+            <a href="{{ public_url }}" target="_blank" 
+               class="inline-flex items-center px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-blue-400 hover:bg-white/10 transition-colors group/attach">
+                {% if attachment.attachment_type == 'document' %}
+                <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                {% elif attachment.attachment_type == 'text' %}
+                <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                {% elif attachment.attachment_type == 'archive' %}
+                <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                </svg>
+                {% else %}
+                <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                {% endif %}
+                <div class="flex flex-col">
+                    <span class="text-sm text-white group-hover/attach:text-blue-400 truncate max-w-[200px]">{{ attachment.filename }}</span>
+                    <span class="text-xs text-gray-500">{{ (attachment.file_size / 1024) | round(1) }}KB</span>
+                </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        
         <!-- Thread indicator / Reply button -->
         {% if not is_thread_reply %}
         <div class="mt-2 flex items-center space-x-3">

@@ -294,6 +294,42 @@
     <!-- Toast notifications -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
     
+    <!-- Push Notification Prompt Banner -->
+    {% if user %}
+    <div id="push-notification-prompt" class="hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between flex-wrap">
+                <div class="flex items-center flex-1 min-w-0">
+                    <span class="flex p-2 rounded-lg bg-blue-800">
+                        <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </span>
+                    <p class="ml-3 text-sm font-medium text-white truncate">
+                        <span class="hidden md:inline">Enable notifications to stay updated on messages and @mentions!</span>
+                        <span class="md:hidden">Enable notifications for messages!</span>
+                    </p>
+                </div>
+                <div class="flex-shrink-0 order-3 w-full sm:order-2 sm:w-auto mt-2 sm:mt-0 sm:ml-4">
+                    <button id="enable-push-btn" type="button"
+                            class="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 transition-colors">
+                        Enable Notifications
+                    </button>
+                </div>
+                <div class="order-2 flex-shrink-0 sm:order-3 sm:ml-2">
+                    <button id="dismiss-push-prompt" type="button"
+                            class="-mr-1 flex p-2 rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-white transition-colors">
+                        <span class="sr-only">Dismiss</span>
+                        <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Session timeout warning modal -->
     <div id="session-timeout-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="session-timeout-title">
         <div class="flex items-center justify-center min-h-screen px-4">
@@ -455,6 +491,133 @@
                 });
             });
         }
+        
+        // ============================================
+        // Push Notification Prompt
+        // ============================================
+        {% if user %}
+        (async function initPushPrompt() {
+            const promptEl = document.getElementById('push-notification-prompt');
+            const enableBtn = document.getElementById('enable-push-btn');
+            const dismissBtn = document.getElementById('dismiss-push-prompt');
+            
+            if (!promptEl) return;
+            
+            // Check if user dismissed the prompt recently (don't show for 7 days)
+            const dismissedAt = localStorage.getItem('pushPromptDismissed');
+            if (dismissedAt) {
+                const daysSinceDismiss = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
+                if (daysSinceDismiss < 7) return;
+            }
+            
+            // Check browser support
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.log('Push notifications not supported');
+                return;
+            }
+            
+            // Check if server has push configured
+            try {
+                const response = await fetch('/push/vapid-public-key');
+                if (!response.ok) return;
+            } catch (e) {
+                return;
+            }
+            
+            // Check if already subscribed
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                if (subscription) {
+                    console.log('Already subscribed to push notifications');
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not check push subscription:', e);
+                return;
+            }
+            
+            // Check permission state
+            if (Notification.permission === 'denied') {
+                return; // User blocked notifications, don't prompt
+            }
+            
+            if (Notification.permission === 'granted') {
+                // Permission granted but not subscribed - they may have cleared subscription
+                // Still show prompt
+            }
+            
+            // Show the prompt with a slight delay
+            setTimeout(() => {
+                promptEl.classList.remove('hidden');
+            }, 2000);
+            
+            // Handle enable button
+            enableBtn.addEventListener('click', async () => {
+                try {
+                    enableBtn.textContent = 'Enabling...';
+                    enableBtn.disabled = true;
+                    
+                    // Request permission
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        promptEl.classList.add('hidden');
+                        return;
+                    }
+                    
+                    // Get VAPID public key
+                    const response = await fetch('/push/vapid-public-key');
+                    const { publicKey } = await response.json();
+                    
+                    // Subscribe
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicKey)
+                    });
+                    
+                    // Convert keys to base64url
+                    const arrayBufferToBase64url = (buffer) => {
+                        const bytes = new Uint8Array(buffer);
+                        let binary = '';
+                        for (let i = 0; i < bytes.byteLength; i++) {
+                            binary += String.fromCharCode(bytes[i]);
+                        }
+                        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                    };
+                    
+                    // Send to server
+                    const formData = new FormData();
+                    formData.append('endpoint', subscription.endpoint);
+                    formData.append('p256dh', arrayBufferToBase64url(subscription.getKey('p256dh')));
+                    formData.append('auth', arrayBufferToBase64url(subscription.getKey('auth')));
+                    
+                    await fetch('/push/subscribe', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    
+                    promptEl.classList.add('hidden');
+                    if (window.showToast) {
+                        window.showToast('Notifications enabled! You\'ll now receive alerts for new messages.', 'success');
+                    }
+                } catch (e) {
+                    console.error('Failed to enable notifications:', e);
+                    enableBtn.textContent = 'Enable Notifications';
+                    enableBtn.disabled = false;
+                    if (window.showToast) {
+                        window.showToast('Failed to enable notifications. Please try again.', 'error');
+                    }
+                }
+            });
+            
+            // Handle dismiss button
+            dismissBtn.addEventListener('click', () => {
+                promptEl.classList.add('hidden');
+                localStorage.setItem('pushPromptDismissed', Date.now().toString());
+            });
+        })();
+        {% endif %}
         
         // PWA Install prompt handling
         if (!window._pwaInstallInitialized) {

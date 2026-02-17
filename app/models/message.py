@@ -50,6 +50,7 @@ class Message(Base, TimestampMixin):
     channel = relationship("Channel", back_populates="messages")
     user = relationship("User", back_populates="messages")
     parent = relationship("Message", remote_side="Message.id", backref="replies")
+    attachments = relationship("Attachment", back_populates="message", lazy="selectin")
     
     @property
     def is_edited(self) -> bool:

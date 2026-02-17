@@ -207,6 +207,19 @@ class Settings(BaseSettings):
     labs_error_product_uuid: str | None = None  # Labs product UUID for error tracking
     # Note: labs_api_url and labs_api_key are already defined above
     
+    # File storage (S3-compatible - works with AWS S3 or DigitalOcean Spaces)
+    # For DigitalOcean Spaces: endpoint is https://<region>.digitaloceanspaces.com
+    storage_endpoint: str | None = None  # e.g. "https://nyc3.digitaloceanspaces.com"
+    storage_access_key: str | None = None  # Access key ID
+    storage_secret_key: str | None = None  # Secret access key
+    storage_bucket: str | None = None  # Bucket/Space name
+    storage_region: str = "nyc3"  # Region for S3/Spaces
+    storage_public_url: str | None = None  # CDN or public URL prefix (optional)
+    
+    # Upload limits
+    upload_max_size_mb: int = 25  # Maximum file size in MB
+    upload_allowed_types: str = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.json,.xml,.zip,.tar,.gz"
+    
     # Base URL for links in emails
     base_url: str = "http://localhost:8000"
     
@@ -255,6 +268,21 @@ class Settings(BaseSettings):
     def labs_error_reporting_enabled(self) -> bool:
         """Check if Labs error reporting is configured."""
         return bool(self.labs_error_product_uuid and self.labs_api_key)
+    
+    @property
+    def file_storage_enabled(self) -> bool:
+        """Check if file storage (S3/Spaces) is configured."""
+        return bool(
+            self.storage_endpoint and
+            self.storage_access_key and
+            self.storage_secret_key and
+            self.storage_bucket
+        )
+    
+    @property
+    def upload_max_size_bytes(self) -> int:
+        """Get max upload size in bytes."""
+        return self.upload_max_size_mb * 1024 * 1024
     
     @property
     def admin_emails_list(self) -> list[str]:

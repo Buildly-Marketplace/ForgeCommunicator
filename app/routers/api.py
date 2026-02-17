@@ -23,6 +23,7 @@ from app.models.channel import Channel
 from app.models.membership import Membership
 from app.models.message import Message
 from app.models.user import User
+from app.models.user_session import UserSession
 from app.models.workspace import Workspace
 from app.services.collabhub_sync import CollabHubSyncService, CollabHubSyncError
 from app.settings import settings
@@ -190,14 +191,30 @@ async def get_api_user(
     
     # Try to find user by session token or Labs access token
     async with async_session_maker() as db:
-        # First try session token
+        from sqlalchemy.orm import selectinload
+        
+        user = None
+        
+        # First try UserSession table (multi-device support)
         result = await db.execute(
-            select(User).where(
-                User.session_token == token,
-                User.is_active == True,
-            )
+            select(UserSession)
+            .where(UserSession.session_token == token)
+            .options(selectinload(UserSession.user))
         )
-        user = result.scalar_one_or_none()
+        session = result.scalar_one_or_none()
+        
+        if session and session.is_valid() and session.user and session.user.is_active:
+            user = session.user
+        
+        if not user:
+            # Fallback: Try old session token on User table
+            result = await db.execute(
+                select(User).where(
+                    User.session_token == token,
+                    User.is_active == True,
+                )
+            )
+            user = result.scalar_one_or_none()
         
         if not user:
             # Try Labs access token

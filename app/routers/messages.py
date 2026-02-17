@@ -5,17 +5,19 @@ Message router for sending and managing messages.
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Form, HTTPException, Query, Request, status, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
 from app.models.artifact import Artifact
+from app.models.attachment import Attachment, get_attachment_type, is_allowed_extension
 from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership
 from app.models.message import Message
 from app.services.slash_commands import SlashCommandParser
+from app.settings import settings
 from app.templates_config import templates
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/channels/{channel_id}/messages", tags=["messages"])
@@ -863,3 +865,166 @@ async def export_messages(
             "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
+
+
+@router.post("/upload", response_class=HTMLResponse)
+async def upload_file(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    file: Annotated[UploadFile, File()],
+    message_body: Annotated[str | None, Form()] = None,
+):
+    """Upload a file attachment to a channel.
+    
+    Creates a message with the attachment. If message_body is provided,
+    it becomes the message text; otherwise creates a file-only message.
+    """
+    # Check if storage is enabled
+    if not settings.file_storage_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="File uploads are not configured",
+        )
+    
+    channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Validate file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    
+    if not is_allowed_extension(file.filename):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not allowed. Allowed types: images, documents, text files, archives",
+        )
+    
+    # Check file size
+    file_content = await file.read()
+    file_size = len(file_content)
+    await file.seek(0)  # Reset for storage upload
+    
+    if file_size > settings.upload_max_size_bytes:
+        max_mb = settings.upload_max_size_mb
+        raise HTTPException(
+            status_code=400,
+            detail=f"File size exceeds maximum allowed ({max_mb}MB)",
+        )
+    
+    # Upload to storage
+    try:
+        from app.services.storage import get_storage_service, StorageError
+        
+        storage = get_storage_service()
+        storage_key, content_type, _ = storage.upload_file(
+            file.file,
+            file.filename,
+            file.content_type,
+            channel_id,
+        )
+    except StorageError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Create attachment record
+    attachment = Attachment(
+        filename=file.filename,
+        original_filename=file.filename,
+        storage_key=storage_key,
+        content_type=content_type,
+        file_size=file_size,
+        attachment_type=get_attachment_type(file.filename).value,
+        channel_id=channel_id,
+        user_id=user.id,
+    )
+    
+    # Create message with attachment
+    body = message_body.strip() if message_body else f"📎 {file.filename}"
+    message = Message(
+        channel_id=channel_id,
+        user_id=user.id,
+        body=body,
+    )
+    db.add(message)
+    await db.flush()  # Get message ID
+    
+    attachment.message_id = message.id
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(message)
+    
+    # Load message with user and attachments for template
+    result = await db.execute(
+        select(Message)
+        .where(Message.id == message.id)
+        .options(
+            selectinload(Message.user),
+            selectinload(Message.attachments),
+        )
+    )
+    message = result.scalar_one()
+    
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(
+            "partials/message_item.html",
+            {
+                "request": request,
+                "message": message,
+                "user": user,
+                "workspace_id": workspace_id,
+                "channel_id": channel_id,
+            },
+        )
+    
+    return RedirectResponse(
+        f"/workspaces/{workspace_id}/channels/{channel_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.delete("/attachments/{attachment_id}")
+async def delete_attachment(
+    workspace_id: int,
+    channel_id: int,
+    attachment_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Delete an attachment (owner or admin only)."""
+    await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Get attachment
+    result = await db.execute(
+        select(Attachment).where(
+            Attachment.id == attachment_id,
+            Attachment.channel_id == channel_id,
+        )
+    )
+    attachment = result.scalar_one_or_none()
+    
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    
+    # Check ownership (or admin)
+    if attachment.user_id != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this attachment")
+    
+    # Delete from storage
+    try:
+        from app.services.storage import get_storage_service, StorageError
+        storage = get_storage_service()
+        storage.delete_file(attachment.storage_key)
+    except StorageError:
+        pass  # Continue even if storage delete fails
+    
+    # Delete from database
+    await db.delete(attachment)
+    await db.commit()
+    
+    return {"success": True}

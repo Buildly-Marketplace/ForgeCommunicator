@@ -110,6 +110,7 @@ class User(Base, TimestampMixin):
     external_integrations = relationship("ExternalIntegration", back_populates="user", lazy="noload")
     notification_logs = relationship("NotificationLog", back_populates="user", lazy="noload")
     sessions = relationship("UserSession", back_populates="user", lazy="noload", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="user", lazy="noload")
     
     def generate_session_token(self) -> str:
         """Generate a new session token and set expiry."""
