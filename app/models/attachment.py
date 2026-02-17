@@ -105,9 +105,9 @@ class Attachment(Base, TimestampMixin):
         nullable=True, 
         index=True
     )
-    channel_id: Mapped[int] = mapped_column(
+    channel_id: Mapped[int | None] = mapped_column(
         ForeignKey("channels.id", ondelete="CASCADE"), 
-        nullable=False, 
+        nullable=True, 
         index=True
     )
     user_id: Mapped[int] = mapped_column(
@@ -116,18 +116,12 @@ class Attachment(Base, TimestampMixin):
     )
     
     # File metadata
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)  # Original filename
-    storage_key: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)  # S3 key
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)  # Display/stored filename
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)  # Original upload name
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)  # S3 key
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)  # MIME type
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)  # Size in bytes
-    attachment_type: Mapped[AttachmentType] = mapped_column(String(20), nullable=False)  # Category
-    
-    # Display
-    thumbnail_key: Mapped[str | None] = mapped_column(String(500), nullable=True)  # Thumbnail S3 key (images)
-    
-    # Optional: Direct URL (for CDN or signed URLs)
-    url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    thumbnail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attachment_type: Mapped[str] = mapped_column(String(20), nullable=False)  # Category
     
     # Relationships
     message = relationship("Message", back_populates="attachments")
