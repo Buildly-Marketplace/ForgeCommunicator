@@ -312,6 +312,7 @@ async def session_status(
     """
     from datetime import datetime, timedelta, timezone
     from app.settings import settings
+    from app.models.user_session import UserSession
     
     if not user:
         return {
@@ -321,31 +322,44 @@ async def session_status(
             "can_refresh": False,
         }
     
+    # Get the current session from UserSession table
+    session_token = request.cookies.get("session_token")
+    current_session = None
+    if session_token:
+        result = await db.execute(
+            select(UserSession).where(UserSession.session_token == session_token)
+        )
+        current_session = result.scalar_one_or_none()
+    
     # Check if user can auto-refresh (has Google OAuth with refresh token)
     can_refresh = bool(user.auth_provider == "google" and user.google_refresh_token)
     
     # Handle session refresh request
-    if refresh and user.session_expires_at:
+    if refresh and current_session:
         if can_refresh:
             # For OAuth users, extend session if they have valid refresh token
-            user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+            expire_hours = settings.session_expire_hours_pwa if current_session.is_pwa else settings.session_expire_hours
+            current_session.expires_at = datetime.now(timezone.utc) + timedelta(hours=expire_hours)
+            current_session.last_used_at = datetime.now(timezone.utc)
             user.update_last_seen()
             await db.commit()
         elif user.auth_provider == "local":
             # For local users, only extend if less than 25% time remains (sliding window)
-            refresh_threshold = timedelta(hours=settings.session_expire_hours * 0.25)
-            time_remaining = user.session_expires_at - datetime.now(timezone.utc)
+            expire_hours = settings.session_expire_hours_pwa if current_session.is_pwa else settings.session_expire_hours
+            refresh_threshold = timedelta(hours=expire_hours * 0.25)
+            time_remaining = current_session.expires_at - datetime.now(timezone.utc)
             if time_remaining < refresh_threshold:
-                user.session_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
+                current_session.expires_at = datetime.now(timezone.utc) + timedelta(hours=expire_hours)
+                current_session.last_used_at = datetime.now(timezone.utc)
                 user.update_last_seen()
                 await db.commit()
     
-    # Calculate time remaining
+    # Calculate time remaining from UserSession
     seconds_remaining = 0
     expires_at = None
-    if user.session_expires_at:
-        expires_at = user.session_expires_at.isoformat()
-        delta = user.session_expires_at - datetime.now(timezone.utc)
+    if current_session and current_session.expires_at:
+        expires_at = current_session.expires_at.isoformat()
+        delta = current_session.expires_at - datetime.now(timezone.utc)
         seconds_remaining = max(0, int(delta.total_seconds()))
     
     return {
