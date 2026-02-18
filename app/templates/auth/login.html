@@ -490,6 +490,102 @@
                 }
             }
         })();
+        
+        // ============================================
+        // Push Notification Setup After Login
+        // ============================================
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+        
+        async function setupPushNotifications() {
+            // Check browser support
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                return false;
+            }
+            
+            // If already have permission and subscription, skip
+            if (Notification.permission === 'granted') {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const existing = await registration.pushManager.getSubscription();
+                    if (existing) {
+                        console.log('[Login] Already subscribed');
+                        return true;
+                    }
+                } catch (e) {}
+            }
+            
+            // Check if push is configured on server
+            try {
+                const response = await fetch('/push/vapid-public-key');
+                if (!response.ok) return false;
+                var vapidKey = (await response.json()).publicKey;
+            } catch (e) {
+                return false;
+            }
+            
+            // Request permission only if not yet decided
+            if (Notification.permission === 'default') {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') return false;
+                } catch (e) {
+                    return false;
+                }
+            } else if (Notification.permission !== 'granted') {
+                return false;
+            }
+            
+            // Subscribe
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidKey)
+                });
+                
+                const arrayBufferToBase64url = (buffer) => {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                };
+                
+                const formData = new FormData();
+                formData.append('endpoint', subscription.endpoint);
+                formData.append('p256dh', arrayBufferToBase64url(subscription.getKey('p256dh')));
+                formData.append('auth', arrayBufferToBase64url(subscription.getKey('auth')));
+                
+                const subResponse = await fetch('/push/subscribe', { method: 'POST', body: formData });
+                return subResponse.ok;
+            } catch (e) {
+                console.log('[Login] Subscription failed:', e);
+            }
+            return false;
+        }
+        
+        // Intercept successful login to setup push before redirect
+        document.body.addEventListener('htmx:beforeOnLoad', async function(event) {
+            const xhr = event.detail.xhr;
+            const redirectUrl = xhr.getResponseHeader('HX-Redirect');
+            
+            if (redirectUrl && (redirectUrl.includes('/workspaces') || redirectUrl.includes('/channels'))) {
+                console.log('[Login] Success - checking push notifications...');
+                event.preventDefault();
+                await setupPushNotifications();
+                window.location.href = redirectUrl;
+            }
+        });
     </script>
 </body>
 </html>

@@ -409,6 +409,114 @@
                 }
             }
         }
+        
+        // ============================================
+        // Push Notification Setup After Registration
+        // ============================================
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+        
+        async function setupPushNotifications() {
+            // Check browser support
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                console.log('[Registration] Push not supported');
+                return false;
+            }
+            
+            // Check if push is configured on server
+            try {
+                const response = await fetch('/push/vapid-public-key');
+                if (!response.ok) {
+                    console.log('[Registration] Push not configured on server');
+                    return false;
+                }
+                var vapidKey = (await response.json()).publicKey;
+            } catch (e) {
+                console.log('[Registration] Could not fetch VAPID key:', e);
+                return false;
+            }
+            
+            // Request permission (this shows the browser prompt)
+            try {
+                const permission = await Notification.requestPermission();
+                console.log('[Registration] Permission result:', permission);
+                if (permission !== 'granted') {
+                    return false;
+                }
+            } catch (e) {
+                console.log('[Registration] Permission request failed:', e);
+                return false;
+            }
+            
+            // Subscribe to push  
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidKey)
+                });
+                console.log('[Registration] Push subscription created');
+                
+                // Send to server
+                const arrayBufferToBase64url = (buffer) => {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                };
+                
+                const formData = new FormData();
+                formData.append('endpoint', subscription.endpoint);
+                formData.append('p256dh', arrayBufferToBase64url(subscription.getKey('p256dh')));
+                formData.append('auth', arrayBufferToBase64url(subscription.getKey('auth')));
+                
+                const subResponse = await fetch('/push/subscribe', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (subResponse.ok) {
+                    console.log('[Registration] Push subscription sent to server');
+                    return true;
+                } else {
+                    console.log('[Registration] Server rejected subscription:', subResponse.status);
+                }
+            } catch (e) {
+                console.log('[Registration] Subscription failed:', e);
+            }
+            
+            return false;
+        }
+        
+        // Intercept successful registration to setup push before redirect
+        document.body.addEventListener('htmx:beforeOnLoad', async function(event) {
+            const xhr = event.detail.xhr;
+            const redirectUrl = xhr.getResponseHeader('HX-Redirect');
+            
+            // Only intercept successful registration redirects
+            if (redirectUrl && redirectUrl.includes('/workspaces')) {
+                console.log('[Registration] Success - setting up push notifications...');
+                
+                // Prevent HTMX from redirecting immediately
+                event.preventDefault();
+                
+                // Setup push notifications (will show permission prompt)
+                await setupPushNotifications();
+                
+                // Now redirect
+                window.location.href = redirectUrl;
+            }
+        });
     </script>
 </body>
 </html>

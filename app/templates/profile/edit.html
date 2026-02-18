@@ -442,8 +442,42 @@
                     console.log('[Push Profile] Checking permission and subscription...');
                     const permission = Notification.permission;
                     console.log('[Push Profile] Permission:', permission);
-                    const registration = await navigator.serviceWorker.ready;
-                    console.log('[Push Profile] Service worker ready');
+                    
+                    // Check if service worker is registered, register if not
+                    let registration;
+                    try {
+                        const existingReg = await navigator.serviceWorker.getRegistration();
+                        console.log('[Push Profile] Existing SW registration:', existingReg ? existingReg.scope : 'none');
+                        
+                        if (!existingReg) {
+                            console.log('[Push Profile] Registering service worker...');
+                            registration = await navigator.serviceWorker.register('/static/sw.js');
+                            console.log('[Push Profile] SW registered, waiting for active...');
+                        }
+                        
+                        // Wait for SW ready with timeout
+                        const swReadyPromise = navigator.serviceWorker.ready;
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Service worker not ready after 10s')), 10000)
+                        );
+                        registration = await Promise.race([swReadyPromise, timeoutPromise]);
+                        console.log('[Push Profile] Service worker ready');
+                    } catch (swErr) {
+                        console.error('[Push Profile] Service worker error:', swErr);
+                        updateStatus('error', 'SW Error');
+                        contentEl.innerHTML = `
+                            <div class="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/30">
+                                <p class="text-sm text-yellow-400">
+                                    Service worker not ready. Try refreshing the page.
+                                </p>
+                                <button onclick="location.reload()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">
+                                    Refresh Page
+                                </button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
                     const subscription = await registration.pushManager.getSubscription();
                     console.log('[Push Profile] Current subscription:', subscription ? 'exists' : 'none');
                     
