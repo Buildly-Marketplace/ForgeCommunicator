@@ -57,7 +57,7 @@ class PushNotificationService:
         subscriptions = result.scalars().all()
         
         if not subscriptions:
-            logger.debug("No push subscriptions found for user %s", user_id)
+            logger.warning("No push subscriptions found for user %s - they need to enable notifications in their browser", user_id)
             return 0
         
         logger.info("Sending push notification to user %s (%d subscriptions): %s", 

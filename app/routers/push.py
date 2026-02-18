@@ -36,6 +36,11 @@ async def subscribe(
     auth: Annotated[str, Form()],
 ):
     """Subscribe to push notifications."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Push subscription request from user %s", user.id)
+    
     if not settings.vapid_public_key:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -56,6 +61,7 @@ async def subscribe(
         existing.p256dh_key = p256dh
         existing.auth_key = auth
         existing.user_agent = request.headers.get("User-Agent")
+        logger.info("Updated existing push subscription for user %s", user.id)
     else:
         # Create new subscription
         subscription = PushSubscription(
@@ -66,6 +72,7 @@ async def subscribe(
             user_agent=request.headers.get("User-Agent"),
         )
         db.add(subscription)
+        logger.info("Created new push subscription for user %s", user.id)
     
     await db.commit()
     
