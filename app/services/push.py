@@ -169,15 +169,22 @@ class PushNotificationService:
         workspace_id: int,
         channel_id: int,
         message_preview: str,
+        workspace_name: str = None,
     ) -> int:
         """Send notification for a direct message.
         
         Returns number of push notifications sent.
         """
+        # Build title with workspace name if available
+        if workspace_name:
+            title = f"{sender_name} ({workspace_name})"
+        else:
+            title = f"Message from {sender_name}"
+        
         return await self.send_notification(
             db=db,
             user_id=recipient_user_id,
-            title=f"New message from {sender_name}",
+            title=title,
             body=message_preview[:100],
             url=f"/workspaces/{workspace_id}/channels/{channel_id}",
             tag=f"dm-{channel_id}",

@@ -270,12 +270,19 @@ async def send_message(
     try:
         from app.services.push import push_service
         from app.models.user import User
+        from app.models.workspace import Workspace
         import re
         import logging
         push_logger = logging.getLogger(__name__)
         
         # Check if this is a DM channel
         if channel.is_dm:
+            # Get workspace name for notification
+            ws_result = await db.execute(
+                select(Workspace.name).where(Workspace.id == workspace_id)
+            )
+            workspace_name = ws_result.scalar_one_or_none() or "Message"
+            
             # Get all members of the DM except the sender
             result = await db.execute(
                 select(ChannelMembership.user_id)
@@ -297,6 +304,7 @@ async def send_message(
                     workspace_id=workspace_id,
                     channel_id=channel_id,
                     message_preview=body[:100],
+                    workspace_name=workspace_name,
                 )
                 push_logger.info("Push notification result for user %s: sent=%s", recipient_id, sent)
         
