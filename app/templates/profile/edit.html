@@ -324,6 +324,21 @@
                 <div id="push-notifications-content">
                     <!-- Content populated by JS based on browser support -->
                 </div>
+                
+                <!-- Debug Panel -->
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-4">
+                        <button onclick="togglePushDebug()" class="text-xs text-gray-500 hover:text-gray-400">
+                            Show Debug Info
+                        </button>
+                        <button onclick="forceRegisterPush()" class="text-xs text-blue-500 hover:text-blue-400">
+                            Force Register
+                        </button>
+                    </div>
+                    <div id="push-debug-panel" class="hidden mt-2 p-3 bg-black/30 rounded-lg text-xs font-mono text-gray-400 space-y-1">
+                        <div id="debug-info">Loading debug info...</div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -446,33 +461,61 @@
                     // Check if service worker is registered, register if not
                     let registration;
                     try {
-                        const existingReg = await navigator.serviceWorker.getRegistration();
+                        let existingReg = await navigator.serviceWorker.getRegistration();
                         console.log('[Push Profile] Existing SW registration:', existingReg ? existingReg.scope : 'none');
                         
                         if (!existingReg) {
-                            console.log('[Push Profile] Registering service worker...');
-                            registration = await navigator.serviceWorker.register('/static/sw.js');
-                            console.log('[Push Profile] SW registered, waiting for active...');
+                            console.log('[Push Profile] No SW, registering...');
+                            existingReg = await navigator.serviceWorker.register('/static/sw.js');
+                            console.log('[Push Profile] SW registration initiated');
                         }
                         
-                        // Wait for SW ready with timeout
-                        const swReadyPromise = navigator.serviceWorker.ready;
-                        const timeoutPromise = new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Service worker not ready after 10s')), 10000)
-                        );
-                        registration = await Promise.race([swReadyPromise, timeoutPromise]);
-                        console.log('[Push Profile] Service worker ready');
+                        // Wait for SW to become active (not just registered)
+                        if (existingReg.installing || existingReg.waiting) {
+                            console.log('[Push Profile] SW installing/waiting, waiting for active...');
+                            const sw = existingReg.installing || existingReg.waiting;
+                            await new Promise((resolve, reject) => {
+                                const timeout = setTimeout(() => reject(new Error('SW activation timeout')), 15000);
+                                sw.addEventListener('statechange', () => {
+                                    console.log('[Push Profile] SW state:', sw.state);
+                                    if (sw.state === 'activated') {
+                                        clearTimeout(timeout);
+                                        resolve();
+                                    } else if (sw.state === 'redundant') {
+                                        clearTimeout(timeout);
+                                        reject(new Error('SW became redundant'));
+                                    }
+                                });
+                                // If already active, resolve immediately
+                                if (existingReg.active) {
+                                    clearTimeout(timeout);
+                                    resolve();
+                                }
+                            });
+                        }
+                        
+                        // Now get the ready registration
+                        registration = await navigator.serviceWorker.ready;
+                        console.log('[Push Profile] Service worker ready, scope:', registration.scope);
                     } catch (swErr) {
                         console.error('[Push Profile] Service worker error:', swErr);
                         updateStatus('error', 'SW Error');
                         contentEl.innerHTML = `
                             <div class="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/30">
-                                <p class="text-sm text-yellow-400">
-                                    Service worker not ready. Try refreshing the page.
+                                <p class="text-sm text-yellow-400 mb-2">
+                                    Service worker not ready: ${swErr.message}
                                 </p>
-                                <button onclick="location.reload()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">
-                                    Refresh Page
-                                </button>
+                                <p class="text-xs text-gray-500 mb-3">
+                                    This can happen with cached content. Try clearing the app cache.
+                                </p>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button onclick="clearCacheAndReload()" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-500">
+                                        Clear Cache & Reload
+                                    </button>
+                                    <button onclick="location.reload()" class="px-3 py-1.5 text-sm border border-white/20 text-gray-300 rounded hover:bg-white/10">
+                                        Just Refresh
+                                    </button>
+                                </div>
                             </div>
                         `;
                         return;
@@ -721,6 +764,210 @@
                 
                 // Expose for retry button
                 window.checkPushSupport = checkPushSupport;
+                
+                // Clear cache and reload
+                window.clearCacheAndReload = async function() {
+                    try {
+                        // Unregister all service workers
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (const reg of registrations) {
+                            await reg.unregister();
+                            console.log('Unregistered SW:', reg.scope);
+                        }
+                        
+                        // Clear all caches
+                        const cacheNames = await caches.keys();
+                        for (const name of cacheNames) {
+                            await caches.delete(name);
+                            console.log('Deleted cache:', name);
+                        }
+                        
+                        // Force reload from server
+                        location.reload(true);
+                    } catch (e) {
+                        console.error('Error clearing cache:', e);
+                        location.reload(true);
+                    }
+                };
+                
+                // Debug panel toggle
+                window.togglePushDebug = function() {
+                    const panel = document.getElementById('push-debug-panel');
+                    panel.classList.toggle('hidden');
+                    if (!panel.classList.contains('hidden')) {
+                        loadDebugInfo();
+                    }
+                };
+                
+                // Force register - step by step with alerts
+                window.forceRegisterPush = async function() {
+                    const debugEl = document.getElementById('debug-info');
+                    const panel = document.getElementById('push-debug-panel');
+                    panel.classList.remove('hidden');
+                    
+                    const log = (msg) => {
+                        console.log('[Force Register]', msg);
+                        debugEl.innerHTML += '<br>' + msg;
+                    };
+                    
+                    debugEl.innerHTML = 'Starting force registration...<br>';
+                    
+                    try {
+                        // Step 1: Check/Register service worker
+                        log('Step 1: Checking service worker...');
+                        if (!('serviceWorker' in navigator)) {
+                            log('ERROR: serviceWorker not supported');
+                            return;
+                        }
+                        
+                        let reg = await navigator.serviceWorker.getRegistration();
+                        if (!reg) {
+                            log('No SW registered, registering now...');
+                            reg = await navigator.serviceWorker.register('/static/sw.js');
+                            log('SW registered, waiting for active...');
+                            await navigator.serviceWorker.ready;
+                            log('SW now ready');
+                        } else {
+                            log('SW already registered: ' + reg.scope);
+                        }
+                        
+                        // Step 2: Request notification permission
+                        log('Step 2: Checking notification permission...');
+                        if (Notification.permission === 'default') {
+                            log('Permission is default, requesting...');
+                            const result = await Notification.requestPermission();
+                            log('Permission result: ' + result);
+                            if (result !== 'granted') {
+                                log('ERROR: Permission not granted');
+                                return;
+                            }
+                        } else if (Notification.permission === 'denied') {
+                            log('ERROR: Permission is denied');
+                            return;
+                        } else {
+                            log('Permission already granted');
+                        }
+                        
+                        // Step 3: Get VAPID key
+                        log('Step 3: Fetching VAPID key...');
+                        const vapidResp = await fetch('/push/vapid-public-key');
+                        if (!vapidResp.ok) {
+                            log('ERROR: VAPID fetch failed: ' + vapidResp.status);
+                            return;
+                        }
+                        const { publicKey } = await vapidResp.json();
+                        log('Got VAPID key: ' + publicKey.substring(0, 20) + '...');
+                        
+                        // Step 4: Create push subscription
+                        log('Step 4: Creating push subscription...');
+                        const swReg = await navigator.serviceWorker.ready;
+                        const subscription = await swReg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicKey)
+                        });
+                        log('Subscription created: ' + subscription.endpoint.substring(0, 50) + '...');
+                        
+                        // Step 5: Send to server
+                        log('Step 5: Sending to server...');
+                        const arrayBufferToBase64url = (buffer) => {
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                        };
+                        
+                        const formData = new FormData();
+                        formData.append('endpoint', subscription.endpoint);
+                        formData.append('p256dh', arrayBufferToBase64url(subscription.getKey('p256dh')));
+                        formData.append('auth', arrayBufferToBase64url(subscription.getKey('auth')));
+                        
+                        const subResp = await fetch('/push/subscribe', {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        
+                        if (subResp.ok) {
+                            log('SUCCESS! Server responded: ' + subResp.status);
+                            log('Refreshing page to verify...');
+                            setTimeout(() => location.reload(), 2000);
+                        } else {
+                            const errText = await subResp.text();
+                            log('ERROR: Server rejected: ' + subResp.status + ' - ' + errText);
+                        }
+                    } catch (err) {
+                        log('ERROR: ' + err.message);
+                        console.error(err);
+                    }
+                };
+                
+                // Load debug info
+                async function loadDebugInfo() {
+                    const debugEl = document.getElementById('debug-info');
+                    const lines = [];
+                    
+                    // Browser support
+                    lines.push('serviceWorker in navigator: ' + ('serviceWorker' in navigator));
+                    lines.push('PushManager in window: ' + ('PushManager' in window));
+                    lines.push('Notification in window: ' + ('Notification' in window));
+                    
+                    // Notification permission
+                    if ('Notification' in window) {
+                        lines.push('Notification.permission: ' + Notification.permission);
+                    }
+                    
+                    // Service worker status
+                    if ('serviceWorker' in navigator) {
+                        try {
+                            const reg = await navigator.serviceWorker.getRegistration();
+                            if (reg) {
+                                lines.push('SW registered: yes');
+                                lines.push('SW scope: ' + reg.scope);
+                                lines.push('SW active: ' + (reg.active ? 'yes' : 'no'));
+                                lines.push('SW installing: ' + (reg.installing ? 'yes' : 'no'));
+                                lines.push('SW waiting: ' + (reg.waiting ? 'yes' : 'no'));
+                                
+                                // Push subscription
+                                try {
+                                    const sub = await reg.pushManager.getSubscription();
+                                    lines.push('Browser subscription: ' + (sub ? 'yes' : 'no'));
+                                    if (sub) {
+                                        lines.push('Endpoint: ' + sub.endpoint.substring(0, 60) + '...');
+                                    }
+                                } catch (e) {
+                                    lines.push('Push subscription error: ' + e.message);
+                                }
+                            } else {
+                                lines.push('SW registered: no');
+                            }
+                        } catch (e) {
+                            lines.push('SW check error: ' + e.message);
+                        }
+                    }
+                    
+                    // Server subscription status
+                    try {
+                        const resp = await fetch('/push/status');
+                        if (resp.ok) {
+                            const status = await resp.json();
+                            lines.push('---');
+                            lines.push('Server VAPID configured: ' + status.vapid_configured);
+                            lines.push('Server subscription count: ' + status.subscription_count);
+                            if (status.subscriptions && status.subscriptions.length > 0) {
+                                status.subscriptions.forEach((s, i) => {
+                                    lines.push('  Sub ' + (i+1) + ': ' + s.endpoint_domain);
+                                });
+                            }
+                        } else {
+                            lines.push('Server status error: ' + resp.status);
+                        }
+                    } catch (e) {
+                        lines.push('Server fetch error: ' + e.message);
+                    }
+                    
+                    debugEl.innerHTML = lines.join('<br>');
+                }
                 
                 // Initialize on page load
                 checkPushSupport().catch(err => {
