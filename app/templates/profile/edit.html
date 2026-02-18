@@ -705,6 +705,108 @@
             </div>
         </div>
         
+        <!-- App Cache & Updates -->
+        <div class="mt-8 glass-dark shadow-xl rounded-xl overflow-hidden border border-white/10">
+            <div class="p-6">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-lg font-medium text-white">App Cache & Updates</h2>
+                        <p class="mt-1 text-sm text-gray-400">Clear cached data to get the latest version of the app</p>
+                        <p id="app-version-info" class="mt-1 text-xs text-gray-500"></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="check-updates-btn" type="button" 
+                                onclick="checkForAppUpdates()"
+                                class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500 shadow-lg shadow-slate-500/25 transition-all">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Check for Updates
+                        </button>
+                        <button id="clear-cache-btn" type="button"
+                                onclick="clearAppCacheFromProfile()"
+                                class="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-500 shadow-lg shadow-orange-500/25 transition-all">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Clear Cache & Reload
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            // Check for updates and display version info
+            async function checkForAppUpdates() {
+                const btn = document.getElementById('check-updates-btn');
+                const versionInfo = document.getElementById('app-version-info');
+                
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Checking...';
+                
+                try {
+                    const response = await fetch('/version', { cache: 'no-store' });
+                    const data = await response.json();
+                    
+                    versionInfo.textContent = `Version: ${data.version} (${data.build_sha || 'dev'})`;
+                    
+                    const storedVersion = localStorage.getItem('app_version');
+                    if (storedVersion && storedVersion !== data.version) {
+                        if (window.showToast) {
+                            window.showToast('New version available! Click "Clear Cache & Reload" to update.', 'info');
+                        } else {
+                            alert('New version available! Click "Clear Cache & Reload" to update.');
+                        }
+                    } else {
+                        localStorage.setItem('app_version', data.version);
+                        if (window.showToast) {
+                            window.showToast('You are using the latest version.', 'success');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error checking version:', e);
+                    if (window.showToast) {
+                        window.showToast('Could not check for updates.', 'error');
+                    }
+                }
+                
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Check for Updates';
+            }
+            
+            // Clear cache function for this page
+            function clearAppCacheFromProfile() {
+                if (window.cacheManager) {
+                    window.cacheManager.clearCacheAndReload();
+                } else if (window.clearAppCache) {
+                    window.clearAppCache();
+                } else {
+                    // Fallback
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            Promise.all(names.map(name => caches.delete(name))).then(() => {
+                                localStorage.removeItem('app_version');
+                                window.location.reload(true);
+                            });
+                        });
+                    } else {
+                        window.location.reload(true);
+                    }
+                }
+            }
+            
+            // Load version info on page load
+            (async function() {
+                try {
+                    const response = await fetch('/version', { cache: 'no-store' });
+                    const data = await response.json();
+                    document.getElementById('app-version-info').textContent = `Version: ${data.version} (${data.build_sha || 'dev'})`;
+                } catch (e) {
+                    // Ignore
+                }
+            })();
+        </script>
+        
         <!-- Workspaces -->
         <div class="mt-8 glass-dark shadow-xl rounded-xl overflow-hidden border border-white/10">
             <div class="p-6">

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Forge Communicator"
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"  # Bumped for cache management and push notification fixes
     debug: bool = False
     secret_key: str = Field(default="change-me-in-production-use-openssl-rand-hex-32")
     

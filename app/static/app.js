@@ -269,6 +269,128 @@
     });
 
     // ============================================
+    // Cache & Update Manager
+    // Handles PWA cache clearing and version updates
+    // ============================================
+    
+    window.cacheManager = {
+        // Check for app updates
+        checkForUpdates: async function() {
+            try {
+                const response = await fetch('/version', { cache: 'no-store' });
+                if (!response.ok) return null;
+                
+                const serverVersion = await response.json();
+                const storedVersion = localStorage.getItem('app_version');
+                
+                console.log('Current version:', storedVersion, 'Server version:', serverVersion.version);
+                
+                if (storedVersion && storedVersion !== serverVersion.version) {
+                    console.log('New version available!');
+                    return serverVersion;
+                }
+                
+                // Store current version
+                localStorage.setItem('app_version', serverVersion.version);
+                localStorage.setItem('app_cache_key', serverVersion.cache_key);
+                
+                return null;
+            } catch (e) {
+                console.error('Error checking for updates:', e);
+                return null;
+            }
+        },
+        
+        // Clear all caches and reload
+        clearCacheAndReload: async function() {
+            console.log('Clearing cache and reloading...');
+            
+            try {
+                // Tell service worker to clear cache
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+                }
+                
+                // Also clear caches from the main thread (in case SW is not ready)
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    console.log('Caches cleared:', cacheNames);
+                }
+                
+                // Clear version tracking
+                localStorage.removeItem('app_version');
+                localStorage.removeItem('app_cache_key');
+                
+                // Force reload from server
+                if (window.showToast) {
+                    window.showToast('Cache cleared! Reloading...', 'success');
+                }
+                
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 500);
+                
+            } catch (e) {
+                console.error('Error clearing cache:', e);
+                // Force reload anyway
+                window.location.reload(true);
+            }
+        },
+        
+        // Show update available notification
+        showUpdateNotification: function(versionInfo) {
+            // Check if toast system or alert
+            if (window.showToast) {
+                const toastHtml = `
+                    <div class="flex items-center gap-3">
+                        <span>New version available! (${versionInfo.version})</span>
+                        <button onclick="window.cacheManager.clearCacheAndReload()" 
+                                class="px-2 py-1 bg-white text-blue-600 rounded text-sm font-medium hover:bg-blue-50">
+                            Update Now
+                        </button>
+                    </div>
+                `;
+                window.showToast(toastHtml, 'info', 10000);
+            } else {
+                if (confirm(`New version ${versionInfo.version} available. Reload to update?`)) {
+                    this.clearCacheAndReload();
+                }
+            }
+        },
+        
+        // Initialize - check for updates on page load
+        init: async function() {
+            // Listen for cache cleared message from service worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'CACHE_CLEARED') {
+                        console.log('Service worker confirmed cache cleared');
+                    }
+                });
+            }
+            
+            // Check for updates after a short delay (don't block initial load)
+            setTimeout(async () => {
+                const update = await this.checkForUpdates();
+                if (update) {
+                    this.showUpdateNotification(update);
+                }
+            }, 3000);
+        }
+    };
+    
+    // Initialize cache manager
+    document.addEventListener('DOMContentLoaded', function() {
+        window.cacheManager.init();
+    });
+    
+    // Expose clear cache function globally for easy access
+    window.clearAppCache = function() {
+        window.cacheManager.clearCacheAndReload();
+    };
+
+    // ============================================
     // Notification Sound System (Global)
     // Cross-platform: Desktop, iOS, Android
     // ============================================

@@ -125,6 +125,21 @@ async def healthz():
     return {"status": "healthy"}
 
 
+# Version endpoint for cache management
+@app.get("/version", tags=["meta"])
+async def version():
+    """Return app version for service worker cache invalidation.
+    
+    The service worker checks this to detect when a new version is deployed.
+    Combined with build_sha, this allows automatic cache busting on deploy.
+    """
+    return {
+        "version": settings.app_version,
+        "build_sha": settings.build_sha,
+        "cache_key": f"forge-communicator-{settings.app_version}-{settings.build_sha[:8] if settings.build_sha else 'dev'}",
+    }
+
+
 # Offline page for PWA
 @app.get("/offline", response_class=HTMLResponse)
 async def offline_page(request: Request):

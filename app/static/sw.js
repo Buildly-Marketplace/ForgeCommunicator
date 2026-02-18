@@ -2,7 +2,9 @@
 // Handles push notifications and offline caching for PWA
 // iOS 16.4+ and Android Chrome support Web Push when installed as PWA
 
-const CACHE_NAME = 'forge-communicator-v6';
+// Cache name is checked against server version on each page load
+// When a new version is deployed, the old cache is automatically cleared
+let CACHE_NAME = 'forge-communicator-v7';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -17,13 +19,31 @@ const STATIC_ASSETS = [
     '/auth/login'
 ];
 
+// Check server version and update cache name if needed
+async function checkVersion() {
+    try {
+        const response = await fetch('/version', { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.cache_key) {
+                CACHE_NAME = data.cache_key;
+                return data;
+            }
+        }
+    } catch (e) {
+        console.log('[SW] Could not check version:', e);
+    }
+    return null;
+}
+
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
     console.log('[SW] Service worker installing...');
     event.waitUntil(
-        caches.open(CACHE_NAME)
+        checkVersion()
+            .then(() => caches.open(CACHE_NAME))
             .then((cache) => {
-                console.log('[SW] Caching static assets');
+                console.log('[SW] Caching static assets with cache:', CACHE_NAME);
                 // Cache what we can, don't fail if some assets aren't available
                 return Promise.allSettled(
                     STATIC_ASSETS.map(url => 
@@ -193,4 +213,52 @@ self.addEventListener('notificationclick', (event) => {
 // Handle notification close
 self.addEventListener('notificationclose', (event) => {
     console.log('[SW] Notification closed');
+});
+// Message handler for cache management from the client
+self.addEventListener('message', (event) => {
+    console.log('[SW] Received message:', event.data);
+    
+    if (event.data && event.data.type === 'CLEAR_CACHE') {
+        // Clear all caches and reload
+        event.waitUntil(
+            caches.keys()
+                .then((cacheNames) => {
+                    console.log('[SW] Clearing all caches:', cacheNames);
+                    return Promise.all(
+                        cacheNames.map((name) => caches.delete(name))
+                    );
+                })
+                .then(() => {
+                    console.log('[SW] All caches cleared');
+                    // Notify all clients that cache was cleared
+                    return self.clients.matchAll();
+                })
+                .then((clients) => {
+                    clients.forEach((client) => {
+                        client.postMessage({ type: 'CACHE_CLEARED' });
+                    });
+                })
+        );
+    }
+    
+    if (event.data && event.data.type === 'CHECK_UPDATE') {
+        // Check for updates and notify client
+        event.waitUntil(
+            checkVersion()
+                .then((versionInfo) => {
+                    return self.clients.matchAll();
+                })
+                .then((clients) => {
+                    clients.forEach((client) => {
+                        client.postMessage({ type: 'VERSION_INFO', cache_name: CACHE_NAME });
+                    });
+                    // Trigger SW update check
+                    return self.registration.update();
+                })
+        );
+    }
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
