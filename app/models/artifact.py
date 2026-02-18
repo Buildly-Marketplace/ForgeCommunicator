@@ -91,6 +91,9 @@ class Artifact(Base, TimestampMixin):
     github_issue_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     buildly_item_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)
     
+    # Source message (for artifacts created from messages)
+    source_message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id", ondelete="SET NULL"), nullable=True)
+    
     # Issue-specific
     severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     
@@ -105,6 +108,7 @@ class Artifact(Base, TimestampMixin):
     product = relationship("Product", back_populates="artifacts")
     author = relationship("User", foreign_keys=[created_by])
     assignee = relationship("User", foreign_keys=[assignee_user_id])
+    source_message = relationship("Message")
     
     @classmethod
     def get_default_status(cls, artifact_type: ArtifactType) -> str:

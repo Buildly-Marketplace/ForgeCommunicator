@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Forge Communicator"
-    app_version: str = "0.2.4"  # Fix sound logic: push plays sound, in-app silent
+    app_version: str = "0.3.0"  # Add message reactions and mark-as-artifact
     debug: bool = False
     secret_key: str = Field(default="change-me-in-production-use-openssl-rand-hex-32")
     

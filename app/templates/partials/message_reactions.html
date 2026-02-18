@@ -1,0 +1,58 @@
+{# Message reactions display and picker #}
+<div class="flex flex-wrap items-center gap-1 mt-1" id="reactions-{{ message_id }}">
+    {# Existing reactions with counts #}
+    {% for reaction in reaction_groups %}
+    <button 
+        hx-post="/reactions/{{ message_id }}/toggle"
+        hx-vals='{"emoji": "{{ reaction.emoji }}"}'
+        hx-target="#reactions-{{ message_id }}"
+        hx-swap="outerHTML"
+        class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-colors
+               {% if reaction.user_reacted %}
+               bg-brand-800/30 border-brand-600 text-white
+               {% else %}
+               bg-dark-700 border-dark-600 text-gray-300 hover:bg-dark-600 hover:border-dark-500
+               {% endif %}"
+        title="{{ reaction.users | join(', ') }}"
+    >
+        <span>{{ reaction.emoji }}</span>
+        <span class="font-medium">{{ reaction.count }}</span>
+    </button>
+    {% endfor %}
+    
+    {# Add reaction button with picker #}
+    <div class="relative" x-data="{ open: false }">
+        <button 
+            @click="open = !open"
+            class="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-white hover:bg-dark-600 rounded transition-colors"
+            title="Add reaction"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+        
+        {# Quick reaction picker #}
+        <div 
+            x-show="open" 
+            @click.outside="open = false"
+            x-transition
+            class="absolute left-0 bottom-full mb-1 flex gap-1 p-1 bg-dark-700 border border-dark-600 rounded-lg shadow-lg z-50"
+        >
+            {% for emoji, name in quick_reactions %}
+            <button
+                hx-post="/reactions/{{ message_id }}/toggle"
+                hx-vals='{"emoji": "{{ emoji }}"}'
+                hx-target="#reactions-{{ message_id }}"
+                hx-swap="outerHTML"
+                @click="open = false"
+                class="w-8 h-8 flex items-center justify-center text-lg hover:bg-dark-600 rounded transition-colors"
+                title="{{ name }}"
+            >
+                {{ emoji }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+</div>

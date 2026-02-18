@@ -508,6 +508,92 @@ async def delete_message(
     )
 
 
+@router.post("/{message_id}/mark-as/{artifact_type}")
+async def mark_message_as_artifact(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    message_id: int,
+    artifact_type: str,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Create an artifact from a message (decision, feature, issue, task)."""
+    from app.models.artifact import Artifact, ArtifactType
+    
+    # Validate artifact type
+    try:
+        art_type = ArtifactType(artifact_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid artifact type: {artifact_type}")
+    
+    await verify_channel_access(workspace_id, channel_id, user.id, db)
+    
+    # Get message
+    result = await db.execute(
+        select(Message)
+        .options(selectinload(Message.user))
+        .where(Message.id == message_id, Message.channel_id == channel_id)
+    )
+    message = result.scalar_one_or_none()
+    
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Check if artifact already exists for this message
+    result = await db.execute(
+        select(Artifact).where(Artifact.source_message_id == message_id)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'<span class="text-xs text-yellow-400">Already marked as {existing.type.value}</span>'
+            )
+        raise HTTPException(status_code=400, detail="Message already has an artifact")
+    
+    # Create artifact from message
+    # Use the first line or first 100 chars as title
+    body_text = message.body.strip()
+    first_line = body_text.split('\n')[0][:100]
+    title = first_line if first_line else f"From message by {message.user.display_name if message.user else 'Unknown'}"
+    
+    artifact = Artifact(
+        workspace_id=workspace_id,
+        channel_id=channel_id,
+        type=art_type,
+        title=title,
+        body=body_text,
+        status=Artifact.get_default_status(art_type),
+        created_by=user.id,
+        source_message_id=message_id,
+    )
+    db.add(artifact)
+    await db.commit()
+    await db.refresh(artifact)
+    
+    if request.headers.get("HX-Request"):
+        # Return badge showing the artifact type
+        badge_colors = {
+            "decision": "bg-purple-600",
+            "feature": "bg-blue-600",
+            "issue": "bg-red-600",
+            "task": "bg-green-600",
+        }
+        color = badge_colors.get(artifact_type, "bg-gray-600")
+        return HTMLResponse(
+            f'''<a href="/workspaces/{workspace_id}/artifacts/{artifact.id}" 
+                   class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded {color} text-white hover:opacity-80">
+                    {artifact_type.title()}
+                </a>'''
+        )
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/artifacts/{artifact.id}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.get("/{message_id}/thread", response_class=HTMLResponse)
 async def get_thread(
     request: Request,

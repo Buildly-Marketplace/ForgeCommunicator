@@ -19,6 +19,7 @@ from app.models.external_integration import (
 from app.models.bridged_channel import BridgedChannel, BridgePlatform
 from app.models.user_session import UserSession
 from app.models.attachment import Attachment, AttachmentType
+from app.models.reaction import MessageReaction
 
 __all__ = [
     "Base",
@@ -53,5 +54,6 @@ __all__ = [
     "UserSession",
     "Attachment",
     "AttachmentType",
+    "MessageReaction",
 ]
 

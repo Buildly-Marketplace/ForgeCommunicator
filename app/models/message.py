@@ -51,6 +51,7 @@ class Message(Base, TimestampMixin):
     user = relationship("User", back_populates="messages")
     parent = relationship("Message", remote_side="Message.id", backref="replies")
     attachments = relationship("Attachment", back_populates="message", lazy="selectin")
+    reactions = relationship("MessageReaction", back_populates="message", lazy="selectin", cascade="all, delete-orphan")
     
     @property
     def is_edited(self) -> bool:

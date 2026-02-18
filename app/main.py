@@ -206,7 +206,7 @@ async def root(request: Request):
 
 
 # Import and include routers
-from app.routers import admin, api, artifacts, auth, channels, invites, messages, notes, profile, push, realtime, sync, workspaces
+from app.routers import admin, api, artifacts, auth, channels, invites, messages, notes, profile, push, reactions, realtime, sync, workspaces
 
 app.include_router(auth.router)
 app.include_router(workspaces.router)
@@ -214,6 +214,7 @@ app.include_router(channels.router)
 app.include_router(channels.dm_router)  # DM JSON API
 app.include_router(messages.router)
 app.include_router(artifacts.router)
+app.include_router(reactions.router)
 app.include_router(realtime.router)
 app.include_router(profile.router)
 app.include_router(push.router)
