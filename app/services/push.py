@@ -29,6 +29,8 @@ class PushNotificationService:
         # Log VAPID configuration status at startup
         if self.vapid_private_key and self.vapid_public_key:
             logger.info("Push notifications enabled - VAPID keys configured")
+            logger.info("VAPID public key length: %d, private key length: %d",
+                       len(self.vapid_public_key), len(self.vapid_private_key))
         else:
             logger.warning("Push notifications disabled - VAPID keys not configured")
     
@@ -81,8 +83,25 @@ class PushNotificationService:
         sent_count = 0
         failed_subscriptions = []
         
+        # Helper to ensure proper base64url padding
+        def normalize_base64url(s):
+            if s is None:
+                return None
+            # Add padding if needed
+            padding = 4 - (len(s) % 4)
+            if padding != 4:
+                s += '=' * padding
+            return s
+        
         for sub in subscriptions:
             try:
+                # Log key info for debugging
+                logger.debug("Sending to subscription %s - endpoint: %s...", 
+                           sub.id, sub.endpoint[:60] if sub.endpoint else 'none')
+                logger.debug("p256dh key length: %d, auth key length: %d",
+                           len(sub.p256dh_key) if sub.p256dh_key else 0,
+                           len(sub.auth_key) if sub.auth_key else 0)
+                
                 webpush(
                     subscription_info={
                         "endpoint": sub.endpoint,
@@ -96,7 +115,7 @@ class PushNotificationService:
                     vapid_claims=self.vapid_claims,
                 )
                 sent_count += 1
-                logger.debug("Successfully sent push to subscription %s", sub.id)
+                logger.info("Successfully sent push to subscription %s", sub.id)
             except WebPushException as e:
                 logger.error("Push notification failed for subscription %s: %s (status: %s)", 
                            sub.id, str(e), getattr(e.response, 'status_code', 'N/A') if e.response else 'N/A')
@@ -104,6 +123,13 @@ class PushNotificationService:
                 if e.response and e.response.status_code in (404, 410):
                     logger.info("Marking expired subscription %s for deletion", sub.id)
                     failed_subscriptions.append(sub)
+            except Exception as e:
+                # Catch crypto/key errors that aren't WebPushException
+                logger.error("Push notification error: %s", str(e))
+                logger.error("Subscription %s keys may be malformed - p256dh: %s..., auth: %s...",
+                           sub.id, 
+                           sub.p256dh_key[:20] if sub.p256dh_key else 'none',
+                           sub.auth_key[:10] if sub.auth_key else 'none')
         
         # Clean up invalid subscriptions
         for sub in failed_subscriptions:
