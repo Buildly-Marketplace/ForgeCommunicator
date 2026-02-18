@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Forge Communicator"
-    app_version: str = "0.2.1"  # Push notification body logging and requireInteraction fix
+    app_version: str = "0.2.2"  # Fix push data stream consumption bug
     debug: bool = False
     secret_key: str = Field(default="change-me-in-production-use-openssl-rand-hex-32")
     

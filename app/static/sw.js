@@ -4,7 +4,7 @@
 
 // Cache name is checked against server version on each page load
 // When a new version is deployed, the old cache is automatically cleared
-let CACHE_NAME = 'forge-communicator-v8';
+let CACHE_NAME = 'forge-communicator-v9';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -136,7 +136,6 @@ self.addEventListener('fetch', (event) => {
 // Push notification received
 self.addEventListener('push', (event) => {
     console.log('[SW] Push notification received');
-    console.log('[SW] Raw push data:', event.data ? event.data.text() : 'no data');
     
     let data = {
         title: 'Forge Communicator',
@@ -148,7 +147,12 @@ self.addEventListener('push', (event) => {
     
     if (event.data) {
         try {
-            const parsed = event.data.json();
+            // Read the data as text first (can only read once)
+            const rawText = event.data.text();
+            console.log('[SW] Raw push data:', rawText);
+            
+            // Parse the JSON from the text
+            const parsed = JSON.parse(rawText);
             console.log('[SW] Parsed push data:', JSON.stringify(parsed));
             data = { ...data, ...parsed };
         } catch (e) {
