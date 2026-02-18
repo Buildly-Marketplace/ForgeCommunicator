@@ -100,39 +100,32 @@
         
         <!-- Reactions -->
         <div class="flex flex-wrap items-center gap-1 mt-1" id="reactions-{{ message.id }}">
-            {# Show existing reactions #}
-            {% set reaction_groups = {} %}
-            {% for reaction in message.reactions or [] %}
-                {% if reaction.emoji not in reaction_groups %}
-                    {% set _ = reaction_groups.update({reaction.emoji: {"emoji": reaction.emoji, "count": 0, "users": [], "user_reacted": false}}) %}
-                {% endif %}
-                {% set _ = reaction_groups[reaction.emoji].update({"count": reaction_groups[reaction.emoji].count + 1}) %}
-                {% set _ = reaction_groups[reaction.emoji]["users"].append(reaction.user.display_name if reaction.user else "Unknown") %}
-                {% if reaction.user_id == user.id %}
-                    {% set _ = reaction_groups[reaction.emoji].update({"user_reacted": true}) %}
-                {% endif %}
+            {# Show existing reactions - get unique emojis first #}
+            {% set emoji_list = message.reactions | map(attribute='emoji') | list %}
+            {% set unique_emojis = emoji_list | unique | list %}
+            
+            {% for emoji in unique_emojis %}
+                {% set emoji_reactions = message.reactions | selectattr('emoji', 'equalto', emoji) | list %}
+                {% set count = emoji_reactions | length %}
+                {% set user_reacted = emoji_reactions | selectattr('user_id', 'equalto', user.id) | list | length > 0 %}
+                <button 
+                    hx-post="/reactions/{{ message.id }}/toggle"
+                    hx-vals='{"emoji": "{{ emoji }}"}'
+                    hx-target="#reactions-{{ message.id }}"
+                    hx-swap="outerHTML"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-colors
+                           {% if user_reacted %}
+                           bg-brand-800/30 border-brand-600 text-white
+                           {% else %}
+                           bg-dark-700 border-dark-600 text-gray-300 hover:bg-dark-600 hover:border-dark-500
+                           {% endif %}"
+                >
+                    <span>{{ emoji }}</span>
+                    <span class="font-medium">{{ count }}</span>
+                </button>
             {% endfor %}
             
-            {% for emoji, data in reaction_groups.items() %}
-            <button 
-                hx-post="/reactions/{{ message.id }}/toggle"
-                hx-vals='{"emoji": "{{ emoji }}"}'
-                hx-target="#reactions-{{ message.id }}"
-                hx-swap="outerHTML"
-                class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-colors
-                       {% if data.user_reacted %}
-                       bg-brand-800/30 border-brand-600 text-white
-                       {% else %}
-                       bg-dark-700 border-dark-600 text-gray-300 hover:bg-dark-600 hover:border-dark-500
-                       {% endif %}"
-                title="{{ data.users | join(', ') }}"
-            >
-                <span>{{ emoji }}</span>
-                <span class="font-medium">{{ data.count }}</span>
-            </button>
-            {% endfor %}
-            
-            {# Add reaction picker #}
+            {# Add reaction picker - visible on hover #}
             <div class="relative" x-data="{ open: false }">
                 <button 
                     @click="open = !open"
@@ -145,7 +138,7 @@
                     </svg>
                 </button>
                 
-                {# Quick reaction picker #}
+                {# Quick reaction picker dropdown #}
                 <div 
                     x-show="open" 
                     @click.outside="open = false"

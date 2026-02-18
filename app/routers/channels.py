@@ -18,6 +18,7 @@ from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership, MembershipRole
 from app.models.message import Message
 from app.models.product import Product
+from app.models.reaction import MessageReaction
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.templates_config import templates
@@ -297,7 +298,11 @@ async def channel_view(
             Message.deleted_at == None,
             Message.parent_id == None,  # Only top-level messages
         )
-        .options(selectinload(Message.user))
+        .options(
+            selectinload(Message.user),
+            selectinload(Message.attachments),
+            selectinload(Message.reactions).selectinload(MessageReaction.user),
+        )
         .order_by(Message.created_at.desc())
         .limit(50)
     )
