@@ -140,6 +140,27 @@ async def version():
     }
 
 
+# Service Worker - must be served from root for correct scope
+@app.get("/sw.js", tags=["pwa"])
+async def service_worker():
+    """Serve service worker from root for full scope coverage.
+    
+    Service workers can only control pages at their level or below.
+    By serving from root, the SW can control the entire app.
+    """
+    from fastapi.responses import FileResponse
+    import os
+    sw_path = os.path.join(os.path.dirname(__file__), "static", "sw.js")
+    return FileResponse(
+        sw_path,
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Service-Worker-Allowed": "/",
+        }
+    )
+
+
 # Offline page for PWA
 @app.get("/offline", response_class=HTMLResponse)
 async def offline_page(request: Request):

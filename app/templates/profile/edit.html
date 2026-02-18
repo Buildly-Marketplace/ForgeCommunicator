@@ -466,7 +466,7 @@
                         
                         if (!existingReg) {
                             console.log('[Push Profile] No SW, registering...');
-                            existingReg = await navigator.serviceWorker.register('/static/sw.js');
+                            existingReg = await navigator.serviceWorker.register('/sw.js');
                             console.log('[Push Profile] SW registration initiated');
                         }
                         
@@ -823,7 +823,7 @@
                         let reg = await navigator.serviceWorker.getRegistration();
                         if (!reg) {
                             log('No SW registered, registering now...');
-                            reg = await navigator.serviceWorker.register('/static/sw.js');
+                            reg = await navigator.serviceWorker.register('/sw.js');
                             log('SW registered, waiting for active...');
                             await navigator.serviceWorker.ready;
                             log('SW now ready');

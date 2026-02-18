@@ -22,7 +22,16 @@ const STATIC_ASSETS = [
 // Check server version and update cache name if needed
 async function checkVersion() {
     try {
-        const response = await fetch('/version', { cache: 'no-store' });
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('/version', { 
+            cache: 'no-store',
+            signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
             const data = await response.json();
             if (data.cache_key) {
@@ -31,14 +40,18 @@ async function checkVersion() {
             }
         }
     } catch (e) {
-        console.log('[SW] Could not check version:', e);
+        console.log('[SW] Could not check version:', e.message || e);
     }
     return null;
 }
 
-// Install event - cache static assets
+// Install event - activate immediately, cache in background
 self.addEventListener('install', (event) => {
     console.log('[SW] Service worker installing...');
+    // Skip waiting immediately - don't block on caching
+    self.skipWaiting();
+    
+    // Cache assets in background (don't block activation)
     event.waitUntil(
         checkVersion()
             .then(() => caches.open(CACHE_NAME))
@@ -51,27 +64,29 @@ self.addEventListener('install', (event) => {
                     )
                 );
             })
-            .then(() => self.skipWaiting())
+            .catch(err => console.log('[SW] Install caching error (non-blocking):', err))
     );
 });
 
-// Activate event - clean up old caches
+// Activate event - claim clients immediately, clean up old caches in background
 self.addEventListener('activate', (event) => {
     console.log('[SW] Service worker activating...');
-    event.waitUntil(
-        caches.keys()
-            .then((cacheNames) => {
-                return Promise.all(
-                    cacheNames
-                        .filter((name) => name !== CACHE_NAME)
-                        .map((name) => {
-                            console.log('[SW] Deleting old cache:', name);
-                            return caches.delete(name);
-                        })
-                );
-            })
-            .then(() => clients.claim())
-    );
+    // Claim clients immediately
+    event.waitUntil(clients.claim());
+    
+    // Clean up old caches in background
+    caches.keys()
+        .then((cacheNames) => {
+            return Promise.all(
+                cacheNames
+                    .filter((name) => name !== CACHE_NAME)
+                    .map((name) => {
+                        console.log('[SW] Deleting old cache:', name);
+                        return caches.delete(name);
+                    })
+            );
+        })
+        .catch(err => console.log('[SW] Cache cleanup error (non-blocking):', err));
 });
 
 // Fetch event - network first, fallback to cache
