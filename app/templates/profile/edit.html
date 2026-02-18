@@ -719,14 +719,23 @@
                 window.sendTestNotification = async function() {
                     try {
                         const response = await fetch('/push/test', { method: 'POST' });
+                        const data = await response.json();
                         if (response.ok) {
-                            alert('Test notification sent! You should receive it shortly.');
+                            if (window.showToast) {
+                                window.showToast('Test notification sent! Check your device.', 'success');
+                            } else {
+                                alert('Test notification sent to ' + data.count + ' device(s)! You should receive it shortly.');
+                            }
                         } else {
-                            alert('Failed to send test notification.');
+                            if (data.message) {
+                                alert('Push test failed: ' + data.message);
+                            } else {
+                                alert('Failed to send test notification. Status: ' + response.status);
+                            }
                         }
                     } catch (error) {
                         console.error('Error sending test:', error);
-                        alert('Error sending test notification.');
+                        alert('Error sending test notification: ' + error.message);
                     }
                 };
                 

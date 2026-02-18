@@ -108,7 +108,13 @@ async def send_test_notification(
     db: DBSession,
 ):
     """Send a test push notification to the current user."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Test notification requested by user %s", user.id)
+    
     if not settings.vapid_public_key:
+        logger.warning("Test notification failed - VAPID not configured")
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Push notifications not configured"
@@ -124,6 +130,8 @@ async def send_test_notification(
         url="/profile",
         tag="test-notification",
     )
+    
+    logger.info("Test notification result for user %s: sent=%d", user.id, sent)
     
     if sent > 0:
         return JSONResponse({"status": "sent", "count": sent})
