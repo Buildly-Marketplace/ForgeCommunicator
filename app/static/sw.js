@@ -4,7 +4,7 @@
 
 // Cache name is checked against server version on each page load
 // When a new version is deployed, the old cache is automatically cleared
-let CACHE_NAME = 'forge-communicator-v7';
+let CACHE_NAME = 'forge-communicator-v8';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -136,6 +136,7 @@ self.addEventListener('fetch', (event) => {
 // Push notification received
 self.addEventListener('push', (event) => {
     console.log('[SW] Push notification received');
+    console.log('[SW] Raw push data:', event.data ? event.data.text() : 'no data');
     
     let data = {
         title: 'Forge Communicator',
@@ -147,11 +148,15 @@ self.addEventListener('push', (event) => {
     
     if (event.data) {
         try {
-            data = { ...data, ...event.data.json() };
+            const parsed = event.data.json();
+            console.log('[SW] Parsed push data:', JSON.stringify(parsed));
+            data = { ...data, ...parsed };
         } catch (e) {
             console.error('[SW] Error parsing push data:', e);
         }
     }
+    
+    console.log('[SW] Final notification - title:', data.title, 'body:', data.body);
     
     // iOS Safari has limited notification options - use compatible subset
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -166,7 +171,7 @@ self.addEventListener('push', (event) => {
         // iOS doesn't support these - only include on non-iOS
         ...(isIOS ? {} : {
             renotify: true,
-            requireInteraction: false,
+            requireInteraction: true,  // Keep notification visible until user interacts
             silent: false,
             vibrate: [100, 50, 100, 50, 100],
             actions: [
@@ -175,6 +180,8 @@ self.addEventListener('push', (event) => {
             ]
         })
     };
+    
+    console.log('[SW] Notification options:', JSON.stringify(options));
     
     // Show notification and play sound
     event.waitUntil(

@@ -327,12 +327,15 @@
                 
                 <!-- Debug Panel -->
                 <div class="mt-4 pt-4 border-t border-white/10">
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-4 flex-wrap">
                         <button onclick="togglePushDebug()" class="text-xs text-gray-500 hover:text-gray-400">
                             Show Debug Info
                         </button>
                         <button onclick="forceRegisterPush()" class="text-xs text-blue-500 hover:text-blue-400">
                             Force Register
+                        </button>
+                        <button onclick="clearAndResubscribe()" class="text-xs text-orange-500 hover:text-orange-400">
+                            Clear & Re-register
                         </button>
                     </div>
                     <div id="push-debug-panel" class="hidden mt-2 p-3 bg-black/30 rounded-lg text-xs font-mono text-gray-400 space-y-1">
@@ -904,6 +907,86 @@
                         } else {
                             const errText = await subResp.text();
                             log('ERROR: Server rejected: ' + subResp.status + ' - ' + errText);
+                        }
+                    } catch (err) {
+                        log('ERROR: ' + err.message);
+                        console.error(err);
+                    }
+                };
+                
+                // Clear server subscriptions and re-register (use when VAPID keys change)
+                window.clearAndResubscribe = async function() {
+                    const debugEl = document.getElementById('debug-info');
+                    const panel = document.getElementById('push-debug-panel');
+                    panel.classList.remove('hidden');
+                    
+                    const log = (msg) => {
+                        console.log('[Clear & Re-register]', msg);
+                        debugEl.innerHTML += '<br>' + msg;
+                    };
+                    
+                    debugEl.innerHTML = 'Clearing old subscriptions and re-registering...<br>';
+                    
+                    try {
+                        // Step 1: Clear browser subscription
+                        log('Step 1: Clearing browser subscription...');
+                        const reg = await navigator.serviceWorker.ready;
+                        const existingSub = await reg.pushManager.getSubscription();
+                        if (existingSub) {
+                            await existingSub.unsubscribe();
+                            log('Browser subscription cleared');
+                        } else {
+                            log('No browser subscription to clear');
+                        }
+                        
+                        // Step 2: Clear server subscriptions
+                        log('Step 2: Clearing server subscriptions...');
+                        const clearResp = await fetch('/push/clear-all', { method: 'POST' });
+                        if (clearResp.ok) {
+                            const data = await clearResp.json();
+                            log('Server cleared: ' + data.count + ' subscription(s)');
+                        } else {
+                            log('Server clear failed: ' + clearResp.status);
+                        }
+                        
+                        // Step 3: Get new VAPID key
+                        log('Step 3: Getting VAPID key...');
+                        const vapidResp = await fetch('/push/vapid-public-key');
+                        const { publicKey } = await vapidResp.json();
+                        log('Got VAPID key');
+                        
+                        // Step 4: Create new subscription
+                        log('Step 4: Creating new subscription...');
+                        const newSub = await reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicKey)
+                        });
+                        log('New subscription created');
+                        
+                        // Step 5: Send to server
+                        log('Step 5: Registering with server...');
+                        const arrayBufferToBase64url = (buffer) => {
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                        };
+                        
+                        const formData = new FormData();
+                        formData.append('endpoint', newSub.endpoint);
+                        formData.append('p256dh', arrayBufferToBase64url(newSub.getKey('p256dh')));
+                        formData.append('auth', arrayBufferToBase64url(newSub.getKey('auth')));
+                        
+                        const subResp = await fetch('/push/subscribe', { method: 'POST', body: formData });
+                        
+                        if (subResp.ok) {
+                            log('SUCCESS! Re-registered with new VAPID key');
+                            log('Refreshing page...');
+                            setTimeout(() => location.reload(), 2000);
+                        } else {
+                            log('ERROR: Server rejected: ' + subResp.status);
                         }
                     } catch (err) {
                         log('ERROR: ' + err.message);

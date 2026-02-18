@@ -113,32 +113,39 @@ async def send_test_notification(
     
     logger.info("Test notification requested by user %s", user.id)
     
-    if not settings.vapid_public_key:
-        logger.warning("Test notification failed - VAPID not configured")
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Push notifications not configured"
+    try:
+        if not settings.vapid_public_key:
+            logger.warning("Test notification failed - VAPID not configured")
+            return JSONResponse(
+                {"status": "error", "message": "Push notifications not configured"},
+                status_code=status.HTTP_501_NOT_IMPLEMENTED
+            )
+        
+        from app.services.push import push_service
+        
+        sent = await push_service.send_notification(
+            db=db,
+            user_id=user.id,
+            title="Test Notification",
+            body="Push notifications are working! 🎉",
+            url="/profile",
+            tag="test-notification",
         )
-    
-    from app.services.push import push_service
-    
-    sent = await push_service.send_notification(
-        db=db,
-        user_id=user.id,
-        title="Test Notification",
-        body="Push notifications are working! 🎉",
-        url="/profile",
-        tag="test-notification",
-    )
-    
-    logger.info("Test notification result for user %s: sent=%d", user.id, sent)
-    
-    if sent > 0:
-        return JSONResponse({"status": "sent", "count": sent})
-    else:
+        
+        logger.info("Test notification result for user %s: sent=%d", user.id, sent)
+        
+        if sent > 0:
+            return JSONResponse({"status": "sent", "count": sent})
+        else:
+            return JSONResponse(
+                {"status": "no_subscriptions", "message": "No active push subscriptions found"},
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+    except Exception as e:
+        logger.error("Test notification error for user %s: %s", user.id, str(e))
         return JSONResponse(
-            {"status": "no_subscriptions", "message": "No active push subscriptions found"},
-            status_code=status.HTTP_404_NOT_FOUND
+            {"status": "error", "message": str(e)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -173,4 +180,36 @@ async def get_push_status(
         "vapid_configured": vapid_configured,
         "subscription_count": len(subscriptions),
         "subscriptions": sub_info,
+    })
+
+
+@router.post("/clear-all")
+async def clear_all_subscriptions(
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Clear all push subscriptions for the current user.
+    
+    Use this when VAPID keys have changed and old subscriptions are invalid.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    result = await db.execute(
+        select(PushSubscription).where(PushSubscription.user_id == user.id)
+    )
+    subscriptions = result.scalars().all()
+    
+    count = len(subscriptions)
+    for sub in subscriptions:
+        await db.delete(sub)
+    
+    await db.commit()
+    
+    logger.info("Cleared %d push subscriptions for user %s", count, user.id)
+    
+    return JSONResponse({
+        "status": "cleared",
+        "count": count,
+        "message": f"Cleared {count} subscription(s). Please re-enable notifications."
     })

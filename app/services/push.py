@@ -64,6 +64,7 @@ class PushNotificationService:
         
         logger.info("Sending push notification to user %s (%d subscriptions): %s", 
                    user_id, len(subscriptions), title)
+        logger.info("Push body: %s", body[:100] if body else '(empty)')
         
         # Build notification payload
         payload = {
