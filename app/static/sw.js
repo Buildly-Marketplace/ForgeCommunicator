@@ -4,7 +4,7 @@
 
 // Cache name is checked against server version on each page load
 // When a new version is deployed, the old cache is automatically cleared
-let CACHE_NAME = 'forge-communicator-v10';
+let CACHE_NAME = 'forge-communicator-v11';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -172,8 +172,8 @@ self.addEventListener('push', (event) => {
         badge: data.badge,
         tag: data.tag || 'forge-notification',
         data: data.data,
-        // Make silent - we play our own in-app sound via PUSH_RECEIVED handler
-        silent: true,
+        // Let system notification play sound (works even when app is closed)
+        silent: false,
         // iOS doesn't support these - only include on non-iOS
         ...(isIOS ? {} : {
             renotify: true,
