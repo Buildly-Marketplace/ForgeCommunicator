@@ -384,3 +384,286 @@ async def sync_product_with_labs(
         "message": f"Synced {product.name} with Buildly Labs",
         "product_id": product_id,
     })
+
+
+# Push artifact to Buildly Labs
+@router.post("/workspaces/{workspace_id}/channels/{channel_id}/artifacts/{artifact_id}/push-to-labs")
+async def push_artifact_to_labs(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    artifact_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Push an artifact to Buildly Labs as a backlog item.
+    
+    Creates a new backlog item in Labs and stores the UUID to prevent duplicates.
+    """
+    membership = await verify_workspace_access(workspace_id, user.id, db)
+    
+    # Get artifact with product
+    result = await db.execute(
+        select(Artifact)
+        .options(selectinload(Artifact.product))
+        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+    )
+    artifact = result.scalar_one_or_none()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    # Check if already synced
+    if artifact.buildly_item_uuid:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-green-600">
+                    ✓ Already synced to Labs
+                </span>'''
+            )
+        return JSONResponse({
+            "status": "already_synced",
+            "message": "Artifact is already synced to Labs",
+            "buildly_item_uuid": artifact.buildly_item_uuid,
+        })
+    
+    # Get workspace for Labs credentials
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    # Check Labs credentials
+    token = workspace.labs_access_token or workspace.labs_api_token or settings.labs_api_key
+    if not token:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-red-500">
+                    Labs not configured. <a href="/workspaces/{workspace_id}/settings" class="underline">Connect workspace</a>
+                </span>'''
+            )
+        raise HTTPException(status_code=400, detail="Buildly Labs not configured")
+    
+    # Get product UUID (required for Labs)
+    product_uuid = None
+    if artifact.product and artifact.product.labs_product_uuid:
+        product_uuid = artifact.product.labs_product_uuid
+    elif workspace.labs_default_product_uuid:
+        product_uuid = workspace.labs_default_product_uuid
+    
+    if not product_uuid:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-red-500">
+                    No product linked. Set a default product in workspace settings.
+                </span>'''
+            )
+        raise HTTPException(status_code=400, detail="No Labs product linked")
+    
+    # Map artifact type to Labs item type
+    type_mapping = {
+        ArtifactType.DECISION: "story",  # Labs doesn't have decisions, use story
+        ArtifactType.FEATURE: "story",
+        ArtifactType.ISSUE: "bug",
+        ArtifactType.TASK: "task",
+    }
+    labs_type = type_mapping.get(artifact.type, "story")
+    
+    # Map priority
+    priority_mapping = {
+        "urgent": "critical",
+        "high": "high",
+        "medium": "medium",
+        "low": "low",
+    }
+    labs_priority = priority_mapping.get(artifact.priority, "medium")
+    
+    # Create in Labs
+    try:
+        from app.services.labs_sync import LabsSyncService
+        service = LabsSyncService(access_token=token)
+        
+        result = await service.create_backlog_item(
+            product_uuid=product_uuid,
+            title=artifact.title,
+            description=artifact.body or "",
+            item_type=labs_type,
+            priority=labs_priority,
+        )
+        
+        # Store the Labs UUID
+        item_uuid = result.get("uuid") or result.get("data", {}).get("uuid")
+        if item_uuid:
+            artifact.buildly_item_uuid = item_uuid
+            await db.commit()
+            
+            if request.headers.get("HX-Request"):
+                labs_base = settings.labs_api_url.replace("/api", "")
+                return HTMLResponse(
+                    f'''<a href="{labs_base}/backlog/{item_uuid}" target="_blank" 
+                           class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        View in Labs
+                    </a>'''
+                )
+            
+            return JSONResponse({
+                "status": "success",
+                "message": "Artifact pushed to Labs",
+                "buildly_item_uuid": item_uuid,
+            })
+        else:
+            raise Exception("No UUID returned from Labs API")
+            
+    except Exception as e:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-red-500">
+                    Failed: {str(e)[:50]}
+                </span>'''
+            )
+        raise HTTPException(status_code=500, detail=f"Failed to push to Labs: {str(e)}")
+
+
+# Push artifact to GitHub
+@router.post("/workspaces/{workspace_id}/channels/{channel_id}/artifacts/{artifact_id}/push-to-github")
+async def push_artifact_to_github(
+    request: Request,
+    workspace_id: int,
+    channel_id: int,
+    artifact_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Push an artifact to GitHub as an issue.
+    
+    Creates a new GitHub issue and stores the URL to prevent duplicates.
+    """
+    import httpx
+    
+    membership = await verify_workspace_access(workspace_id, user.id, db)
+    
+    # Get artifact
+    result = await db.execute(
+        select(Artifact).where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+    )
+    artifact = result.scalar_one_or_none()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    # Check if already synced
+    if artifact.github_issue_url:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<a href="{artifact.github_issue_url}" target="_blank" 
+                       class="inline-flex items-center text-sm text-gray-600 hover:text-gray-500">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                    </svg>
+                    View on GitHub
+                </a>'''
+            )
+        return JSONResponse({
+            "status": "already_synced",
+            "message": "Artifact is already synced to GitHub",
+            "github_issue_url": artifact.github_issue_url,
+        })
+    
+    # Get workspace for GitHub settings
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    # Check GitHub credentials
+    github_token = workspace.github_token or settings.github_error_token
+    github_repo = workspace.github_repo or settings.github_error_repo
+    
+    if not github_token or not github_repo:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-red-500">
+                    GitHub not configured. <a href="/workspaces/{workspace_id}/settings" class="underline">Connect repo</a>
+                </span>'''
+            )
+        raise HTTPException(status_code=400, detail="GitHub not configured for this workspace")
+    
+    # Build labels based on artifact type
+    labels = []
+    type_labels = {
+        ArtifactType.DECISION: ["decision", "discussion"],
+        ArtifactType.FEATURE: ["enhancement", "feature"],
+        ArtifactType.ISSUE: ["bug"],
+        ArtifactType.TASK: ["task"],
+    }
+    labels.extend(type_labels.get(artifact.type, []))
+    
+    # Add priority label if set
+    if artifact.priority:
+        labels.append(f"priority:{artifact.priority}")
+    
+    # Build issue body
+    body_parts = []
+    if artifact.body:
+        body_parts.append(artifact.body)
+    
+    body_parts.append(f"\n\n---\n_Synced from Forge Communicator_")
+    
+    issue_body = "\n".join(body_parts)
+    
+    # Create GitHub issue
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://api.github.com/repos/{github_repo}/issues",
+                headers={
+                    "Authorization": f"Bearer {github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "ForgeCommunicator",
+                },
+                json={
+                    "title": artifact.title,
+                    "body": issue_body,
+                    "labels": labels,
+                },
+                timeout=30.0,
+            )
+            
+            if response.status_code == 201:
+                issue_data = response.json()
+                issue_url = issue_data.get("html_url")
+                
+                # Store the GitHub URL
+                artifact.github_issue_url = issue_url
+                await db.commit()
+                
+                if request.headers.get("HX-Request"):
+                    return HTMLResponse(
+                        f'''<a href="{issue_url}" target="_blank" 
+                               class="inline-flex items-center text-sm text-gray-600 hover:text-gray-500">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                            </svg>
+                            #{issue_data.get('number')}
+                        </a>'''
+                    )
+                
+                return JSONResponse({
+                    "status": "success",
+                    "message": "Artifact pushed to GitHub",
+                    "github_issue_url": issue_url,
+                    "issue_number": issue_data.get("number"),
+                })
+            else:
+                error_msg = response.json().get("message", response.text[:100])
+                raise Exception(f"GitHub API error: {error_msg}")
+                
+    except Exception as e:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'''<span class="text-sm text-red-500">
+                    Failed: {str(e)[:50]}
+                </span>'''
+            )
+        raise HTTPException(status_code=500, detail=f"Failed to push to GitHub: {str(e)}")

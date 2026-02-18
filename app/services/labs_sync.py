@@ -120,6 +120,72 @@ class LabsSyncService:
             params["product_id"] = product_id
         return await self._request("GET", "/insights", params=params)
     
+    # Create/update methods for pushing to Labs
+    
+    async def create_backlog_item(
+        self,
+        product_uuid: str,
+        title: str,
+        description: str | None = None,
+        item_type: str = "story",  # story, bug, task, epic
+        priority: str = "medium",
+        status: str = "new",
+    ) -> dict:
+        """Create a new backlog item in Labs.
+        
+        Args:
+            product_uuid: UUID of the product in Labs
+            title: Item title
+            description: Item description/body
+            item_type: Type of item (story, bug, task, epic)
+            priority: Priority level (low, medium, high, critical)
+            status: Status (new, in_progress, done, etc.)
+        
+        Returns:
+            Created item data including 'uuid' field
+        """
+        payload = {
+            "product_uuid": product_uuid,
+            "name": title,
+            "description": description or "",
+            "type": item_type,
+            "priority": priority,
+            "status": status,
+        }
+        return await self._request("POST", "/backlog", json=payload)
+    
+    async def update_backlog_item(
+        self,
+        item_uuid: str,
+        title: str | None = None,
+        description: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+    ) -> dict:
+        """Update an existing backlog item in Labs.
+        
+        Args:
+            item_uuid: UUID of the backlog item to update
+            title: New title (optional)
+            description: New description (optional)
+            status: New status (optional)
+            priority: New priority (optional)
+        
+        Returns:
+            Updated item data
+        """
+        payload = {}
+        if title is not None:
+            payload["name"] = title
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        if priority is not None:
+            payload["priority"] = priority
+        
+        return await self._request("PATCH", f"/backlog/{item_uuid}", json=payload)
+    
     # Sync methods
     
     async def sync_products(

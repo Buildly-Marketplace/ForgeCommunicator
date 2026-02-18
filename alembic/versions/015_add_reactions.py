@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic
-revision = '015_add_reactions_and_artifact_source'
+revision = '015_add_reactions'
 down_revision = '014_add_attachments'
 branch_labels = None
 depends_on = None

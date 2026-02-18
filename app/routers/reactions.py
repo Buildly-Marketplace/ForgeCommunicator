@@ -12,7 +12,8 @@ from sqlalchemy.orm import selectinload
 from app.deps import CurrentUser, DBSession
 from app.models.reaction import MessageReaction
 from app.models.message import Message
-from app.models.channel import Channel, ChannelMembership
+from app.models.channel import Channel
+from app.models.membership import ChannelMembership
 from app.templates_config import templates
 
 router = APIRouter(prefix="/reactions", tags=["reactions"])

@@ -40,6 +40,11 @@ class Workspace(Base, TimestampMixin):
     labs_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # OAuth refresh token
     labs_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     labs_connected_by_id: Mapped[int | None] = mapped_column(nullable=True)  # User who connected the integration
+    labs_default_product_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)  # Default product for syncing artifacts
+    
+    # GitHub integration
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Format: owner/repo
+    github_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # Personal access token or app token
     
     # Invite system
     invite_code: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
