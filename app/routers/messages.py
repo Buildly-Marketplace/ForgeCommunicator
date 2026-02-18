@@ -271,6 +271,8 @@ async def send_message(
         from app.services.push import push_service
         from app.models.user import User
         import re
+        import logging
+        push_logger = logging.getLogger(__name__)
         
         # Check if this is a DM channel
         if channel.is_dm:
@@ -284,8 +286,11 @@ async def send_message(
             )
             recipient_ids = [row[0] for row in result.fetchall()]
             
+            push_logger.info("DM sent by user %s to channel %s, notifying %d recipients: %s", 
+                           user.id, channel_id, len(recipient_ids), recipient_ids)
+            
             for recipient_id in recipient_ids:
-                await push_service.notify_dm(
+                sent = await push_service.notify_dm(
                     db=db,
                     recipient_user_id=recipient_id,
                     sender_name=user.display_name,
@@ -293,6 +298,7 @@ async def send_message(
                     channel_id=channel_id,
                     message_preview=body[:100],
                 )
+                push_logger.info("Push notification result for user %s: sent=%s", recipient_id, sent)
         
         # Check for @mentions in regular channels
         mention_pattern = re.compile(r'@(\w+(?:\s+\w+)?)', re.IGNORECASE)

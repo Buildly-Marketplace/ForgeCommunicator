@@ -142,9 +142,12 @@ class PushNotificationService:
         workspace_id: int,
         channel_id: int,
         message_preview: str,
-    ):
-        """Send notification for a direct message."""
-        await self.send_notification(
+    ) -> int:
+        """Send notification for a direct message.
+        
+        Returns number of push notifications sent.
+        """
+        return await self.send_notification(
             db=db,
             user_id=recipient_user_id,
             title=f"New message from {sender_name}",
