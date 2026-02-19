@@ -402,10 +402,13 @@ async def push_artifact_to_labs(
     """
     membership = await verify_workspace_access(workspace_id, user.id, db)
     
-    # Get artifact with product
+    # Get artifact with product and channel (for channel's product)
     result = await db.execute(
         select(Artifact)
-        .options(selectinload(Artifact.product))
+        .options(
+            selectinload(Artifact.product),
+            selectinload(Artifact.channel).selectinload(Channel.product),
+        )
         .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
     )
     artifact = result.scalar_one_or_none()
@@ -416,8 +419,11 @@ async def push_artifact_to_labs(
     if artifact.buildly_item_uuid:
         if request.headers.get("HX-Request"):
             return HTMLResponse(
-                f'''<span class="text-sm text-green-600">
-                    ✓ Already synced to Labs
+                f'''<span class="inline-flex items-center px-4 py-2 text-sm text-green-700 bg-green-50 rounded-lg">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Synced to Labs
                 </span>'''
             )
         return JSONResponse({
@@ -437,24 +443,29 @@ async def push_artifact_to_labs(
     if not token:
         if request.headers.get("HX-Request"):
             return HTMLResponse(
-                f'''<span class="text-sm text-red-500">
-                    Labs not configured. <a href="/workspaces/{workspace_id}/settings" class="underline">Connect workspace</a>
+                f'''<span class="inline-flex items-center px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg">
+                    Labs not configured. <a href="/workspaces/{workspace_id}/settings" class="underline ml-1">Connect workspace</a>
                 </span>'''
             )
         raise HTTPException(status_code=400, detail="Buildly Labs not configured")
     
-    # Get product UUID (required for Labs)
+    # Get product UUID - check multiple sources in priority order:
+    # 1. Artifact's direct product
+    # 2. Artifact's channel's product
+    # 3. Workspace default product
     product_uuid = None
     if artifact.product and artifact.product.labs_product_uuid:
         product_uuid = artifact.product.labs_product_uuid
+    elif artifact.channel and artifact.channel.product and artifact.channel.product.labs_product_uuid:
+        product_uuid = artifact.channel.product.labs_product_uuid
     elif workspace.labs_default_product_uuid:
         product_uuid = workspace.labs_default_product_uuid
     
     if not product_uuid:
         if request.headers.get("HX-Request"):
             return HTMLResponse(
-                f'''<span class="text-sm text-red-500">
-                    No product linked. Set a default product in workspace settings.
+                f'''<span class="inline-flex items-center px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg">
+                    No product linked. <a href="/workspaces/{workspace_id}/settings" class="underline ml-1">Set default product</a>
                 </span>'''
             )
         raise HTTPException(status_code=400, detail="No Labs product linked")

@@ -906,6 +906,71 @@ async def update_workspace(
     )
 
 
+@router.put("/{workspace_id}/sync-settings")
+async def update_sync_settings(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    labs_default_product_uuid: Annotated[str | None, Form()] = None,
+    github_repo: Annotated[str | None, Form()] = None,
+    github_token: Annotated[str | None, Form()] = None,
+):
+    """Update workspace sync settings (Labs default product, GitHub config)."""
+    # Check admin access
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership or membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    
+    # Update settings
+    updated_fields = []
+    
+    if labs_default_product_uuid is not None:
+        workspace.labs_default_product_uuid = labs_default_product_uuid if labs_default_product_uuid else None
+        updated_fields.append("Labs default product")
+    
+    if github_repo is not None:
+        workspace.github_repo = github_repo.strip() if github_repo else None
+        updated_fields.append("GitHub repository")
+    
+    if github_token is not None and github_token.strip():
+        # Only update token if a new one was provided (not empty placeholder)
+        workspace.github_token = github_token.strip()
+        updated_fields.append("GitHub token")
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        field_list = ", ".join(updated_fields) if updated_fields else "Settings"
+        return HTMLResponse(f'''
+            <div class="text-green-400 text-sm">✓ {field_list} saved</div>
+            <script>
+                setTimeout(() => {{
+                    document.querySelector('.text-green-400')?.remove();
+                }}, 3000);
+            </script>
+        ''')
+    
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.delete("/{workspace_id}")
 async def delete_workspace(
     request: Request,
