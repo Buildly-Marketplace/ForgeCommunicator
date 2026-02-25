@@ -127,6 +127,56 @@ async def get_messages(
     )
 
 
+@router.post("/read", status_code=204)
+async def mark_channel_read(
+    workspace_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+) -> None:
+    """Mark all messages in a channel as read for the current user.
+
+    Updates last_read_message_id to the latest message so the unread badge clears.
+    Called client-side whenever the user is actively viewing a channel and new messages arrive.
+    """
+    channel = await verify_channel_access(workspace_id, channel_id, user.id, db)
+
+    # Find the latest message ID in this channel
+    result = await db.execute(
+        select(Message.id)
+        .where(Message.channel_id == channel_id, Message.deleted_at == None)
+        .order_by(Message.id.desc())
+        .limit(1)
+    )
+    latest_message_id = result.scalar_one_or_none()
+
+    if latest_message_id is None:
+        return
+
+    # Update or create the membership read pointer
+    result = await db.execute(
+        select(ChannelMembership).where(
+            ChannelMembership.channel_id == channel_id,
+            ChannelMembership.user_id == user.id,
+        )
+    )
+    channel_membership = result.scalar_one_or_none()
+
+    if channel_membership:
+        if (channel_membership.last_read_message_id or 0) < latest_message_id:
+            channel_membership.last_read_message_id = latest_message_id
+            await db.commit()
+    elif not channel.is_private:
+        db.add(
+            ChannelMembership(
+                channel_id=channel_id,
+                user_id=user.id,
+                last_read_message_id=latest_message_id,
+            )
+        )
+        await db.commit()
+
+
 @router.post("", response_class=HTMLResponse)
 async def send_message(
     request: Request,

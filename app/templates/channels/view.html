@@ -721,6 +721,36 @@
     };
 
     // ============================================
+    // Mark Channel as Read
+    // Called whenever the user sees new messages so the sidebar badge clears.
+    // ============================================
+    (function() {
+        let _readTimer = null;
+        window.markChannelRead = function() {
+            clearTimeout(_readTimer);
+            _readTimer = setTimeout(function() {
+                fetch('/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/read', {
+                    method: 'POST',
+                }).catch(function() {});
+            }, 800);
+        };
+
+        // Mark as read when the user switches back to this tab
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                markChannelRead();
+            }
+        });
+
+        // Mark as read when HTMX polling appends new messages to #message-list
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target && evt.detail.target.id === 'message-list') {
+                markChannelRead();
+            }
+        });
+    })();
+
+    // ============================================
     // Native WebSocket for real-time messaging
     // ============================================
     {% if realtime_mode == 'ws' %}
@@ -742,6 +772,7 @@
                 messageList.insertAdjacentHTML('beforeend', data.html);
                 scrollToBottom();
                 playNotificationSound();
+                markChannelRead();
             } else if (data.type === 'message_updated') {
                 const existing = document.getElementById('message-' + data.message_id);
                 if (existing) existing.outerHTML = data.html;
