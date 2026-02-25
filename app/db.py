@@ -173,6 +173,8 @@ async def init_db() -> None:
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_site_configs_key ON site_configs(key)",
+                    # Membership notification preferences (added 2026-02-25)
+                    "ALTER TABLE memberships ADD COLUMN IF NOT EXISTS notify_all_messages BOOLEAN NOT NULL DEFAULT FALSE",
                 ]
                 
                 for migration in migrations:
