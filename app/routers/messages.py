@@ -311,7 +311,8 @@ async def send_message(
         # Check for @mentions in regular channels
         mention_pattern = re.compile(r'@(\w+(?:\s+\w+)?)', re.IGNORECASE)
         mentions = mention_pattern.findall(body)
-        
+        mentioned_user_ids: set[int] = set()
+
         if mentions:
             for mention_name in mentions:
                 # Find user by display name
@@ -325,8 +326,9 @@ async def send_message(
                     )
                 )
                 mentioned_user = result.scalar_one_or_none()
-                
+
                 if mentioned_user:
+                    mentioned_user_ids.add(mentioned_user.id)
                     await push_service.notify_mention(
                         db=db,
                         mentioned_user_id=mentioned_user.id,
@@ -336,6 +338,31 @@ async def send_message(
                         channel_id=channel_id,
                         message_preview=body[:100],
                     )
+
+        # Notify members who opted in to all channel messages (non-DM top-level messages only)
+        if not channel.is_dm and not parent_id:
+            result = await db.execute(
+                select(Membership).where(
+                    Membership.workspace_id == workspace_id,
+                    Membership.notify_all_messages == True,  # noqa: E712
+                    Membership.user_id != user.id,
+                )
+            )
+            all_msg_members = result.scalars().all()
+
+            for member in all_msg_members:
+                # Skip users already notified via @mention to avoid duplicates
+                if member.user_id in mentioned_user_ids:
+                    continue
+                await push_service.notify_channel_message(
+                    db=db,
+                    user_id=member.user_id,
+                    sender_name=user.display_name,
+                    channel_name=channel.display_name,
+                    workspace_id=workspace_id,
+                    channel_id=channel_id,
+                    message_preview=body[:100],
+                )
     except Exception as e:
         # Don't fail the message send if push notification fails
         import logging

@@ -33,6 +33,7 @@ class Membership(Base, TimestampMixin):
     
     # Notification preferences
     notifications_enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    notify_all_messages: Mapped[bool] = mapped_column(default=False, nullable=False)
     
     # Relationships
     workspace = relationship("Workspace", back_populates="memberships")

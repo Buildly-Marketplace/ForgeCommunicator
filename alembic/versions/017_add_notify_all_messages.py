@@ -1,0 +1,31 @@
+"""Add notify_all_messages to memberships
+
+Revision ID: 017
+Revises: 016
+Create Date: 2026-02-25
+
+Adds per-workspace opt-in for push notifications on all channel messages.
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = "017"
+down_revision = "016"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.add_column(
+        "memberships",
+        sa.Column(
+            "notify_all_messages",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
+    )
+
+
+def downgrade() -> None:
+    op.drop_column("memberships", "notify_all_messages")

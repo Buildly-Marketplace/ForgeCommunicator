@@ -221,11 +221,7 @@
         </div>
         
         <!-- Messages area -->
-        <main class="flex-1 relative overflow-hidden flex flex-col bg-dark-800/30"
-              {% if realtime_mode == 'ws' %}
-              hx-ext="ws"
-              ws-connect="/ws/workspaces/{{ workspace.id }}/channels/{{ channel.id }}"
-              {% endif %}>
+        <main class="flex-1 relative overflow-hidden flex flex-col bg-dark-800/30">
             
             <!-- Message list -->
             <div id="message-list" 
@@ -724,31 +720,90 @@
         }
     };
 
-    // WebSocket message handling
+    // ============================================
+    // Native WebSocket for real-time messaging
+    // ============================================
     {% if realtime_mode == 'ws' %}
-    document.body.addEventListener('htmx:wsAfterMessage', function(e) {
-        try {
-            const data = JSON.parse(e.detail.message);
+    (function() {
+        const WS_URL = (location.protocol === 'https:' ? 'wss:' : 'ws:') +
+                       '//' + location.host +
+                       '/ws/workspaces/{{ workspace.id }}/channels/{{ channel.id }}';
+        let socket = null;
+        let reconnectDelay = 1000;
+        let pingInterval = null;
+        let intentionalClose = false;
+
+        function handleMessage(data) {
             if (data.type === 'new_message') {
                 const messageList = document.getElementById('message-list');
-                // Check for duplicate - message might already exist from HTMX response
-                const existingMsg = document.getElementById('message-' + data.message_id);
-                if (existingMsg) {
-                    console.log('Skipping duplicate message:', data.message_id);
-                    return;
-                }
+                if (!messageList) return;
+                // Deduplicate: sender already sees their own message via HTMX
+                if (document.getElementById('message-' + data.message_id)) return;
                 messageList.insertAdjacentHTML('beforeend', data.html);
                 scrollToBottom();
-                // Play notification sound (already excluded sender on server side)
                 playNotificationSound();
+            } else if (data.type === 'message_updated') {
+                const existing = document.getElementById('message-' + data.message_id);
+                if (existing) existing.outerHTML = data.html;
             } else if (data.type === 'message_deleted') {
                 const msg = document.getElementById('message-' + data.message_id);
                 if (msg) msg.remove();
+            } else if (data.type === 'typing') {
+                // Typing indicator (future use)
             }
-        } catch (err) {
-            console.error('WS message error:', err);
         }
-    });
+
+        function connect() {
+            intentionalClose = false;
+            socket = new WebSocket(WS_URL);
+            window._forgeSocket = socket;
+
+            socket.onopen = function() {
+                console.log('WebSocket connected');
+                reconnectDelay = 1000;
+                // Keepalive ping every 30 seconds
+                pingInterval = setInterval(function() {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({type: 'ping'}));
+                    }
+                }, 30000);
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (err) {
+                    console.error('WebSocket message parse error:', err);
+                }
+            };
+
+            socket.onclose = function(event) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+                if (!intentionalClose && !window._navigatingAway) {
+                    // Reconnect with exponential backoff (max 30 seconds)
+                    console.log('WebSocket closed, reconnecting in', reconnectDelay, 'ms');
+                    setTimeout(connect, reconnectDelay);
+                    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+                }
+            };
+
+            socket.onerror = function(err) {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        // Connect when page loads
+        document.addEventListener('DOMContentLoaded', connect);
+
+        // Clean up on navigation
+        window.addEventListener('beforeunload', function() {
+            intentionalClose = true;
+            clearInterval(pingInterval);
+            if (socket) socket.close();
+        });
+    })();
     {% endif %}
     
     // ============================================

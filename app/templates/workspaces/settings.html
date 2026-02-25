@@ -603,6 +603,60 @@
             </div>
         </div>
         
+        <!-- My Notification Preferences -->
+        <div class="glass-dark shadow-xl rounded-xl p-6 mb-6 border border-white/10">
+            <h2 class="text-lg font-medium text-white mb-1">My Notification Preferences</h2>
+            <p class="text-sm text-gray-400 mb-5">Choose what triggers a push notification for you in this workspace.</p>
+
+            <form hx-put="/workspaces/{{ workspace.id }}/notification-settings"
+                  hx-target="#notification-settings-result"
+                  hx-swap="innerHTML"
+                  class="space-y-4">
+
+                <div class="space-y-3">
+                    <!-- Always-on options (informational) -->
+                    <label class="flex items-start opacity-60 cursor-not-allowed">
+                        <input type="checkbox" checked disabled
+                               class="mt-0.5 w-4 h-4 rounded border-white/20 bg-dark-800 text-blue-600">
+                        <div class="ml-3">
+                            <span class="text-sm text-white font-medium">Direct messages</span>
+                            <p class="text-xs text-gray-500">Always on — you're notified for every DM.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start opacity-60 cursor-not-allowed">
+                        <input type="checkbox" checked disabled
+                               class="mt-0.5 w-4 h-4 rounded border-white/20 bg-dark-800 text-blue-600">
+                        <div class="ml-3">
+                            <span class="text-sm text-white font-medium">@mentions</span>
+                            <p class="text-xs text-gray-500">Always on — you're notified when someone mentions you.</p>
+                        </div>
+                    </label>
+
+                    <!-- Configurable: all channel messages -->
+                    <label class="flex items-start cursor-pointer">
+                        <input type="checkbox" name="notify_all_messages" value="true"
+                               {% if membership.notify_all_messages %}checked{% endif %}
+                               class="mt-0.5 w-4 h-4 rounded border-white/20 bg-dark-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-0">
+                        <div class="ml-3">
+                            <span class="text-sm text-white font-medium">All channel messages</span>
+                            <p class="text-xs text-gray-500">
+                                Get a push notification for every message posted in any channel of this workspace
+                                (not just DMs and mentions). Useful for small, high-priority workspaces.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <div id="notification-settings-result"></div>
+
+                <button type="submit"
+                        class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
+                    Save Preferences
+                </button>
+            </form>
+        </div>
+
         <!-- Danger Zone -->
         {% if membership.role in ['owner'] %}
         <div class="glass-dark shadow-xl rounded-xl p-6 border-2 border-red-500/30">

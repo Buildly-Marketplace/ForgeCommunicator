@@ -426,19 +426,12 @@
             window._navigatingAway = true;
         });
         
-        // Patch htmx to handle WebSocket cleanup gracefully
+        // Close native WebSocket on HTMX page swaps
         document.addEventListener('htmx:beforeSwap', function(e) {
-            // Close any WebSocket connections before swapping content
-            const wsElements = document.querySelectorAll('[hx-ext*="ws"]');
-            wsElements.forEach(function(el) {
-                if (el._htmxWebSocket) {
-                    try {
-                        el._htmxWebSocket.close();
-                    } catch (err) {
-                        // Ignore close errors
-                    }
-                }
-            });
+            if (window._forgeSocket) {
+                try { window._forgeSocket.close(); } catch (err) {}
+                window._forgeSocket = null;
+            }
         });
         
         // Register service worker for PWA and push notifications

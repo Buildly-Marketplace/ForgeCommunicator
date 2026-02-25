@@ -161,6 +161,29 @@ class PushNotificationService:
             tag=f"mention-{channel_id}",
         )
     
+    async def notify_channel_message(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        sender_name: str,
+        channel_name: str,
+        workspace_id: int,
+        channel_id: int,
+        message_preview: str,
+    ) -> int:
+        """Send notification for a regular channel message to a subscribed member.
+
+        Returns number of push notifications sent.
+        """
+        return await self.send_notification(
+            db=db,
+            user_id=user_id,
+            title=f"{sender_name} in {channel_name}",
+            body=message_preview[:100],
+            url=f"/workspaces/{workspace_id}/channels/{channel_id}",
+            tag=f"channel-{channel_id}",
+        )
+
     async def notify_dm(
         self,
         db: AsyncSession,

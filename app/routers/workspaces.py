@@ -971,6 +971,40 @@ async def update_sync_settings(
     )
 
 
+@router.put("/{workspace_id}/notification-settings")
+async def update_notification_settings(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    notify_all_messages: Annotated[str | None, Form()] = None,
+):
+    """Update the current user's notification preferences for a workspace."""
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a workspace member")
+
+    membership.notify_all_messages = notify_all_messages == "true"
+    await db.commit()
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            '<div class="text-green-400 text-sm">✓ Notification preferences saved</div>'
+            "<script>setTimeout(() => { document.querySelector('.text-green-400')?.remove(); }, 3000);</script>"
+        )
+
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}/settings",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.delete("/{workspace_id}")
 async def delete_workspace(
     request: Request,
