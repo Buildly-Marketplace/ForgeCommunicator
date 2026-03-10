@@ -859,15 +859,35 @@
     window.notificationSoundEnabled = localStorage.getItem('notificationSound') !== 'muted';
     window.mutedChannels = JSON.parse(localStorage.getItem('mutedChannels') || '[]');
     
+    // Store the original function reference (may be undefined initially)
+    let _originalPlaySound = null;
+    
+    // Get the original function, ensuring it's loaded
+    function getOriginalPlaySound() {
+        if (!_originalPlaySound && window._appJsPlayNotificationSound) {
+            _originalPlaySound = window._appJsPlayNotificationSound;
+        }
+        return _originalPlaySound;
+    }
+    
     // Override the global playNotificationSound to check channel mute status
-    const originalPlaySound = window.playNotificationSound;
     window.playNotificationSound = function() {
         if (!window.notificationSoundEnabled) return;
         if (window.mutedChannels.includes(window.channelId)) return;
         
-        // Use the global sound player
-        if (originalPlaySound) {
-            originalPlaySound();
+        // Get the original sound player from app.js
+        const originalFn = getOriginalPlaySound();
+        if (originalFn && typeof originalFn === 'function') {
+            originalFn();
+        } else {
+            // Fallback: try to play sound directly if app.js function not available
+            try {
+                const audio = new Audio('/static/chirp.mp3');
+                audio.volume = 0.5;
+                audio.play().catch(e => console.log('Sound play failed:', e));
+            } catch (e) {
+                console.log('Fallback sound failed:', e);
+            }
         }
     };
     

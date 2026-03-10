@@ -353,23 +353,25 @@ async def channel_view(
             last_read_id = user_channel_memberships.get(ch_id)
             
             if last_read_id is not None:
-                # Count messages after last read
+                # Count messages after last read (exclude thread replies)
                 count_result = await db.execute(
                     select(sqlfunc.count(Message.id))
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
+                        Message.parent_id == None,  # Only top-level messages
                         Message.id > last_read_id,
                         Message.user_id != user.id,  # Don't count own messages
                     )
                 )
             else:
-                # No membership record - count all messages (except own)
+                # No membership record - count all messages (except own, exclude thread replies)
                 count_result = await db.execute(
                     select(sqlfunc.count(Message.id))
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
+                        Message.parent_id == None,  # Only top-level messages
                         Message.user_id != user.id,  # Don't count own messages
                     )
                 )

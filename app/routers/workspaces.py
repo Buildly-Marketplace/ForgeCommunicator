@@ -90,17 +90,19 @@ async def list_workspaces(
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
+                        Message.parent_id == None,  # Only top-level messages, not thread replies
                         Message.id > last_read_id,
                         Message.user_id != user.id,
                     )
                 )
             else:
-                # No membership - count all messages except own
+                # No membership - count all messages except own (and thread replies)
                 count_result = await db.execute(
                     select(sqlfunc.count(Message.id))
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
+                        Message.parent_id == None,  # Only top-level messages, not thread replies
                         Message.user_id != user.id,
                     )
                 )

@@ -454,8 +454,12 @@
                 navigator.serviceWorker.addEventListener('message', (event) => {
                     if (event.data && event.data.type === 'PUSH_RECEIVED') {
                         console.log('Push notification received in app:', event.data);
-                        // Don't play sound here - the system push notification already plays it
-                        // Just show toast notification if available
+                        // Play in-app sound as backup (system notification may not play sound 
+                        // when app is in foreground or system sounds are muted)
+                        if (window.playNotificationSound) {
+                            window.playNotificationSound();
+                        }
+                        // Show toast notification if available
                         if (window.showToast) {
                             window.showToast(event.data.body, 'info');
                         }

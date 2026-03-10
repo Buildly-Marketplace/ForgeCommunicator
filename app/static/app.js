@@ -450,10 +450,8 @@
     document.addEventListener('touchstart', initAudioOnInteraction);
     document.addEventListener('keydown', initAudioOnInteraction);
     
-    // Play notification sound using Web Audio API (best cross-platform support)
-    window.playNotificationSound = function() {
-        if (!window.notificationSoundEnabled) return;
-        
+    // Core notification sound function (internal implementation)
+    function _playNotificationSoundCore() {
         // Resume audio context if suspended (mobile browsers)
         if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume();
@@ -491,6 +489,15 @@
             console.log('HTML5 Audio not available:', e);
             playFallbackBeep();
         }
+    }
+    
+    // Expose the core function for channel view to use
+    window._appJsPlayNotificationSound = _playNotificationSoundCore;
+    
+    // Play notification sound using Web Audio API (best cross-platform support)
+    window.playNotificationSound = function() {
+        if (!window.notificationSoundEnabled) return;
+        _playNotificationSoundCore();
     };
     
     // Fallback: Generate a beep using oscillator
@@ -520,13 +527,10 @@
         }
     }
     
-    // Test sound function (for settings page)
+    // Test sound function (for settings page) - always plays regardless of mute status
     window.testNotificationSound = function() {
-        const wasEnabled = window.notificationSoundEnabled;
-        window.notificationSoundEnabled = true;
         initAudio().then(() => {
-            window.playNotificationSound();
-            window.notificationSoundEnabled = wasEnabled;
+            _playNotificationSoundCore();
         });
     };
     

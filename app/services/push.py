@@ -17,6 +17,21 @@ from app.settings import settings
 logger = logging.getLogger(__name__)
 
 
+def strip_html_tags(text: str) -> str:
+    """Strip HTML tags from text for clean notification display."""
+    import re
+    import html
+    if not text:
+        return ""
+    # Decode HTML entities first
+    text = html.unescape(text)
+    # Remove HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
 class PushNotificationService:
     """Service for sending web push notifications."""
     
@@ -66,10 +81,13 @@ class PushNotificationService:
                    user_id, len(subscriptions), title)
         logger.info("Push body: %s", body[:100] if body else '(empty)')
         
+        # Strip HTML from body for clean notification display
+        clean_body = strip_html_tags(body) if body else ""
+        
         # Build notification payload
         payload = {
             "title": title,
-            "body": body,
+            "body": clean_body,
             "icon": icon or "/static/icons/icon-192x192.png",
             "badge": "/static/icons/icon-96x96.png",
             "tag": tag,
