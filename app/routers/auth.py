@@ -475,10 +475,26 @@ async def oauth_callback(
     request: Request,
     db: DBSession,
     provider: str,
-    code: str = Query(...),
+    code: str | None = Query(default=None),
     state: str = Query(...),
+    error: str | None = Query(default=None),
 ):
     """Handle OAuth callback."""
+    # Handle OAuth denial (user clicked 'deny')
+    if error:
+        error_message = "Access+denied" if error == "access_denied" else f"OAuth+error:+{error}"
+        return RedirectResponse(
+            url=f"/auth/login?error={error_message}",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
+    # Require code for successful flow
+    if not code:
+        return RedirectResponse(
+            url="/auth/login?error=Missing+authorization+code",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
     oauth_provider = get_oauth_provider(provider)
     if not oauth_provider:
         raise HTTPException(
@@ -670,16 +686,32 @@ async def google_link_callback(
     request: Request,
     db: DBSession,
     user: CurrentUser,
-    code: str = Query(...),
+    code: str | None = Query(default=None),
     state: str = Query(...),
+    error: str | None = Query(default=None),
 ):
     """
     Handle Google account linking callback.
     Links Google tokens to the current user for calendar access.
     """
+    # Handle OAuth denial (user clicked 'deny')
+    if error:
+        error_message = "Access+denied" if error == "access_denied" else f"Google+link+error:+{error}"
+        return RedirectResponse(
+            url=f"/profile?error={error_message}",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
+    # Require code for successful flow
+    if not code:
+        return RedirectResponse(
+            url="/profile?error=Missing+authorization+code",
+            status_code=status.HTTP_302_FOUND,
+        )
+    
     from datetime import timezone
     from app.services.auth_providers import GoogleOAuthProvider
-    
+
     if not settings.google_oauth_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
