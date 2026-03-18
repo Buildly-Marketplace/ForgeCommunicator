@@ -142,6 +142,14 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = None
     google_allowed_domain: str | None = None  # Restrict to this Google Workspace domain
     
+    @field_validator("google_allowed_domain", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        """Convert empty string to None for optional domain restriction."""
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return None
+        return v.strip()
+    
     # Auth - Buildly Labs OAuth (first-party integration - hardcoded for all deployments)
     # Only the secret is configured via env var for security
     buildly_client_id: str = "forge-communicator"  # Registered in Labs

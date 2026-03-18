@@ -520,9 +520,10 @@ async def oauth_callback(
         # Get user info
         user_info = await oauth_provider.get_user_info(access_token)
         
-        # Check domain restriction for Google
+        # Check domain restriction for Google (only if explicitly configured)
         if provider == "google" and settings.google_allowed_domain:
-            if user_info.domain != settings.google_allowed_domain:
+            # user_info.domain is extracted from email (e.g., "gmail.com", "company.com")
+            if user_info.domain and user_info.domain != settings.google_allowed_domain:
                 return RedirectResponse(
                     url=f"/auth/login?error=Email+domain+not+allowed",
                     status_code=status.HTTP_302_FOUND,
