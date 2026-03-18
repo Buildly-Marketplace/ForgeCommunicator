@@ -367,6 +367,27 @@
                     if (event.data && event.data.type === 'CACHE_CLEARED') {
                         console.log('Service worker confirmed cache cleared');
                     }
+                    // Handle push notification received (from SW)
+                    if (event.data && event.data.type === 'PUSH_RECEIVED') {
+                        console.log('Push received in app:', event.data);
+                        // Play sound if enabled
+                        if (window.playNotificationSound) {
+                            window.playNotificationSound();
+                        }
+                        // Update badge count
+                        if (window.notificationBadge) {
+                            window.notificationBadge.increment();
+                        }
+                        // Add to in-app notification center
+                        if (window.notificationCenter) {
+                            window.notificationCenter.add({
+                                title: event.data.title,
+                                body: event.data.body,
+                                url: event.data.url,
+                                timestamp: Date.now()
+                            });
+                        }
+                    }
                 });
             }
             
@@ -389,6 +410,143 @@
     window.clearAppCache = function() {
         window.cacheManager.clearCacheAndReload();
     };
+
+    // ============================================
+    // PWA Badge API (iOS 16.4+, Android, Desktop)
+    // Shows unread count on home screen icon
+    // ============================================
+    
+    window.notificationBadge = {
+        count: 0,
+        
+        // Set badge to specific number
+        set: function(count) {
+            this.count = Math.max(0, count);
+            this._update();
+        },
+        
+        // Increment badge count
+        increment: function() {
+            this.count++;
+            this._update();
+        },
+        
+        // Clear badge
+        clear: function() {
+            this.count = 0;
+            this._update();
+        },
+        
+        // Internal update function
+        _update: function() {
+            if ('setAppBadge' in navigator) {
+                if (this.count > 0) {
+                    navigator.setAppBadge(this.count).catch(e => console.log('Badge update failed:', e));
+                } else {
+                    navigator.clearAppBadge().catch(e => console.log('Badge clear failed:', e));
+                }
+                console.log('Badge updated:', this.count);
+            }
+        }
+    };
+
+    // ============================================
+    // In-App Notification Center
+    // Tracks notifications for iOS/Mac where system notifications auto-dismiss
+    // ============================================
+    
+    window.notificationCenter = {
+        notifications: [],
+        maxNotifications: 50,
+        storageKey: 'forge_notification_history',
+        
+        // Initialize - load from storage
+        init: function() {
+            try {
+                const stored = localStorage.getItem(this.storageKey);
+                if (stored) {
+                    this.notifications = JSON.parse(stored);
+                    // Update badge with unread count
+                    const unread = this.notifications.filter(n => !n.read).length;
+                    window.notificationBadge.set(unread);
+                }
+            } catch (e) {
+                console.log('Could not load notification history:', e);
+            }
+        },
+        
+        // Add a notification
+        add: function(notification) {
+            this.notifications.unshift({
+                id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                title: notification.title,
+                body: notification.body,
+                url: notification.url,
+                timestamp: notification.timestamp || Date.now(),
+                read: false
+            });
+            
+            // Trim old notifications
+            if (this.notifications.length > this.maxNotifications) {
+                this.notifications = this.notifications.slice(0, this.maxNotifications);
+            }
+            
+            this._save();
+        },
+        
+        // Mark notification as read
+        markRead: function(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification && !notification.read) {
+                notification.read = true;
+                window.notificationBadge.set(this.getUnreadCount());
+                this._save();
+            }
+        },
+        
+        // Mark all as read
+        markAllRead: function() {
+            this.notifications.forEach(n => n.read = true);
+            window.notificationBadge.clear();
+            this._save();
+            
+            // Also dismiss OS notifications
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'DISMISS_ALL_NOTIFICATIONS' });
+            }
+        },
+        
+        // Get unread count
+        getUnreadCount: function() {
+            return this.notifications.filter(n => !n.read).length;
+        },
+        
+        // Get recent notifications
+        getRecent: function(limit = 10) {
+            return this.notifications.slice(0, limit);
+        },
+        
+        // Clear all
+        clear: function() {
+            this.notifications = [];
+            window.notificationBadge.clear();
+            this._save();
+        },
+        
+        // Save to storage
+        _save: function() {
+            try {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.notifications));
+            } catch (e) {
+                console.log('Could not save notification history:', e);
+            }
+        }
+    };
+    
+    // Initialize notification center on load
+    document.addEventListener('DOMContentLoaded', function() {
+        window.notificationCenter.init();
+    });
 
     // ============================================
     // Notification Sound System (Global)

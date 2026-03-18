@@ -57,6 +57,20 @@ class ChannelMembership(Base, TimestampMixin):
     
     # Last read tracking
     last_read_message_id: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class ThreadReadState(Base, TimestampMixin):
+    """Track when users have read thread replies."""
+    
+    __tablename__ = "thread_read_states"
+    __table_args__ = (
+        UniqueConstraint("user_id", "parent_message_id", name="uq_thread_read_user_message"),
+    )
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    parent_message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
+    last_read_reply_id: Mapped[int | None] = mapped_column(nullable=True)  # Last reply the user has seen
     
     # Relationships
     channel = relationship("Channel", back_populates="memberships")

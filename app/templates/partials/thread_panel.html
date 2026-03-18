@@ -50,13 +50,22 @@
         // Show panel
         panel.classList.remove('translate-x-full');
         
-        // Load thread content
+        // Load thread content (this also marks thread as read)
         htmx.ajax('GET', `/workspaces/${window.workspaceId}/channels/${window.channelId}/messages/${messageId}/thread`, {
             target: '#thread-content',
             swap: 'innerHTML'
         }).then(() => {
             // Ensure HTMX processes new content (delete buttons, forms, etc.)
             htmx.process(document.getElementById('thread-content'));
+            
+            // Refresh the parent message to update the "X new replies" badge to "X replies"
+            const mainMessage = document.getElementById(`message-${messageId}`);
+            if (mainMessage) {
+                htmx.ajax('GET', `/workspaces/${window.workspaceId}/channels/${window.channelId}/messages/${messageId}?partial=true`, {
+                    target: `#message-${messageId}`,
+                    swap: 'outerHTML'
+                });
+            }
         });
     };
 

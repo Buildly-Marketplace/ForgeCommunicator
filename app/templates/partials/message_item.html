@@ -165,13 +165,18 @@
         <!-- Thread indicator / Reply button -->
         {% if not is_thread_reply %}
         <div class="mt-2 flex items-center space-x-3">
+            {% set unread_count = unread_thread_counts.get(message.id, 0) if unread_thread_counts is defined else 0 %}
             {% if message.thread_reply_count > 0 %}
             <button onclick="openThread({{ message.id }})"
-                    class="inline-flex items-center text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors">
+                    class="inline-flex items-center text-xs {% if unread_count > 0 %}text-orange-400 hover:text-orange-300 font-semibold{% else %}text-blue-400 hover:text-blue-300{% endif %} hover:underline transition-colors">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                 </svg>
+                {% if unread_count > 0 %}
+                <span class="bg-orange-500/20 px-1.5 py-0.5 rounded">{{ unread_count }} new {{ 'reply' if unread_count == 1 else 'replies' }}</span>
+                {% else %}
                 {{ message.thread_reply_count }} {{ 'reply' if message.thread_reply_count == 1 else 'replies' }}
+                {% endif %}
             </button>
             {% endif %}
             <button onclick="openThread({{ message.id }})"

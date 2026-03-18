@@ -4,7 +4,7 @@
 
 // Cache name is checked against server version on each page load
 // When a new version is deployed, the old cache is automatically cleared
-let CACHE_NAME = 'forge-communicator-v12';
+let CACHE_NAME = 'forge-communicator-v13';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use
@@ -166,11 +166,15 @@ self.addEventListener('push', (event) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
+    // Use unique tag to stack notifications (include timestamp to make unique)
+    // If server provides a tag (e.g., message ID), use that; otherwise generate unique one
+    const uniqueTag = data.tag || `forge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const options = {
         body: data.body,
         icon: data.icon,
         badge: data.badge,
-        tag: data.tag || 'forge-notification',
+        tag: uniqueTag,
         data: data.data,
         // Let system notification play sound (works even when app is closed)
         silent: false,
@@ -181,7 +185,8 @@ self.addEventListener('push', (event) => {
             vibrate: [100, 50, 100, 50, 100],
             actions: [
                 { action: 'open', title: 'Open' },
-                { action: 'dismiss', title: 'Dismiss' }
+                { action: 'dismiss', title: 'Dismiss' },
+                { action: 'dismiss-all', title: 'Dismiss All' }
             ]
         })
     };
@@ -210,12 +215,29 @@ self.addEventListener('push', (event) => {
 
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
-    console.log('[SW] Notification clicked');
-    event.notification.close();
+    console.log('[SW] Notification clicked, action:', event.action);
     
+    // Handle dismiss actions
     if (event.action === 'dismiss') {
+        event.notification.close();
         return;
     }
+    
+    // Handle dismiss all - close all notifications
+    if (event.action === 'dismiss-all') {
+        event.notification.close();
+        event.waitUntil(
+            self.registration.getNotifications()
+                .then((notifications) => {
+                    console.log('[SW] Dismissing all notifications:', notifications.length);
+                    notifications.forEach((notification) => notification.close());
+                })
+        );
+        return;
+    }
+    
+    // Default: close clicked notification and open the app
+    event.notification.close();
     
     const urlToOpen = event.notification.data?.url || '/';
     
@@ -241,9 +263,21 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
     console.log('[SW] Notification closed');
 });
+
 // Message handler for cache management from the client
 self.addEventListener('message', (event) => {
     console.log('[SW] Received message:', event.data);
+    
+    // Dismiss all notifications when app requests it (e.g., when user views messages)
+    if (event.data && event.data.type === 'DISMISS_ALL_NOTIFICATIONS') {
+        event.waitUntil(
+            self.registration.getNotifications()
+                .then((notifications) => {
+                    console.log('[SW] Dismissing all notifications from app:', notifications.length);
+                    notifications.forEach((notification) => notification.close());
+                })
+        );
+    }
     
     if (event.data && event.data.type === 'CLEAR_CACHE') {
         // Clear all caches and reload

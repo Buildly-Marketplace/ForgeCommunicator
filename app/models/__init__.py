@@ -3,7 +3,7 @@ from app.db import Base
 from app.models.user import User, AuthProvider, UserStatus
 from app.models.workspace import Workspace
 from app.models.channel import Channel
-from app.models.membership import Membership, ChannelMembership, MembershipRole
+from app.models.membership import Membership, ChannelMembership, MembershipRole, ThreadReadState
 from app.models.message import Message, ExternalSource
 from app.models.artifact import Artifact, ArtifactType, ArtifactStatus
 from app.models.product import Product
@@ -38,6 +38,7 @@ __all__ = [
     "Channel",
     "Membership",
     "ChannelMembership",
+    "ThreadReadState",
     "MembershipRole",
     "Message",
     "ExternalSource",

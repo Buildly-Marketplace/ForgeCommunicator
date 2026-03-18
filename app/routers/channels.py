@@ -15,7 +15,7 @@ from app.deps import CurrentUser, DBSession
 from app.models.artifact import Artifact, ArtifactType
 from app.models.bridged_channel import BridgedChannel
 from app.models.channel import Channel
-from app.models.membership import ChannelMembership, Membership, MembershipRole
+from app.models.membership import ChannelMembership, Membership, MembershipRole, ThreadReadState
 from app.models.message import Message
 from app.models.product import Product
 from app.models.reaction import MessageReaction
@@ -379,6 +379,48 @@ async def channel_view(
             count = count_result.scalar() or 0
             unread_channels[ch_id] = count
     
+    # Calculate unread thread reply counts for messages in this channel
+    unread_thread_counts = {}
+    messages_with_threads = [m for m in messages if m.thread_reply_count and m.thread_reply_count > 0]
+    if messages_with_threads:
+        thread_message_ids = [m.id for m in messages_with_threads]
+        
+        # Get user's thread read states
+        result = await db.execute(
+            select(ThreadReadState).where(
+                ThreadReadState.user_id == user.id,
+                ThreadReadState.parent_message_id.in_(thread_message_ids),
+            )
+        )
+        thread_read_states = {trs.parent_message_id: trs.last_read_reply_id for trs in result.scalars().all()}
+        
+        # For each thread, count unread replies
+        for msg in messages_with_threads:
+            last_read_id = thread_read_states.get(msg.id)
+            if last_read_id is None:
+                # Never opened thread - all replies are unread (unless it's the user's own replies)
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.parent_id == msg.id,
+                        Message.deleted_at == None,
+                        Message.user_id != user.id,  # Don't count own replies as unread
+                    )
+                )
+                unread_thread_counts[msg.id] = count_result.scalar() or 0
+            else:
+                # Count replies after last read
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.parent_id == msg.id,
+                        Message.deleted_at == None,
+                        Message.id > last_read_id,
+                        Message.user_id != user.id,  # Don't count own replies as unread
+                    )
+                )
+                unread_thread_counts[msg.id] = count_result.scalar() or 0
+    
     # Get recent artifacts for channel
     result = await db.execute(
         select(Artifact)
@@ -427,6 +469,7 @@ async def channel_view(
             "membership": membership,
             "members_json": members_json,
             "unread_channels": unread_channels,
+            "unread_thread_counts": unread_thread_counts,
             "current_channel_id": channel_id,
             "realtime_mode": settings.realtime_mode,
             "poll_interval": settings.poll_interval_seconds,

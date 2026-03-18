@@ -14,7 +14,7 @@ from app.deps import CurrentUser, DBSession
 from app.models.artifact import Artifact
 from app.models.attachment import Attachment, get_attachment_type, is_allowed_extension
 from app.models.channel import Channel
-from app.models.membership import ChannelMembership, Membership
+from app.models.membership import ChannelMembership, Membership, ThreadReadState
 from app.models.message import Message
 from app.services.slash_commands import SlashCommandParser
 from app.settings import settings
@@ -111,6 +111,7 @@ async def get_messages(
                 "workspace_id": workspace_id,
                 "channel_id": channel_id,
                 "append": after is not None,
+                "unread_thread_counts": {},  # New messages have no thread replies yet
             },
         )
     
@@ -123,6 +124,7 @@ async def get_messages(
             "workspace_id": workspace_id,
             "channel_id": channel_id,
             "append": False,
+            "unread_thread_counts": {},  # New messages have no thread replies yet
         },
     )
 
@@ -710,6 +712,30 @@ async def get_thread(
     )
     replies = result.scalars().all()
     
+    # Mark thread as read - upsert ThreadReadState
+    if replies:
+        last_reply_id = replies[-1].id
+        result = await db.execute(
+            select(ThreadReadState).where(
+                ThreadReadState.user_id == user.id,
+                ThreadReadState.parent_message_id == message_id,
+            )
+        )
+        thread_read = result.scalar_one_or_none()
+        
+        if thread_read:
+            thread_read.last_read_reply_id = last_reply_id
+            thread_read.updated_at = datetime.now(timezone.utc)
+        else:
+            thread_read = ThreadReadState(
+                user_id=user.id,
+                parent_message_id=message_id,
+                last_read_reply_id=last_reply_id,
+            )
+            db.add(thread_read)
+        
+        await db.commit()
+    
     return templates.TemplateResponse(
         "partials/thread_content.html",
         {
@@ -751,6 +777,43 @@ async def get_single_message(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
     
     if partial or request.headers.get("HX-Request"):
+        # Calculate unread thread count for this message
+        unread_count = 0
+        if message.thread_reply_count and message.thread_reply_count > 0:
+            result = await db.execute(
+                select(ThreadReadState).where(
+                    ThreadReadState.user_id == user.id,
+                    ThreadReadState.parent_message_id == message_id,
+                )
+            )
+            thread_read = result.scalar_one_or_none()
+            
+            if thread_read and thread_read.last_read_reply_id:
+                # Count replies after last read
+                from sqlalchemy import func as sqlfunc
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.parent_id == message_id,
+                        Message.deleted_at == None,
+                        Message.id > thread_read.last_read_reply_id,
+                        Message.user_id != user.id,
+                    )
+                )
+                unread_count = count_result.scalar() or 0
+            elif not thread_read:
+                # Never opened - count all replies from others
+                from sqlalchemy import func as sqlfunc
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.parent_id == message_id,
+                        Message.deleted_at == None,
+                        Message.user_id != user.id,
+                    )
+                )
+                unread_count = count_result.scalar() or 0
+        
         return templates.TemplateResponse(
             "partials/message_item.html",
             {
@@ -759,6 +822,7 @@ async def get_single_message(
                 "user": user,
                 "workspace_id": workspace_id,
                 "channel_id": channel_id,
+                "unread_thread_counts": {message_id: unread_count},
             },
         )
     
