@@ -20,6 +20,14 @@ from app.models.bridged_channel import BridgedChannel, BridgePlatform
 from app.models.user_session import UserSession
 from app.models.attachment import Attachment, AttachmentType
 from app.models.reaction import MessageReaction
+from app.models.ai_agent import (
+    AIAgent,
+    AIConversation,
+    AIMessage,
+    AIChannelMembership,
+    AIProvider,
+    AIAgentScope,
+)
 
 __all__ = [
     "Base",
@@ -55,5 +63,11 @@ __all__ = [
     "Attachment",
     "AttachmentType",
     "MessageReaction",
+    "AIAgent",
+    "AIConversation",
+    "AIMessage",
+    "AIChannelMembership",
+    "AIProvider",
+    "AIAgentScope",
 ]
 
