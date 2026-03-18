@@ -40,6 +40,17 @@
         
         <!-- Agent capabilities -->
         <div class="ml-auto flex items-center space-x-2">
+            {% set capabilities = agent.capabilities or {} %}
+            {% if capabilities.get('can_summarize') %}
+            <a href="/ai/agents/{{ agent.id }}/channels{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}" 
+               class="px-3 py-1 text-xs bg-purple-500/20 text-purple-400 rounded-full hover:bg-purple-500/30 transition-colors flex items-center space-x-1"
+               title="Summarize channels">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Summarize</span>
+            </a>
+            {% endif %}
             {% if agent.can_read_channels %}
             <span class="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded-full" title="Can read channel messages">
                 📨 Channels

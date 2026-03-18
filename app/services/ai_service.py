@@ -598,3 +598,174 @@ class AIAgentService:
             .options(selectinload(AIChannelMembership.agent))
         )
         return list(result.scalars().all())
+    
+    # =========================================================================
+    # Channel Summarization
+    # =========================================================================
+    
+    async def get_user_channels(
+        self,
+        user_id: int,
+        workspace_id: int,
+        include_dms: bool = False,
+    ) -> list[Channel]:
+        """Get all channels a user has access to in a workspace."""
+        from app.models.membership import Membership, ChannelMembership
+        
+        # Check workspace membership
+        result = await self.db.execute(
+            select(Membership).where(
+                Membership.workspace_id == workspace_id,
+                Membership.user_id == user_id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            return []
+        
+        # Get public channels + private channels user is member of
+        result = await self.db.execute(
+            select(Channel)
+            .where(
+                and_(
+                    Channel.workspace_id == workspace_id,
+                    Channel.is_archived == False,
+                    or_(
+                        # Public channels
+                        and_(
+                            Channel.is_private == False,
+                            Channel.is_dm == False if not include_dms else True,
+                        ),
+                        # Private channels user is member of
+                        Channel.id.in_(
+                            select(ChannelMembership.channel_id)
+                            .where(ChannelMembership.user_id == user_id)
+                        ),
+                    ),
+                )
+            )
+            .order_by(Channel.name)
+        )
+        channels = list(result.scalars().all())
+        
+        if not include_dms:
+            channels = [c for c in channels if not c.is_dm]
+        
+        return channels
+    
+    async def summarize_channel(
+        self,
+        agent: AIAgent,
+        channel_id: int,
+        message_limit: int = 100,
+        time_range: str | None = None,  # "today", "week", "all"
+    ) -> str:
+        """Generate an AI summary of a channel's conversation."""
+        if not agent.capabilities.get("can_summarize"):
+            raise ValueError("This agent does not have summarization capability enabled")
+        
+        # Get channel info
+        result = await self.db.execute(
+            select(Channel).where(Channel.id == channel_id)
+        )
+        channel = result.scalar_one_or_none()
+        if not channel:
+            raise ValueError("Channel not found")
+        
+        # Get messages
+        messages = await self._get_channel_messages(channel_id, message_limit)
+        
+        if not messages:
+            return f"No messages found in #{channel.name} to summarize."
+        
+        # Format messages for summarization
+        formatted_messages = []
+        for msg in messages:
+            author = msg.user.display_name if msg.user else "Unknown"
+            timestamp = msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else ""
+            formatted_messages.append(f"[{timestamp}] {author}: {msg.body}")
+        
+        messages_text = "\n".join(formatted_messages)
+        
+        # Build summarization prompt
+        system_prompt = """You are an expert at summarizing team conversations. Create a clear, actionable summary.
+
+Include:
+- Key decisions made
+- Action items and who they're assigned to
+- Important topics discussed
+- Any questions that remain unanswered
+- Deadlines mentioned
+
+Format the summary with clear sections using markdown headers."""
+        
+        user_prompt = f"""Please summarize this conversation from the #{channel.name} channel:
+
+{messages_text}
+
+Provide a concise summary with key points, decisions, and action items."""
+        
+        # Get AI response
+        provider = get_provider(
+            agent.provider,
+            agent.api_key,
+            agent.model,
+            temperature=0.3,  # Lower temperature for summaries
+            max_tokens=agent.max_tokens,
+        )
+        
+        try:
+            response = await provider.chat([
+                ChatMessage(role="system", content=system_prompt),
+                ChatMessage(role="user", content=user_prompt),
+            ])
+            
+            # Update agent usage
+            if response.total_tokens:
+                agent.update_usage(response.total_tokens)
+                await self.db.commit()
+            
+            return response.content
+            
+        except Exception as e:
+            logger.error(f"Channel summarization failed: {e}")
+            raise ValueError(f"Failed to summarize channel: {str(e)}")
+    
+    async def build_multi_channel_context(
+        self,
+        agent: AIAgent,
+        user_id: int,
+        workspace_id: int,
+        max_messages_per_channel: int = 20,
+    ) -> str:
+        """Build context from all channels a user has access to."""
+        if not agent.can_read_channels:
+            return ""
+        
+        channels = await self.get_user_channels(
+            user_id, 
+            workspace_id,
+            include_dms=agent.can_read_dms,
+        )
+        
+        if not channels:
+            return ""
+        
+        context_parts = ["## Available Channels and Recent Activity\n"]
+        
+        for channel in channels[:10]:  # Limit channels to prevent context overflow
+            context_parts.append(f"### #{channel.name}")
+            if channel.topic:
+                context_parts.append(f"*Topic: {channel.topic}*")
+            
+            # Get recent messages
+            messages = await self._get_channel_messages(channel.id, max_messages_per_channel)
+            if messages:
+                for msg in messages[-5:]:  # Just last 5 messages per channel for overview
+                    author = msg.user.display_name if msg.user else "Unknown"
+                    context_parts.append(f"- **{author}**: {msg.body[:200]}...")
+            else:
+                context_parts.append("- No recent messages")
+            
+            context_parts.append("")
+        
+        return "\n".join(context_parts)

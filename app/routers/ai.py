@@ -201,8 +201,12 @@ async def create_agent(
     temperature: Annotated[float, Form()] = 0.7,
     max_tokens: Annotated[int, Form()] = 4096,
     can_read_channels: Annotated[bool, Form()] = False,
+    can_read_dms: Annotated[bool, Form()] = False,
     can_read_artifacts: Annotated[bool, Form()] = False,
     can_read_notes: Annotated[bool, Form()] = False,
+    can_summarize: Annotated[bool, Form()] = False,
+    can_post_messages: Annotated[bool, Form()] = False,
+    can_respond_mentions: Annotated[bool, Form()] = False,
     workspace_id: Annotated[int | None, Form()] = None,
 ):
     """Create a new AI agent."""
@@ -218,6 +222,13 @@ async def create_agent(
         scope = AIAgentScope.WORKSPACE
         ws_id = workspace_id
     
+    # Build capabilities dict
+    capabilities = {
+        "can_summarize": can_summarize,
+        "can_post_messages": can_post_messages,
+        "can_respond_mentions": can_respond_mentions,
+    }
+    
     agent = await service.create_agent(
         name=name,
         display_name=display_name,
@@ -232,8 +243,10 @@ async def create_agent(
         temperature=temperature,
         max_tokens=max_tokens,
         can_read_channels=can_read_channels,
+        can_read_dms=can_read_dms,
         can_read_artifacts=can_read_artifacts,
         can_read_notes=can_read_notes,
+        capabilities=capabilities,
     )
     
     # Redirect to agent detail or list
@@ -345,8 +358,12 @@ async def update_agent(
     temperature: Annotated[float, Form()] = 0.7,
     max_tokens: Annotated[int, Form()] = 4096,
     can_read_channels: Annotated[bool, Form()] = False,
+    can_read_dms: Annotated[bool, Form()] = False,
     can_read_artifacts: Annotated[bool, Form()] = False,
     can_read_notes: Annotated[bool, Form()] = False,
+    can_summarize: Annotated[bool, Form()] = False,
+    can_post_messages: Annotated[bool, Form()] = False,
+    can_respond_mentions: Annotated[bool, Form()] = False,
 ):
     """Update an AI agent."""
     service = AIAgentService(db)
@@ -363,6 +380,13 @@ async def update_agent(
     if not check_agent_admin(agent, user.id, membership):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     
+    # Build capabilities dict
+    capabilities = {
+        "can_summarize": can_summarize,
+        "can_post_messages": can_post_messages,
+        "can_respond_mentions": can_respond_mentions,
+    }
+    
     updates = {
         "name": name,
         "display_name": display_name,
@@ -373,8 +397,10 @@ async def update_agent(
         "temperature": temperature,
         "max_tokens": max_tokens,
         "can_read_channels": can_read_channels,
+        "can_read_dms": can_read_dms,
         "can_read_artifacts": can_read_artifacts,
         "can_read_notes": can_read_notes,
+        "capabilities": capabilities,
     }
     
     # Only update API key if provided (allows keeping existing)
@@ -706,4 +732,178 @@ async def remove_agent_from_channel(
     return RedirectResponse(
         f"/workspaces/{channel.workspace_id}/channels/{channel_id}",
         status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+# =============================================================================
+# Channel Summarization
+# =============================================================================
+
+@router.get("/agents/{agent_id}/summarize/{channel_id}", response_class=HTMLResponse)
+async def summarize_channel_page(
+    request: Request,
+    agent_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Show channel summary page."""
+    service = AIAgentService(db)
+    agent = await service.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
+    
+    # Check agent access
+    membership = None
+    if agent.workspace_id:
+        result = await db.execute(
+            select(Membership).where(
+                Membership.workspace_id == agent.workspace_id,
+                Membership.user_id == user.id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+    
+    if not check_agent_access(agent, user.id, membership):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    # Get channel
+    result = await db.execute(
+        select(Channel).where(Channel.id == channel_id)
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == channel.workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    return templates.TemplateResponse(
+        "ai/summarize_channel.html",
+        {
+            "request": request,
+            "user": user,
+            "agent": agent,
+            "channel": channel,
+            "workspace": workspace,
+        },
+    )
+
+
+@router.post("/agents/{agent_id}/summarize/{channel_id}")
+async def summarize_channel(
+    request: Request,
+    agent_id: int,
+    channel_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    message_limit: Annotated[int, Form()] = 100,
+):
+    """Generate an AI summary of a channel."""
+    service = AIAgentService(db)
+    agent = await service.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
+    
+    # Check agent access
+    membership = None
+    if agent.workspace_id:
+        result = await db.execute(
+            select(Membership).where(
+                Membership.workspace_id == agent.workspace_id,
+                Membership.user_id == user.id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+    
+    if not check_agent_access(agent, user.id, membership):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    # Verify agent has summarize capability
+    if not agent.capabilities.get("can_summarize"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This agent does not have summarization enabled. Edit the agent to enable it."
+        )
+    
+    try:
+        summary = await service.summarize_channel(agent, channel_id, message_limit)
+        
+        # Return as HTML partial for HTMX
+        if request.headers.get("HX-Request"):
+            from datetime import datetime
+            return templates.TemplateResponse(
+                "ai/partials/ai_summary.html",
+                {
+                    "request": request,
+                    "summary": summary,
+                    "channel_id": channel_id,
+                    "message_count": message_limit,
+                    "now": datetime.now(),
+                },
+            )
+        
+        # Return JSON for API usage
+        return {"summary": summary, "channel_id": channel_id}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/agents/{agent_id}/channels", response_class=HTMLResponse)
+async def list_user_channels(
+    request: Request,
+    agent_id: int,
+    user: CurrentUser,
+    db: DBSession,
+    workspace_id: int,
+):
+    """List all channels the user has access to for AI operations."""
+    service = AIAgentService(db)
+    agent = await service.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
+    
+    # Check agent access
+    membership = None
+    if agent.workspace_id:
+        result = await db.execute(
+            select(Membership).where(
+                Membership.workspace_id == agent.workspace_id,
+                Membership.user_id == user.id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+    
+    if not check_agent_access(agent, user.id, membership):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    # Get user's channels
+    channels = await service.get_user_channels(
+        user.id,
+        workspace_id,
+        include_dms=agent.can_read_dms,
+    )
+    
+    # Get workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+    
+    return templates.TemplateResponse(
+        "ai/agent_channels.html",
+        {
+            "request": request,
+            "user": user,
+            "agent": agent,
+            "channels": channels,
+            "workspace": workspace,
+        },
     )

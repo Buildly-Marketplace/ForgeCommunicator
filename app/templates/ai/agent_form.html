@@ -86,12 +86,12 @@
                     <select 
                         name="provider" 
                         id="provider"
-                        onchange="updateModelOptions()"
+                        onchange="updateModelOptions(); updateApiKeyHelp(this.value);"
                         class="w-full px-4 py-2 bg-dark-800 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent"
                         required
                     >
                         {% for provider in providers %}
-                        <option value="{{ provider }}" {% if agent and agent.provider.value == provider %}selected{% endif %}>
+                        <option value="{{ provider }}" {% if agent %}{% if agent.provider.value == provider %}selected{% endif %}{% elif loop.first %}selected{% endif %}>
                             {% if provider == 'openai' %}OpenAI (ChatGPT)
                             {% elif provider == 'anthropic' %}Anthropic (Claude)
                             {% elif provider == 'perplexity' %}Perplexity AI
@@ -127,6 +127,67 @@
                         {% if not agent %}required{% endif %}
                     >
                     <p class="text-xs text-gray-500 mt-1">Your API key is encrypted and stored securely</p>
+                </div>
+                
+                <!-- API Key Help -->
+                <div id="api-key-help" class="mt-4 p-4 bg-dark-900/50 rounded-lg border border-white/5">
+                    <h4 class="text-sm font-medium text-gray-300 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Where to get your API key
+                    </h4>
+                    
+                    <!-- OpenAI -->
+                    <div id="help-openai" class="api-help-section space-y-2">
+                        <p class="text-sm text-gray-400">
+                            <strong class="text-green-400">OpenAI (ChatGPT)</strong> - Best for general tasks, code, and creative writing
+                        </p>
+                        <ol class="text-xs text-gray-500 space-y-1 ml-4 list-decimal">
+                            <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-blue-400 hover:underline">platform.openai.com/api-keys</a></li>
+                            <li>Sign in or create an account</li>
+                            <li>Click "Create new secret key"</li>
+                            <li>Copy the key (starts with <code class="bg-dark-700 px-1 rounded">sk-</code>)</li>
+                        </ol>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <span class="text-yellow-400">Pricing:</span> Pay-as-you-go. GPT-4o is ~$5/1M input tokens. 
+                            <a href="https://openai.com/pricing" target="_blank" rel="noopener" class="text-blue-400 hover:underline">View pricing</a>
+                        </p>
+                    </div>
+                    
+                    <!-- Anthropic -->
+                    <div id="help-anthropic" class="api-help-section space-y-2 hidden">
+                        <p class="text-sm text-gray-400">
+                            <strong class="text-orange-400">Anthropic (Claude)</strong> - Best for analysis, research, and nuanced responses
+                        </p>
+                        <ol class="text-xs text-gray-500 space-y-1 ml-4 list-decimal">
+                            <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" class="text-blue-400 hover:underline">console.anthropic.com/settings/keys</a></li>
+                            <li>Sign in or create an account</li>
+                            <li>Click "Create Key"</li>
+                            <li>Copy the key (starts with <code class="bg-dark-700 px-1 rounded">sk-ant-</code>)</li>
+                        </ol>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <span class="text-yellow-400">Pricing:</span> Pay-as-you-go. Claude 3.5 Sonnet is ~$3/1M input tokens. 
+                            <a href="https://www.anthropic.com/pricing#702702" target="_blank" rel="noopener" class="text-blue-400 hover:underline">View pricing</a>
+                        </p>
+                    </div>
+                    
+                    <!-- Perplexity -->
+                    <div id="help-perplexity" class="api-help-section space-y-2 hidden">
+                        <p class="text-sm text-gray-400">
+                            <strong class="text-blue-400">Perplexity AI</strong> - Best for research with real-time web search
+                        </p>
+                        <ol class="text-xs text-gray-500 space-y-1 ml-4 list-decimal">
+                            <li>Go to <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener" class="text-blue-400 hover:underline">perplexity.ai/settings/api</a></li>
+                            <li>Sign in (requires Perplexity Pro subscription)</li>
+                            <li>Click "Generate" under API Keys</li>
+                            <li>Copy the key (starts with <code class="bg-dark-700 px-1 rounded">pplx-</code>)</li>
+                        </ol>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <span class="text-yellow-400">Pricing:</span> Requires Pro ($20/mo) + API credits. ~$0.20/1M input tokens. 
+                            <a href="https://docs.perplexity.ai/guides/pricing" target="_blank" rel="noopener" class="text-blue-400 hover:underline">View pricing</a>
+                        </p>
+                    </div>
                 </div>
             </div>
             
@@ -191,40 +252,116 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-3">Workspace Access</label>
                         <div class="space-y-3">
-                            <label class="flex items-center space-x-3 cursor-pointer">
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
                                 <input 
                                     type="checkbox" 
                                     name="can_read_channels" 
                                     value="true"
                                     {% if agent and agent.can_read_channels %}checked{% endif %}
-                                    class="w-5 h-5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
                                 >
-                                <span class="text-gray-300">Can read channel messages</span>
+                                <div>
+                                    <span class="text-gray-300 font-medium">Access all my channels</span>
+                                    <p class="text-xs text-gray-500 mt-1">Agent can read messages from channels you're a member of for context</p>
+                                </div>
                             </label>
                             
-                            <label class="flex items-center space-x-3 cursor-pointer">
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    name="can_read_dms" 
+                                    value="true"
+                                    {% if agent and agent.can_read_dms %}checked{% endif %}
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                >
+                                <div>
+                                    <span class="text-gray-300 font-medium">Access direct messages</span>
+                                    <p class="text-xs text-gray-500 mt-1">Agent can read your DM conversations for context</p>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
                                 <input 
                                     type="checkbox" 
                                     name="can_read_artifacts" 
                                     value="true"
                                     {% if agent and agent.can_read_artifacts %}checked{% endif %}
-                                    class="w-5 h-5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
                                 >
-                                <span class="text-gray-300">Can read artifacts</span>
+                                <div>
+                                    <span class="text-gray-300 font-medium">Access artifacts</span>
+                                    <p class="text-xs text-gray-500 mt-1">Agent can read decisions, features, issues, and tasks</p>
+                                </div>
                             </label>
                             
-                            <label class="flex items-center space-x-3 cursor-pointer">
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
                                 <input 
                                     type="checkbox" 
                                     name="can_read_notes" 
                                     value="true"
                                     {% if agent and agent.can_read_notes %}checked{% endif %}
-                                    class="w-5 h-5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
                                 >
-                                <span class="text-gray-300">Can read notes</span>
+                                <div>
+                                    <span class="text-gray-300 font-medium">Access my notes</span>
+                                    <p class="text-xs text-gray-500 mt-1">Agent can read your personal notes for context</p>
+                                </div>
                             </label>
                         </div>
-                        <p class="text-xs text-gray-500 mt-2">When enabled, the agent can access this context to provide better responses</p>
+                        <p class="text-xs text-gray-500 mt-3 flex items-center">
+                            <svg class="w-4 h-4 mr-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            Context is only shared when you chat with this agent - it never sends data automatically
+                        </p>
+                    </div>
+                    
+                    <!-- Channel Actions -->
+                    <div class="pt-4 border-t border-white/10">
+                        <label class="block text-sm font-medium text-gray-300 mb-3">What can this agent do in channels?</label>
+                        <div class="space-y-3">
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    name="can_summarize" 
+                                    value="true"
+                                    {% if agent and agent.capabilities.get('can_summarize') %}checked{% endif %}
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                >
+                                <div>
+                                    <span class="text-gray-300 font-medium">Summarize channels</span>
+                                    <p class="text-xs text-gray-500 mt-1">Generate summaries of channel conversations on demand</p>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    name="can_post_messages" 
+                                    value="true"
+                                    {% if agent and agent.capabilities.get('can_post_messages') %}checked{% endif %}
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                >
+                                <div>
+                                    <span class="text-gray-300 font-medium">Post messages</span>
+                                    <p class="text-xs text-gray-500 mt-1">Allow agent to post messages to channels when you request it</p>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 bg-dark-800/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    name="can_respond_mentions" 
+                                    value="true"
+                                    {% if agent and agent.capabilities.get('can_respond_mentions') %}checked{% endif %}
+                                    class="w-5 h-5 mt-0.5 rounded bg-dark-800 border-white/20 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0"
+                                >
+                                <div>
+                                    <span class="text-gray-300 font-medium">Respond to @mentions</span>
+                                    <p class="text-xs text-gray-500 mt-1">Agent automatically responds when mentioned in channels</p>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -284,9 +421,25 @@ function updateModelOptions() {
         
         modelSelect.appendChild(option);
     }
+    
+    // Update API key help section
+    updateApiKeyHelp(provider);
+}
+
+function updateApiKeyHelp(provider) {
+    document.querySelectorAll('.api-help-section').forEach(el => el.classList.add('hidden'));
+    const helpSection = document.getElementById('help-' + provider);
+    if (helpSection) {
+        helpSection.classList.remove('hidden');
+    }
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', updateModelOptions);
+document.addEventListener('DOMContentLoaded', function() {
+    updateModelOptions();
+    // Also update API key help on load
+    const provider = document.getElementById('provider').value;
+    updateApiKeyHelp(provider);
+});
 </script>
 {% endblock %}

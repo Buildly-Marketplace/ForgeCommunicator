@@ -20,6 +20,10 @@
         <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center border-2 border-dark-800" title="From Discord">
             <i class="fab fa-discord text-white text-xs"></i>
         </div>
+        {% elif message.external_source == 'ai_agent' %}
+        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center border-2 border-dark-800" title="AI Agent">
+            <span class="text-white text-xs">✨</span>
+        </div>
         {% endif %}
         {% else %}
         <!-- Regular user avatar -->
@@ -45,6 +49,8 @@
             <span class="text-xs px-1.5 py-0.5 bg-purple-600/20 text-purple-400 rounded">Slack</span>
             {% elif message.external_source == 'discord' %}
             <span class="text-xs px-1.5 py-0.5 bg-indigo-600/20 text-indigo-400 rounded">Discord</span>
+            {% elif message.external_source == 'ai_agent' %}
+            <span class="text-xs px-1.5 py-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-400 rounded">AI</span>
             {% endif %}
             {% else %}
             <a href="/profile/user/{{ message.user.id }}" class="font-medium text-white hover:text-blue-400 transition-colors">{{ message.user.display_name }}</a>

@@ -12,6 +12,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
+from app.models.ai_agent import AIAgent, AIAgentScope
 from app.models.artifact import Artifact, ArtifactType
 from app.models.bridged_channel import BridgedChannel
 from app.models.channel import Channel
@@ -439,11 +440,35 @@ async def channel_view(
     )
     members = result.scalars().all()
     
+    # Get AI agents for @mentions (workspace agents with respond to mentions enabled)
+    result = await db.execute(
+        select(AIAgent)
+        .where(
+            AIAgent.workspace_id == workspace_id,
+            AIAgent.is_active == True,
+        )
+        .order_by(AIAgent.display_name)
+    )
+    ai_agents = result.scalars().all()
+    
+    # Filter to agents that can respond to mentions
+    mentionable_agents = [a for a in ai_agents if a.capabilities and a.capabilities.get('can_respond_mentions')]
+    
     import json
-    members_json = json.dumps([
-        {"id": m.id, "display_name": m.display_name, "email": m.email}
+    members_list = [
+        {"id": m.id, "display_name": m.display_name, "email": m.email, "is_ai": False}
         for m in members
-    ])
+    ]
+    # Add AI agents with special prefix
+    for agent in mentionable_agents:
+        members_list.append({
+            "id": f"ai:{agent.id}",
+            "display_name": f"🤖 {agent.display_name}",
+            "email": f"AI Agent • {agent.provider.value.title()}",
+            "is_ai": True,
+            "agent_id": agent.id,
+        })
+    members_json = json.dumps(members_list)
     
     # Get bridged channel info for external replies
     result = await db.execute(

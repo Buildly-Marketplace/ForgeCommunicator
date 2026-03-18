@@ -11,6 +11,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
+from app.models.ai_agent import AIAgent
 from app.models.artifact import Artifact
 from app.models.attachment import Attachment, get_attachment_type, is_allowed_extension
 from app.models.channel import Channel
@@ -390,6 +391,34 @@ async def send_message(
                         channel_id=channel_id,
                         message_preview=body[:100],
                     )
+
+        # Check for AI agent mentions and trigger responses
+        for mention_name in mentions:
+            # Find AI agent by display name in this workspace
+            result = await db.execute(
+                select(AIAgent)
+                .where(
+                    AIAgent.workspace_id == workspace_id,
+                    AIAgent.is_active == True,
+                    AIAgent.display_name.ilike(f"%{mention_name}%"),
+                )
+            )
+            mentioned_agent = result.scalar_one_or_none()
+            
+            if mentioned_agent and mentioned_agent.capabilities and mentioned_agent.capabilities.get('can_respond_mentions'):
+                # Trigger AI response in background
+                import asyncio
+                asyncio.create_task(
+                    _generate_ai_mention_response(
+                        db_factory=db._session_factory if hasattr(db, '_session_factory') else None,
+                        agent_id=mentioned_agent.id,
+                        channel_id=channel_id,
+                        workspace_id=workspace_id,
+                        message_id=message.id,
+                        user_message=body,
+                        user_name=user.display_name,
+                    )
+                )
 
         # Notify members who opted in to all channel messages (non-DM top-level messages only)
         if not channel.is_dm and not parent_id:
@@ -1269,3 +1298,142 @@ async def delete_attachment(
     await db.commit()
     
     return {"success": True}
+
+
+async def _generate_ai_mention_response(
+    db_factory,
+    agent_id: int,
+    channel_id: int,
+    workspace_id: int,
+    message_id: int,
+    user_message: str,
+    user_name: str,
+):
+    """Background task to generate and post an AI response when mentioned."""
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"AI agent {agent_id} mentioned in channel {channel_id}")
+    
+    try:
+        from app.db import get_db_async
+        from app.services.ai_providers import get_provider, ChatMessage
+        
+        async for db in get_db_async():
+            try:
+                # Get the agent
+                result = await db.execute(
+                    select(AIAgent).where(AIAgent.id == agent_id)
+                )
+                agent = result.scalar_one_or_none()
+                
+                if not agent:
+                    logger.error(f"Agent {agent_id} not found")
+                    return
+                
+                # Get recent channel context (last 10 messages)
+                result = await db.execute(
+                    select(Message)
+                    .where(
+                        Message.channel_id == channel_id,
+                        Message.parent_id.is_(None),  # Top-level messages only
+                    )
+                    .options(selectinload(Message.user))
+                    .order_by(Message.created_at.desc())
+                    .limit(10)
+                )
+                recent_messages = list(reversed(result.scalars().all()))
+                
+                # Build system prompt
+                system_content = f"You are {agent.display_name}, an AI assistant in a team channel. "
+                system_content += f"You were just mentioned by {user_name}. "
+                system_content += "Respond helpfully and concisely to their message. "
+                system_content += "Keep your response focused and relevant to the conversation. "
+                system_content += "Don't add any prefix like your name - the UI will show who you are.\n\n"
+                
+                if agent.system_prompt:
+                    system_content += f"Your instructions: {agent.system_prompt}\n\n"
+                
+                # Add recent conversation
+                system_content += "Recent conversation:\n"
+                for msg in recent_messages:
+                    sender = msg.user.display_name if msg.user else "Unknown"
+                    system_content += f"- {sender}: {msg.body[:200]}\n"
+                
+                # Build messages for AI
+                messages = [
+                    ChatMessage(role="system", content=system_content),
+                    ChatMessage(role="user", content=f"{user_name} said: {user_message}"),
+                ]
+                
+                # Get AI response
+                provider = get_provider(
+                    agent.provider,
+                    agent.api_key,
+                    agent.model,
+                    temperature=agent.temperature or 0.7,
+                    max_tokens=agent.max_tokens or 1024,
+                )
+                
+                response = await provider.chat(messages)
+                
+                if response and response.content:
+                    # Create a new message from the AI agent
+                    # Use external_author fields to display agent info since no user
+                    ai_message = Message(
+                        channel_id=channel_id,
+                        body=response.content,
+                        user_id=None,  # No user - it's from AI
+                        external_source="ai_agent",  # Mark as AI-generated
+                        external_author_name=f"🤖 {agent.display_name}",
+                        external_author_avatar=agent.avatar_url,
+                    )
+                    db.add(ai_message)
+                    await db.commit()
+                    await db.refresh(ai_message)
+                    
+                    logger.info(f"AI agent {agent_id} posted response to channel {channel_id}")
+                    
+                    # Broadcast via WebSocket
+                    try:
+                        from app.routers.realtime import broadcast_new_message
+                        
+                        # Build simple HTML for the AI message
+                        avatar_html = f'<img src="{agent.avatar_url}" class="w-10 h-10 rounded-full object-cover" alt="{agent.display_name}">' if agent.avatar_url else '<span class="text-white text-lg">🤖</span>'
+                        
+                        message_html = f'''
+                        <div class="flex items-start space-x-3 p-4 hover:bg-white/5 rounded-lg group" data-message-id="{ai_message.id}">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden">
+                                {avatar_html}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-medium text-white">{agent.display_name}</span>
+                                    <span class="text-xs text-purple-400 px-1.5 py-0.5 bg-purple-500/20 rounded">AI</span>
+                                </div>
+                                <div class="text-gray-300 mt-1 whitespace-pre-wrap">{response.content}</div>
+                            </div>
+                        </div>
+                        '''
+                        
+                        await broadcast_new_message(
+                            channel_id=channel_id,
+                            message_html=message_html,
+                            message_id=ai_message.id,
+                            user_id=0,  # System/AI
+                            user_name=agent.display_name,
+                        )
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket broadcast error for AI message: {ws_error}")
+                        
+            except Exception as e:
+                logger.error(f"Error generating AI response: {e}")
+                import traceback
+                traceback.print_exc()
+            finally:
+                break  # Exit the async generator
+                
+    except Exception as e:
+        logger.error(f"Error in AI mention response: {e}")
+        import traceback
+        traceback.print_exc()
