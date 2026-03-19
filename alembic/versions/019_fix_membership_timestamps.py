@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
 
-revision = "019"
+revision = "019_fix_membership_timestamps"
 down_revision = "018"
 branch_labels = None
 depends_on = None
