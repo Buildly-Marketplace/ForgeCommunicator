@@ -521,10 +521,24 @@ class AIAgentService:
             capabilities.append("create summaries and insights")
         
         if capabilities:
-            system_prompt += f"\n\nYou have access to: {', '.join(capabilities)}. The workspace context below shows what you can currently see."
+            system_prompt += f"\n\nYou have access to: {', '.join(capabilities)}."
         
         if context:
-            system_prompt += f"\n\n## Workspace Context\n{context}"
+            system_prompt += f"""
+
+## IMPORTANT INSTRUCTIONS
+When answering questions about workspace content (channels, messages, tasks, notes):
+- ONLY use information from the Workspace Context provided below
+- DO NOT make up or invent any information
+- If asked about something not in the context, say "I don't see that in the current context" or "Based on what I can see..."
+- Quote or paraphrase actual messages when summarizing
+- If the context is empty or limited, acknowledge that
+
+## Workspace Context
+{context}"""
+        else:
+            system_prompt += "\n\nNote: No workspace context is currently available. If asked about channel messages or workspace content, explain that you don't have access to that information right now."
+        
         messages.append(ChatMessage(role="system", content=system_prompt))
         
         # Add conversation history
@@ -795,9 +809,10 @@ Provide a concise summary with key points, decisions, and action items."""
             # Get recent messages
             messages = await self._get_channel_messages(channel.id, max_messages_per_channel)
             if messages:
-                for msg in messages[-5:]:  # Just last 5 messages per channel for overview
+                for msg in messages[-10:]:  # Last 10 messages per channel for better context
                     author = msg.user.display_name if msg.user else "Unknown"
-                    context_parts.append(f"- **{author}**: {msg.body[:200]}...")
+                    body = msg.body[:500] + "..." if len(msg.body) > 500 else msg.body
+                    context_parts.append(f"- **{author}**: {body}")
             else:
                 context_parts.append("- No recent messages")
             

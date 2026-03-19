@@ -237,6 +237,7 @@ async def meta():
 async def root(request: Request):
     """Redirect to workspaces or login."""
     from app.deps import get_current_user_optional, get_db
+    from starlette.responses import RedirectResponse
     
     async for db in get_db():
         user = await get_current_user_optional(
@@ -245,14 +246,8 @@ async def root(request: Request):
             session_token=request.cookies.get("session_token"),
         )
         if user:
-            return templates.TemplateResponse(
-                "redirect.html",
-                {"request": request, "redirect_url": "/workspaces"},
-            )
-        return templates.TemplateResponse(
-            "redirect.html",
-            {"request": request, "redirect_url": "/auth/login"},
-        )
+            return RedirectResponse("/workspaces", status_code=302)
+        return RedirectResponse("/auth/login", status_code=302)
 
 
 # Import and include routers
