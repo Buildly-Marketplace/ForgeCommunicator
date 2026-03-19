@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.deps import CurrentUser, DBSession, WorkspaceCreator
 from app.models.artifact import Artifact
 from app.models.channel import Channel
-from app.models.membership import Membership, MembershipRole
+from app.models.membership import ChannelMembership, Membership, MembershipRole
 from app.models.message import Message
 from app.models.product import Product
 from app.models.team_invite import TeamInvite, InviteStatus

@@ -16,26 +16,34 @@ import os
 import ssl
 
 
-async def main():
+async def _connect(db_url):
+    """Connect to the database, handling SSL automatically."""
     import asyncpg
 
+    # First try connecting with the URL as-is (sslmode may already be in the URL)
+    try:
+        return await asyncpg.connect(db_url)
+    except Exception:
+        pass
+
+    # Fall back to explicit SSL context (for managed DBs without sslmode in URL)
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    return await asyncpg.connect(db_url, ssl=ssl_ctx)
+
+
+async def main():
     db_url = os.environ.get("DATABASE_URL", "")
     if not db_url:
         print("ERROR: DATABASE_URL not set")
         return
 
-    # Convert postgres:// to raw connection params if needed
-    # asyncpg needs the URL without +asyncpg driver suffix
     db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
     db_url = db_url.replace("postgres://", "postgresql://")
 
-    # DigitalOcean managed DBs require SSL
-    ssl_ctx = ssl.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl.CERT_NONE
-
-    print(f"Connecting to database...")
-    conn = await asyncpg.connect(db_url, ssl=ssl_ctx)
+    print("Connecting to database...")
+    conn = await _connect(db_url)
 
     try:
         # Check current state
