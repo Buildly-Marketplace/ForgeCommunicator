@@ -4,83 +4,47 @@ Fix missing columns on production database.
 Migrations 020-024 were stamped but never executed, so certain columns
 and tables are missing. This script adds them idempotently.
 
-Run on the server AFTER reset_alembic.py and BEFORE deploying new code:
+Run on the server:
 
-    python scripts/fix_missing_schema.py
+    python -m scripts.fix_missing_schema
+
+Uses the app's own database engine so SSL/connection config is identical
+to the running application.
 """
 
 import asyncio
-import os
-import ssl
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+from sqlalchemy import text
 
-def prepare_db_url(raw_url):
-    """Prepare DATABASE_URL for asyncpg: fix scheme and strip sslmode."""
-    url = raw_url.replace("postgresql+asyncpg://", "postgresql://")
-    url = url.replace("postgres://", "postgresql://")
-    # Strip sslmode from query params (asyncpg can't handle it as a URL param)
-    parsed = urlparse(url)
-    if parsed.query:
-        params = parse_qs(parsed.query)
-        params.pop("sslmode", None)
-        url = urlunparse((
-            parsed.scheme, parsed.netloc, parsed.path,
-            parsed.params, urlencode(params, doseq=True), parsed.fragment,
-        ))
-    return url
-
-
-def needs_ssl(url):
-    """Check if the database host requires SSL."""
-    local_hosts = ["localhost", "127.0.0.1", "@db:", "@db/", "@postgres:", "@postgres/"]
-    return not any(h in url for h in local_hosts)
+from app.db import engine
 
 
 async def main():
-    import asyncpg
-
-    raw_url = os.environ.get("DATABASE_URL", "")
-    if not raw_url:
-        print("ERROR: DATABASE_URL not set")
-        return
-
-    db_url = prepare_db_url(raw_url)
-
-    connect_kwargs = {}
-    if needs_ssl(db_url):
-        ssl_ctx = ssl.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = ssl.CERT_NONE
-        connect_kwargs["ssl"] = ssl_ctx
-
     print("Connecting to database...")
-    conn = await asyncpg.connect(db_url, **connect_kwargs)
-
-    try:
+    async with engine.begin() as conn:
         # Helper: add column if not exists
         async def add_column(table, column, col_type, default=None):
-            exists = await conn.fetchval(
+            result = await conn.execute(text(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
-                "WHERE table_name=$1 AND column_name=$2)",
-                table, column,
-            )
+                "WHERE table_name=:t AND column_name=:c)"
+            ), {"t": table, "c": column})
+            exists = result.scalar()
             if exists:
                 print(f"  ✓ {table}.{column} already exists")
                 return
             sql = f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}'
             if default is not None:
                 sql += f" DEFAULT {default}"
-            await conn.execute(sql)
+            await conn.execute(text(sql))
             print(f"  + Added {table}.{column}")
 
         # Helper: check if table exists
         async def table_exists(table):
-            return await conn.fetchval(
+            result = await conn.execute(text(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-                "WHERE table_name=$1)",
-                table,
-            )
+                "WHERE table_name=:t)"
+            ), {"t": table})
+            return result.scalar()
 
         # ── From migration 020 (add_missing_columns) ──
         print("\n=== Checking columns from migration 020 ===")
@@ -111,7 +75,7 @@ async def main():
         # ── From migration 023 (thread_read_states) ──
         print("\n=== Checking thread_read_states table ===")
         if not await table_exists("thread_read_states"):
-            await conn.execute("""
+            await conn.execute(text("""
                 CREATE TABLE thread_read_states (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -121,7 +85,7 @@ async def main():
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                     CONSTRAINT uq_thread_read_user_message UNIQUE (user_id, parent_message_id)
                 )
-            """)
+            """))
             print("  + Created thread_read_states table")
         else:
             print("  ✓ thread_read_states already exists")
@@ -135,8 +99,7 @@ async def main():
 
         print("\n=== All schema fixes applied successfully ===")
 
-    finally:
-        await conn.close()
+    await engine.dispose()
 
 
 if __name__ == "__main__":
