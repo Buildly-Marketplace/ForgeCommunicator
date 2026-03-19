@@ -11,27 +11,11 @@ Run on the server AFTER reset_alembic.py and BEFORE deploying new code:
 
 import asyncio
 import os
-import ssl
-
-
-async def _connect(db_url):
-    """Connect to the database, handling SSL automatically."""
-    import asyncpg
-
-    # First try connecting with the URL as-is (sslmode may already be in the URL)
-    try:
-        return await asyncpg.connect(db_url)
-    except Exception:
-        pass
-
-    # Fall back to explicit SSL context (for managed DBs without sslmode in URL)
-    ssl_ctx = ssl.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl.CERT_NONE
-    return await asyncpg.connect(db_url, ssl=ssl_ctx)
 
 
 async def main():
+    import asyncpg
+
     db_url = os.environ.get("DATABASE_URL", "")
     if not db_url:
         print("ERROR: DATABASE_URL not set")
@@ -41,7 +25,7 @@ async def main():
     db_url = db_url.replace("postgres://", "postgresql://")
 
     print("Connecting to database...")
-    conn = await _connect(db_url)
+    conn = await asyncpg.connect(db_url)
 
     try:
         # Helper: add column if not exists
