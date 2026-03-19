@@ -479,15 +479,50 @@ class AIAgentService:
             agent.can_read_artifacts,
             agent.can_read_notes,
         ]):
-            context = await self.build_context(
-                agent, workspace_id, channel_id
-            )
+            if channel_id:
+                # Specific channel context
+                context = await self.build_context(
+                    agent, workspace_id, channel_id
+                )
+            elif agent.can_read_channels:
+                # No specific channel - use multi-channel context
+                context = await self.build_multi_channel_context(
+                    agent, conversation.user_id, workspace_id
+                )
+                # Also get artifacts/notes if allowed
+                extra_context = await self.build_context(
+                    agent, workspace_id, None, include_recent_messages=False
+                )
+                if extra_context:
+                    context = f"{context}\n\n{extra_context}"
+            else:
+                # Just artifacts/notes
+                context = await self.build_context(
+                    agent, workspace_id, None, include_recent_messages=False
+                )
         
         # Prepare messages for AI
         messages = []
         
         # System prompt with context
         system_prompt = agent.system_prompt or f"You are {agent.display_name}, a helpful AI assistant."
+        
+        # Add capability information
+        capabilities = []
+        if agent.can_read_channels:
+            capabilities.append("read and summarize channel messages")
+        if agent.can_read_dms:
+            capabilities.append("read direct messages")
+        if agent.can_read_artifacts:
+            capabilities.append("view tasks, decisions, and ideas")
+        if agent.can_read_notes:
+            capabilities.append("access workspace notes")
+        if agent.can_summarize:
+            capabilities.append("create summaries and insights")
+        
+        if capabilities:
+            system_prompt += f"\n\nYou have access to: {', '.join(capabilities)}. The workspace context below shows what you can currently see."
+        
         if context:
             system_prompt += f"\n\n## Workspace Context\n{context}"
         messages.append(ChatMessage(role="system", content=system_prompt))

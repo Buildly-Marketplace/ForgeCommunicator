@@ -424,3 +424,33 @@ DEFAULT_MODELS = {
     AIProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
     AIProvider.PERPLEXITY: "llama-3.1-sonar-large-128k-online",
 }
+
+
+async def validate_api_key(provider: AIProvider, api_key: str, model: str | None = None) -> tuple[bool, str]:
+    """
+    Validate an API key by making a minimal test request.
+    Returns (is_valid, error_message).
+    """
+    if not model:
+        model = DEFAULT_MODELS.get(provider, "gpt-4o")
+    
+    # Use a minimal test message
+    test_messages = [ChatMessage(role="user", content="Hi")]
+    
+    try:
+        ai_provider = get_provider(provider, api_key, model, max_tokens=5, timeout=15.0)
+        response = await ai_provider.chat(test_messages)
+        return (True, "")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return (False, "Invalid API key. Please check your key and try again.")
+        elif e.response.status_code == 403:
+            return (False, "API key doesn't have permission. Check your account settings.")
+        elif e.response.status_code == 429:
+            return (False, "Rate limited. Your API key may have insufficient credits.")
+        else:
+            return (False, f"API error ({e.response.status_code}): {e.response.text[:100]}")
+    except httpx.TimeoutException:
+        return (False, "Request timed out. The API may be experiencing issues.")
+    except Exception as e:
+        return (False, f"Connection error: {str(e)}")

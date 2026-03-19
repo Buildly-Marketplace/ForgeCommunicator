@@ -28,7 +28,7 @@ from app.models.membership import Membership, MembershipRole
 from app.models.workspace import Workspace
 from app.models.channel import Channel
 from app.services.ai_service import AIAgentService
-from app.services.ai_providers import get_available_models, DEFAULT_MODELS
+from app.services.ai_providers import get_available_models, DEFAULT_MODELS, validate_api_key
 from app.templates_config import templates
 
 
@@ -210,6 +210,40 @@ async def create_agent(
     workspace_id: Annotated[int | None, Form()] = None,
 ):
     """Create a new AI agent."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Validate API key format
+    api_key = api_key.strip()
+    provider_enum = AIProvider(provider)
+    
+    # Basic format validation
+    if provider_enum == AIProvider.OPENAI and not api_key.startswith("sk-"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OpenAI API key format. Keys should start with 'sk-'"
+        )
+    elif provider_enum == AIProvider.ANTHROPIC and not api_key.startswith("sk-ant-"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Anthropic API key format. Keys should start with 'sk-ant-'"
+        )
+    elif provider_enum == AIProvider.PERPLEXITY and not api_key.startswith("pplx-"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Perplexity API key format. Keys should start with 'pplx-'"
+        )
+    
+    logger.info(f"Creating agent with provider={provider}, model={model}, key_prefix={api_key[:10]}...")
+    
+    # Validate API key works before saving
+    is_valid, error_msg = await validate_api_key(provider_enum, api_key, model)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"API key validation failed: {error_msg}"
+        )
+    
     service = AIAgentService(db)
     
     scope = AIAgentScope.USER
@@ -380,6 +414,37 @@ async def update_agent(
     if not check_agent_admin(agent, user.id, membership):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     
+    provider_enum = AIProvider(provider)
+    
+    # Validate new API key if provided
+    if api_key:
+        api_key = api_key.strip()
+        
+        # Format validation
+        if provider_enum == AIProvider.OPENAI and not api_key.startswith("sk-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid OpenAI API key format. Keys should start with 'sk-'"
+            )
+        elif provider_enum == AIProvider.ANTHROPIC and not api_key.startswith("sk-ant-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Anthropic API key format. Keys should start with 'sk-ant-'"
+            )
+        elif provider_enum == AIProvider.PERPLEXITY and not api_key.startswith("pplx-"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Perplexity API key format. Keys should start with 'pplx-'"
+            )
+        
+        # Test API key works
+        is_valid, error_msg = await validate_api_key(provider_enum, api_key, model)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"API key validation failed: {error_msg}"
+            )
+    
     # Build capabilities dict
     capabilities = {
         "can_summarize": can_summarize,
@@ -390,7 +455,7 @@ async def update_agent(
     updates = {
         "name": name,
         "display_name": display_name,
-        "provider": AIProvider(provider),
+        "provider": provider_enum,
         "model": model,
         "description": description,
         "system_prompt": system_prompt,
