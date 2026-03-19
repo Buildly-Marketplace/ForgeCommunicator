@@ -275,6 +275,11 @@ self.addEventListener('message', (event) => {
                 .then((notifications) => {
                     console.log('[SW] Dismissing all notifications from app:', notifications.length);
                     notifications.forEach((notification) => notification.close());
+                    
+                    // Also clear the app badge
+                    if ('setAppBadge' in navigator) {
+                        navigator.clearAppBadge().catch(e => console.log('[SW] Badge clear failed:', e));
+                    }
                 })
         );
     }

@@ -6,7 +6,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -123,6 +123,157 @@ async def list_workspaces(
             "is_admin": is_admin,
         },
     )
+
+
+@router.get("/unread-count", response_class=JSONResponse)
+async def get_total_unread_count(
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Get total unread message count across all workspaces for badge sync."""
+    from sqlalchemy import func as sqlfunc
+    from app.models.channel import Channel
+    from app.models.membership import ChannelMembership
+    from app.models.message import Message
+    
+    # Get all workspaces user is a member of
+    result = await db.execute(
+        select(Workspace.id)
+        .join(Membership, Membership.workspace_id == Workspace.id)
+        .where(Membership.user_id == user.id)
+    )
+    workspace_ids = [row[0] for row in result.fetchall()]
+    
+    if not workspace_ids:
+        return JSONResponse({"unread_count": 0})
+    
+    # Get all channels across all workspaces
+    result = await db.execute(
+        select(Channel.id)
+        .where(
+            Channel.workspace_id.in_(workspace_ids),
+            Channel.is_archived == False,
+        )
+    )
+    channel_ids = [row[0] for row in result.fetchall()]
+    
+    if not channel_ids:
+        return JSONResponse({"unread_count": 0})
+    
+    # Get user's last read positions
+    result = await db.execute(
+        select(ChannelMembership)
+        .where(
+            ChannelMembership.user_id == user.id,
+            ChannelMembership.channel_id.in_(channel_ids),
+        )
+    )
+    user_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
+    
+    # Count unread across all channels
+    total_unread = 0
+    for ch_id in channel_ids:
+        last_read_id = user_memberships.get(ch_id)
+        if last_read_id is not None:
+            count_result = await db.execute(
+                select(sqlfunc.count(Message.id))
+                .where(
+                    Message.channel_id == ch_id,
+                    Message.deleted_at == None,
+                    Message.parent_id == None,
+                    Message.id > last_read_id,
+                    Message.user_id != user.id,
+                )
+            )
+        else:
+            count_result = await db.execute(
+                select(sqlfunc.count(Message.id))
+                .where(
+                    Message.channel_id == ch_id,
+                    Message.deleted_at == None,
+                    Message.parent_id == None,
+                    Message.user_id != user.id,
+                )
+            )
+        total_unread += count_result.scalar() or 0
+    
+    return JSONResponse({"unread_count": total_unread})
+
+
+@router.post("/{workspace_id}/mark-all-read", response_class=HTMLResponse)
+async def mark_workspace_all_read(
+    request: Request,
+    workspace_id: int,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Mark all messages in all channels of a workspace as read."""
+    # Verify membership
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this workspace")
+    
+    # Get all channels in workspace
+    result = await db.execute(
+        select(Channel.id).where(
+            Channel.workspace_id == workspace_id,
+            Channel.is_archived == False,
+        )
+    )
+    channel_ids = [row[0] for row in result.fetchall()]
+    
+    if not channel_ids:
+        if request.headers.get("HX-Request"):
+            return HTMLResponse('<span class="text-green-500 text-sm">All caught up!</span>')
+        return RedirectResponse(f"/workspaces/{workspace_id}", status_code=303)
+    
+    # For each channel, get latest message and update membership
+    for ch_id in channel_ids:
+        # Get latest message ID
+        result = await db.execute(
+            select(Message.id)
+            .where(Message.channel_id == ch_id, Message.deleted_at == None)
+            .order_by(Message.id.desc())
+            .limit(1)
+        )
+        latest_id = result.scalar_one_or_none()
+        
+        if latest_id is None:
+            continue
+        
+        # Update or create membership
+        result = await db.execute(
+            select(ChannelMembership).where(
+                ChannelMembership.channel_id == ch_id,
+                ChannelMembership.user_id == user.id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+        
+        if membership:
+            membership.last_read_message_id = latest_id
+        else:
+            db.add(ChannelMembership(
+                channel_id=ch_id,
+                user_id=user.id,
+                last_read_message_id=latest_id,
+            ))
+    
+    await db.commit()
+    
+    if request.headers.get("HX-Request"):
+        # Return updated badge count (0) and trigger refresh
+        return HTMLResponse(
+            '<span class="text-green-500 text-sm">All caught up!</span>',
+            headers={"HX-Trigger": "refreshUnreadCounts"}
+        )
+    
+    return RedirectResponse(f"/workspaces/{workspace_id}", status_code=303)
 
 
 @router.get("/new", response_class=HTMLResponse)

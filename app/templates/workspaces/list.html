@@ -39,6 +39,15 @@
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-2xl font-bold text-white">Your Workspaces</h1>
             <div class="flex space-x-3">
+                <button type="button"
+                        onclick="resetAllBadges()"
+                        class="inline-flex items-center px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:bg-white/10 rounded-lg transition-colors"
+                        title="Reset notification badges">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Reset badges
+                </button>
                 <a href="/workspaces/join" 
                    class="inline-flex items-center px-4 py-2 glass border border-white/20 shadow-sm text-sm font-medium rounded-lg text-gray-200 hover:bg-white/10 transition-all">
                     Join Workspace
@@ -48,6 +57,11 @@
                     Create Workspace
                 </a>
             </div>
+        </div>
+        
+        <!-- Badges reset notification -->
+        <div id="badges-reset-notice" class="hidden mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm">
+            Badges have been reset and synced with server.
         </div>
         
         {% if workspaces %}
@@ -560,6 +574,32 @@ async function setupPushSubscription() {
     if (!regResponse.ok) throw new Error('Server registration failed');
     
     return subscription;
+}
+
+// Reset all notification badges - clears local state and syncs with server
+async function resetAllBadges() {
+    try {
+        // Clear local notification center and badge
+        if (window.notificationCenter) {
+            await window.notificationCenter.resetAndSync();
+        }
+        
+        // Show success notification
+        const notice = document.getElementById('badges-reset-notice');
+        if (notice) {
+            notice.classList.remove('hidden');
+            setTimeout(() => {
+                notice.classList.add('hidden');
+                // Reload to show updated counts
+                window.location.reload();
+            }, 1500);
+        } else {
+            window.location.reload();
+        }
+    } catch (e) {
+        console.error('Failed to reset badges:', e);
+        alert('Failed to reset badges. Please try again.');
+    }
 }
 </script>
 {% endblock %}

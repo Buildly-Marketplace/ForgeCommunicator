@@ -540,12 +540,59 @@
             } catch (e) {
                 console.log('Could not save notification history:', e);
             }
+        },
+        
+        // Sync badge with server's actual unread count
+        syncWithServer: async function() {
+            try {
+                const response = await fetch('/workspaces/unread-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    const serverCount = data.unread_count || 0;
+                    
+                    // Update badge to match server
+                    window.notificationBadge.set(serverCount);
+                    
+                    // Clear local notifications since we're syncing with server
+                    this.notifications = [];
+                    this._save();
+                    
+                    console.log('Badge synced with server:', serverCount);
+                    return serverCount;
+                }
+            } catch (e) {
+                console.log('Failed to sync badge with server:', e);
+            }
+            return null;
+        },
+        
+        // Reset everything - clear local AND sync with server
+        resetAndSync: async function() {
+            // Clear local storage
+            this.notifications = [];
+            this._save();
+            
+            // Clear app badge
+            window.notificationBadge.clear();
+            
+            // Dismiss OS notifications
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'DISMISS_ALL_NOTIFICATIONS' });
+            }
+            
+            // Sync with server to get accurate count
+            return await this.syncWithServer();
         }
     };
     
     // Initialize notification center on load
     document.addEventListener('DOMContentLoaded', function() {
         window.notificationCenter.init();
+        
+        // Sync badge with server on page load to fix any drift
+        setTimeout(() => {
+            window.notificationCenter.syncWithServer();
+        }, 2000); // Delay to let page load first
     });
 
     // ============================================
