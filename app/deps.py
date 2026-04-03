@@ -134,14 +134,8 @@ async def get_current_user(
     401 exception handler in main.py.
     """
     if not user:
-        # Check if this is an HTMX request
-        if request.headers.get("HX-Request"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated",
-                headers={"HX-Redirect": "/auth/login"},
-            )
-        # For regular browser requests, just raise 401 - the exception handler will redirect
+        # Raise 401 - the exception handler in main.py will redirect to login
+        # with the original URL preserved as ?next= parameter
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",

@@ -334,7 +334,7 @@
                 
                 <p class="mt-6 text-center text-sm text-gray-400">
                     Don't have an account?
-                    <a href="/auth/register" class="font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                    <a href="/auth/register{% if next and next != '/workspaces' %}?next={{ next|urlencode }}{% endif %}" class="font-medium text-blue-400 hover:text-blue-300 transition-colors">
                         Sign up for free
                     </a>
                 </p>

@@ -291,10 +291,20 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     
     # For 401 Unauthorized - redirect to login
     if status_code == 401:
+        # Build login URL with next parameter to preserve intended destination
+        from urllib.parse import quote
+        original_url = str(request.url.path)
+        if request.url.query:
+            original_url += f"?{request.url.query}"
+        # Only include next param for non-default paths
+        login_url = "/auth/login"
+        if original_url and original_url not in ("/", "/workspaces"):
+            login_url = f"/auth/login?next={quote(original_url, safe='')}"
+        
         # For HTMX requests, return redirect header
         if request.headers.get("HX-Request"):
             response = HTMLResponse("", status_code=200)
-            response.headers["HX-Redirect"] = "/auth/login"
+            response.headers["HX-Redirect"] = login_url
             return response
         
         # For API requests expecting JSON, return JSON error
@@ -307,7 +317,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         
         # For browser/PWA requests, redirect to login
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url=login_url, status_code=302)
     
     # For 403 Forbidden
     if status_code == 403:

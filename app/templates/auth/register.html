@@ -281,6 +281,7 @@
                       hx-target="#error-message"
                       hx-swap="innerHTML"
                       class="space-y-4">
+                    <input type="hidden" name="next" value="{{ next|default('/workspaces') }}">
                     
                     <div>
                         <label for="display_name" class="block text-sm font-medium text-gray-300 mb-1">Display Name</label>

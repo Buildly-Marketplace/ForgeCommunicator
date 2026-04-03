@@ -208,16 +208,18 @@ async def register_page(
     request: Request,
     user: CurrentUserOptional,
     error: str | None = None,
+    next: str = "/workspaces",
 ):
     """Render registration page."""
     if user:
-        return RedirectResponse(url="/workspaces", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(url=next, status_code=status.HTTP_302_FOUND)
     
     return templates.TemplateResponse(
         "auth/register.html",
         {
             "request": request,
             "error": error,
+            "next": next,
             "oauth_providers": get_available_providers(),
             "registration_mode": settings.registration_mode,
         },
@@ -232,6 +234,7 @@ async def register(
     password: Annotated[str, Form()],
     display_name: Annotated[str, Form()],
     confirm_password: Annotated[str, Form()],
+    next: Annotated[str, Form()] = "/workspaces",
 ):
     """Handle local registration."""
     client_ip = get_client_ip(request)
@@ -324,12 +327,13 @@ async def register(
         return redirect
     
     # Set cookie and redirect
-    redirect = RedirectResponse(url="/workspaces", status_code=status.HTTP_302_FOUND)
+    redirect_url = next if next.startswith("/") else "/workspaces"
+    redirect = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
     set_session_cookie(redirect, session_token, request)
     
     if request.headers.get("HX-Request"):
         response = HTMLResponse("")
-        response.headers["HX-Redirect"] = "/workspaces"
+        response.headers["HX-Redirect"] = redirect_url
         set_session_cookie(response, session_token, request)
         return response
     
