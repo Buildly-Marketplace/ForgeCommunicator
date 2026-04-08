@@ -227,7 +227,8 @@
             <div id="message-list" 
                  class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin"
                  {% if realtime_mode == 'poll' %}
-                 hx-get="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages{% if messages %}?after={{ messages[-1].id }}{% endif %}"
+                 hx-get="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages"
+                 hx-vals='js:{"after": window._pollLastMessageId || {{ messages[-1].id if messages else 0 }}}'
                  hx-trigger="every {{ poll_interval }}s"
                  hx-swap="beforeend"
                  {% endif %}>
@@ -761,24 +762,137 @@
         let socket = null;
         let reconnectDelay = 1000;
         let pingInterval = null;
+        let catchUpInterval = null;
         let intentionalClose = false;
+        let isFirstConnect = true;
+
+        // Track the latest known message ID for catch-up after reconnect
+        let lastMessageId = {{ messages[-1].id if messages else 0 }};
+
+        // Scan the DOM for the highest message ID (handles messages added by any path)
+        function updateLastMessageId() {
+            const msgs = document.querySelectorAll('[id^="message-"]');
+            for (let i = msgs.length - 1; i >= 0; i--) {
+                const id = parseInt(msgs[i].id.replace('message-', ''), 10);
+                if (!isNaN(id) && id > lastMessageId) {
+                    lastMessageId = id;
+                    break;
+                }
+            }
+        }
+
+        // Fetch any messages missed during a WebSocket gap
+        async function catchUpMessages() {
+            if (lastMessageId === 0) return;
+            try {
+                const url = '/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages?after=' + lastMessageId;
+                const response = await fetch(url, {
+                    headers: { 'HX-Request': 'true' }
+                });
+                if (response.ok) {
+                    const html = await response.text();
+                    if (html && html.trim()) {
+                        const messageList = document.getElementById('message-list');
+                        if (messageList) {
+                            messageList.insertAdjacentHTML('beforeend', html);
+                            updateLastMessageId();
+                            scrollToBottom();
+                            markChannelRead();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Message catch-up failed:', e);
+            }
+        }
+
+        // Check if user is scrolled near the bottom of the message list
+        function isNearBottom() {
+            const messageList = document.getElementById('message-list');
+            if (!messageList) return true;
+            return (messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight) < 150;
+        }
+
+        // Show a "new messages" indicator when the user is scrolled up
+        function showNewMessageIndicator(userName) {
+            let indicator = document.getElementById('new-message-indicator');
+            if (!indicator) {
+                const messageList = document.getElementById('message-list');
+                if (!messageList) return;
+                indicator = document.createElement('button');
+                indicator.id = 'new-message-indicator';
+                indicator.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-medium shadow-lg hover:bg-blue-500 transition-all animate-bounce';
+                indicator.onclick = function() {
+                    scrollToBottom();
+                    indicator.remove();
+                };
+                messageList.parentElement.appendChild(indicator);
+            }
+            indicator.textContent = userName
+                ? '\u2193 New message from ' + userName
+                : '\u2193 New messages below';
+        }
 
         function handleMessage(data) {
             if (data.type === 'new_message') {
-                const messageList = document.getElementById('message-list');
-                if (!messageList) return;
-                // Deduplicate: sender already sees their own message via HTMX
+                // Deduplicate: check both main message and thread reply IDs
                 if (document.getElementById('message-' + data.message_id)) return;
-                messageList.insertAdjacentHTML('beforeend', data.html);
-                scrollToBottom();
-                playNotificationSound();
-                markChannelRead();
+                if (document.getElementById('thread-reply-' + data.message_id)) return;
+
+                // Track latest ID
+                if (data.message_id > lastMessageId) {
+                    lastMessageId = data.message_id;
+                }
+
+                if (data.parent_id) {
+                    // Thread reply: append to thread panel if it's open for this parent
+                    const threadReplies = document.getElementById('thread-replies');
+                    if (window.currentThreadId === data.parent_id && threadReplies) {
+                        threadReplies.insertAdjacentHTML('beforeend', data.html);
+                        threadReplies.scrollTop = threadReplies.scrollHeight;
+                    }
+                    // Refresh the parent message to update reply count badge
+                    const parentMsg = document.getElementById('message-' + data.parent_id);
+                    if (parentMsg) {
+                        htmx.ajax('GET', '/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/' + data.parent_id + '?partial=true', {
+                            target: '#message-' + data.parent_id,
+                            swap: 'outerHTML'
+                        });
+                    }
+                    playNotificationSound();
+                } else {
+                    // Main channel message
+                    const messageList = document.getElementById('message-list');
+                    if (!messageList) return;
+                    messageList.insertAdjacentHTML('beforeend', data.html);
+                    playNotificationSound();
+
+                    if (isNearBottom()) {
+                        scrollToBottom();
+                        markChannelRead();
+                    } else {
+                        // User is scrolled up — show indicator instead of auto-scrolling
+                        showNewMessageIndicator(data.user_name);
+                    }
+
+                    // Show browser notification if tab is hidden
+                    if (document.hidden && Notification.permission === 'granted') {
+                        const n = new Notification('{{ channel.display_name }}', {
+                            body: (data.user_name || 'Someone') + ' sent a message',
+                            tag: 'channel-{{ channel.id }}',
+                        });
+                        n.onclick = function() { window.focus(); n.close(); };
+                    }
+                }
             } else if (data.type === 'message_updated') {
                 const existing = document.getElementById('message-' + data.message_id);
                 if (existing) existing.outerHTML = data.html;
             } else if (data.type === 'message_deleted') {
                 const msg = document.getElementById('message-' + data.message_id);
                 if (msg) msg.remove();
+                // Also check thread replies
+                const threadReply = document.getElementById('thread-reply-' + data.message_id);
+                if (threadReply) threadReply.remove();
             } else if (data.type === 'typing') {
                 // Typing indicator (future use)
             }
@@ -792,6 +906,13 @@
             socket.onopen = function() {
                 console.log('WebSocket connected');
                 reconnectDelay = 1000;
+
+                // Catch up on any messages missed during disconnect (skip first connect)
+                if (!isFirstConnect) {
+                    catchUpMessages();
+                }
+                isFirstConnect = false;
+
                 // Keepalive ping every 30 seconds
                 pingInterval = setInterval(function() {
                     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -828,13 +949,54 @@
         // Connect when page loads
         document.addEventListener('DOMContentLoaded', connect);
 
+        // Safety-net: poll for missed messages every 30s (covers WS micro-gaps)
+        document.addEventListener('DOMContentLoaded', function() {
+            catchUpInterval = setInterval(function() {
+                if (document.hidden) return; // skip when tab not visible
+                catchUpMessages();
+            }, 30000);
+        });
+
+        // Catch up immediately when tab becomes visible again
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                catchUpMessages();
+                // Remove the new-message indicator if present
+                var ind = document.getElementById('new-message-indicator');
+                if (ind) ind.remove();
+            }
+        });
+
         // Clean up on navigation
         window.addEventListener('beforeunload', function() {
             intentionalClose = true;
             clearInterval(pingInterval);
+            clearInterval(catchUpInterval);
             if (socket) socket.close();
         });
     })();
+    {% endif %}
+
+    // ============================================
+    // Polling mode: track latest message ID for dynamic hx-vals
+    // ============================================
+    {% if realtime_mode == 'poll' %}
+    window._pollLastMessageId = {{ messages[-1].id if messages else 0 }};
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target && evt.detail.target.id === 'message-list') {
+            // After new messages are appended, update the tracked ID
+            var msgs = document.querySelectorAll('#message-list [id^="message-"]');
+            for (var i = msgs.length - 1; i >= 0; i--) {
+                var id = parseInt(msgs[i].id.replace('message-', ''), 10);
+                if (!isNaN(id) && id > window._pollLastMessageId) {
+                    window._pollLastMessageId = id;
+                    break;
+                }
+            }
+            scrollToBottom();
+            playNotificationSound();
+        }
+    });
     {% endif %}
     
     // ============================================

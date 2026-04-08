@@ -473,6 +473,7 @@ async def send_message(
             message_id=message.id,
             user_id=user.id,
             user_name=user.display_name,
+            parent_id=parent_id,
         )
     except Exception as e:
         import logging

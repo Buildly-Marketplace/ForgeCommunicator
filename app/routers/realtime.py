@@ -203,11 +203,13 @@ async def broadcast_new_message(
     message_id: int,
     user_id: int,
     user_name: str,
+    parent_id: int | None = None,
 ) -> None:
     """Broadcast a new message to channel subscribers (excludes sender)."""
     await manager.broadcast_to_channel(channel_id, {
         "type": "new_message",
         "message_id": message_id,
+        "parent_id": parent_id,
         "user_id": user_id,
         "user_name": user_name,
         "html": message_html,

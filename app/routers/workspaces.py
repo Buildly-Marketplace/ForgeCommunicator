@@ -132,6 +132,10 @@ async def list_workspaces(
             "workspace_unread_counts": workspace_unread_counts,
             "is_admin": is_admin,
             "can_create_workspaces": can_create_workspaces,
+            "collabhub_enabled": settings.collabhub_enabled and settings.collabhub_community_workspace_enabled,
+            "in_community": any(
+                ws.slug == "community" for ws in workspaces
+            ) if settings.collabhub_enabled else False,
         },
     )
 
@@ -439,6 +443,40 @@ async def join_workspace(
     
     return RedirectResponse(
         url=f"/workspaces/{workspace.id}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/community/join")
+async def join_community_workspace(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """Join the open-source Community workspace (no invite code required).
+
+    Available when the CollabHub community workspace feature is enabled.
+    Any authenticated user can join.
+    """
+    if not settings.collabhub_enabled or not settings.collabhub_community_workspace_enabled:
+        raise HTTPException(status_code=404, detail="Community workspace is not enabled")
+
+    from app.services.collabhub_sync import ensure_community_membership
+
+    result = await ensure_community_membership(db, user)
+
+    if result.get("skipped"):
+        raise HTTPException(status_code=404, detail="Community workspace is not enabled")
+
+    workspace_id = result.get("workspace_id")
+
+    if request.headers.get("HX-Request"):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = f"/workspaces/{workspace_id}"
+        return response
+
+    return RedirectResponse(
+        url=f"/workspaces/{workspace_id}",
         status_code=status.HTTP_302_FOUND,
     )
 
