@@ -18,36 +18,25 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "api_tokens",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("token", sa.String(64), unique=True, nullable=False, index=True),
-        sa.Column("name", sa.String(100), nullable=False),
-        sa.Column("description", sa.Text, nullable=True),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-    )
+    # Use raw SQL with IF NOT EXISTS to handle the table already existing
+    # (e.g. from create_all or a broken previous deploy)
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS api_tokens (
+            id SERIAL PRIMARY KEY,
+            token VARCHAR(64) UNIQUE NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            expires_at TIMESTAMP WITH TIME ZONE,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            revoked_at TIMESTAMP WITH TIME ZONE,
+            last_used_at TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+        )
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_api_tokens_token ON api_tokens(token)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_api_tokens_user_id ON api_tokens(user_id)")
 
 
 def downgrade() -> None:
