@@ -20,6 +20,7 @@ from app.models.bridged_channel import BridgedChannel, BridgePlatform
 from app.models.user_session import UserSession
 from app.models.attachment import Attachment, AttachmentType
 from app.models.reaction import MessageReaction
+from app.models.api_token import APIToken
 from app.models.ai_agent import (
     AIAgent,
     AIConversation,

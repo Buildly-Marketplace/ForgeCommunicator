@@ -119,6 +119,19 @@ The integration provides:
 - **Profile sync**: GitHub, LinkedIn, Twitter, website URLs
 - **Community data**: Reputation, projects, contributions
 - **Team roles**: Community member, dev team, customer status
+- **Invite links**: `GET /api/workspaces/{id}/invite-link/` returns a shareable join URL (admin/owner only)
+
+**API Token Management:**
+
+Platform admins can generate long-lived API tokens from `/admin/api-tokens` in the web UI.
+These tokens authenticate against all `/api/*` endpoints using DRF-style Token auth:
+
+```bash
+Authorization: Token <token_from_admin_panel>
+```
+
+Tokens inherit the permissions of the admin who creates them. They can be given
+an optional expiry and revoked at any time from the admin panel.
 
 ### Push Notifications (VAPID)
 

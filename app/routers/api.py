@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_maker
 from app.deps import DBSession
+from app.models.api_token import APIToken
 from app.models.channel import Channel
 from app.models.membership import Membership, MembershipRole
 from app.models.message import Message
@@ -225,6 +226,20 @@ async def get_api_user(
                 )
             )
             user = result.scalar_one_or_none()
+        
+        if not user:
+            # Try API token (admin-generated for external services)
+            result = await db.execute(
+                select(APIToken)
+                .where(APIToken.token == token, APIToken.is_active == True)
+                .options(selectinload(APIToken.user))
+            )
+            api_token = result.scalar_one_or_none()
+            
+            if api_token and api_token.is_valid and api_token.user and api_token.user.is_active:
+                api_token.touch()
+                await db.commit()
+                user = api_token.user
         
         if not user:
             raise HTTPException(

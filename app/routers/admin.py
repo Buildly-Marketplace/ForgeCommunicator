@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 
 from app.brand import clear_brand_cache, get_brand_with_overrides
 from app.deps import CurrentUser, DBSession
+from app.models.api_token import APIToken
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.membership import Membership
@@ -647,4 +648,108 @@ async def save_branding(
         )
     
     return RedirectResponse(url="/admin/config/branding", status_code=303)
+
+
+# =============================================================================
+# API Token Management
+# =============================================================================
+
+@router.get("/api-tokens", response_class=HTMLResponse)
+async def admin_api_tokens(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+):
+    """List and manage API tokens."""
+    await require_platform_admin(user)
+
+    result = await db.execute(
+        select(APIToken).order_by(APIToken.created_at.desc())
+    )
+    tokens = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "admin/api_tokens.html",
+        {
+            "request": request,
+            "user": user,
+            "tokens": tokens,
+            "new_token_value": None,
+        },
+    )
+
+
+@router.post("/api-tokens")
+async def create_api_token(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    name: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+    expires_days: Annotated[int | None, Form()] = None,
+):
+    """Generate a new API token."""
+    await require_platform_admin(user)
+
+    from datetime import timedelta
+
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="Token name is required")
+
+    expires_at = None
+    if expires_days and expires_days > 0:
+        from datetime import datetime, timezone
+        expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+
+    token = APIToken.create(
+        user_id=user.id,
+        name=name,
+        description=description,
+        expires_at=expires_at,
+    )
+    db.add(token)
+    await db.commit()
+    await db.refresh(token)
+
+    # Re-fetch all tokens for the list
+    result = await db.execute(
+        select(APIToken).order_by(APIToken.created_at.desc())
+    )
+    tokens = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "admin/api_tokens.html",
+        {
+            "request": request,
+            "user": user,
+            "tokens": tokens,
+            "new_token_value": token.token,
+            "new_token_name": token.name,
+        },
+    )
+
+
+@router.post("/api-tokens/{token_id}/revoke")
+async def revoke_api_token(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    token_id: int,
+):
+    """Revoke an API token."""
+    await require_platform_admin(user)
+
+    token = await db.get(APIToken, token_id)
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    token.revoke()
+    await db.commit()
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">Revoked</span>'
+        )
+
+    return RedirectResponse(url="/admin/api-tokens", status_code=303)
 
