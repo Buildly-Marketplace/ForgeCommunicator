@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import async_session_maker
 from app.deps import DBSession
 from app.models.channel import Channel
-from app.models.membership import Membership
+from app.models.membership import Membership, MembershipRole
 from app.models.message import Message
 from app.models.user import User
 from app.models.user_session import UserSession
@@ -605,6 +605,76 @@ async def list_workspace_members(
         previous=None,
         results=results,
     )
+
+
+@router.get("/workspaces/{workspace_id}/invite-link/")
+async def get_workspace_invite_link(
+    workspace_id: int,
+    user: APIUser,
+    db: DBSession,
+    expires_in_days: int = Query(7, ge=1, le=30, description="Days until invite expires"),
+):
+    """
+    Get or generate an invite link for a workspace.
+
+    Only workspace owners and admins can retrieve invite links.
+    If an active invite code exists it is returned; otherwise a new one
+    is generated.
+
+    Returns the invite code, full URL, and expiry timestamp.
+    """
+    # Verify the user is an admin/owner of this workspace
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a member of this workspace.",
+        )
+
+    if membership.role not in (MembershipRole.OWNER, MembershipRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace owners and admins can access invite links.",
+        )
+
+    # Fetch workspace
+    result = await db.execute(
+        select(Workspace).where(Workspace.id == workspace_id)
+    )
+    workspace = result.scalar_one_or_none()
+
+    if not workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found.",
+        )
+
+    # Reuse existing code if still valid, otherwise generate a new one
+    if not workspace.invite_code or (
+        workspace.invite_expires_at
+        and datetime.now(timezone.utc) > workspace.invite_expires_at
+    ):
+        workspace.generate_invite_code(expires_in_days=expires_in_days)
+        await db.commit()
+        await db.refresh(workspace)
+
+    invite_url = f"{settings.base_url}/workspaces/join?code={workspace.invite_code}"
+
+    return {
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "workspace_slug": workspace.slug,
+        "invite_code": workspace.invite_code,
+        "invite_url": invite_url,
+        "expires_at": workspace.invite_expires_at,
+    }
 
 
 # -------------------------------------------------------------------------
