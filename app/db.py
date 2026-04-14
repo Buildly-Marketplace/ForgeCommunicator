@@ -118,6 +118,7 @@ async def init_db() -> None:
             async with engine.begin() as conn:
                 # Import all models to ensure they're registered
                 from app.models import (  # noqa: F401
+                    api_token,
                     artifact,
                     channel,
                     membership,
@@ -175,6 +176,30 @@ async def init_db() -> None:
                     "CREATE INDEX IF NOT EXISTS ix_site_configs_key ON site_configs(key)",
                     # Membership notification preferences (added 2026-02-25)
                     "ALTER TABLE memberships ADD COLUMN IF NOT EXISTS notify_all_messages BOOLEAN NOT NULL DEFAULT FALSE",
+                    # API tokens table (added 2026-04-14)
+                    """CREATE TABLE IF NOT EXISTS api_tokens (
+                        id SERIAL PRIMARY KEY,
+                        token VARCHAR(64) UNIQUE NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        description TEXT,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        expires_at TIMESTAMP WITH TIME ZONE,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        revoked_at TIMESTAMP WITH TIME ZONE,
+                        last_used_at TIMESTAMP WITH TIME ZONE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_api_tokens_token ON api_tokens(token)",
+                    "CREATE INDEX IF NOT EXISTS ix_api_tokens_user_id ON api_tokens(user_id)",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS token VARCHAR(64) UNIQUE NOT NULL",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS name VARCHAR(100) NOT NULL",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS description TEXT",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP WITH TIME ZONE",
                 ]
                 
                 for migration in migrations:
