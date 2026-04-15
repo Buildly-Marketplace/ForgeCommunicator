@@ -402,7 +402,6 @@ async def join_workspace(
         if request.headers.get("HX-Request"):
             return HTMLResponse(
                 '<div class="text-red-500">Invalid or expired invite code</div>',
-                status_code=400,
             )
         return RedirectResponse(
             url="/workspaces/join?error=Invalid+invite+code",
