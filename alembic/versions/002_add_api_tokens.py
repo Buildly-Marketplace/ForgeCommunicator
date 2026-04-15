@@ -18,8 +18,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Use raw SQL with IF NOT EXISTS to handle the table already existing
-    # (e.g. from create_all or a broken previous deploy)
+    # Drop broken table if it exists without the token column
+    # (caused by create_all running with incomplete metadata on a prior deploy)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'api_tokens')
+               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'api_tokens' AND column_name = 'token')
+            THEN
+                DROP TABLE api_tokens CASCADE;
+            END IF;
+        END $$
+    """)
     op.execute("""
         CREATE TABLE IF NOT EXISTS api_tokens (
             id SERIAL PRIMARY KEY,
