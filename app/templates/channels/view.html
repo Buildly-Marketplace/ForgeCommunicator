@@ -357,6 +357,18 @@
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">Upload file</span>
                         </button>
                         {% endif %}
+                        <!-- Save to Notebook button -->
+                        <button type="button" onclick="toggleNoteSelection()"
+                                id="note-select-btn"
+                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                title="Save messages to notebook">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20 max-w-[220px] text-center leading-snug">
+                                Click to select messages,<br>then save to your notebook
+                            </span>
+                        </button>
                         <div class="flex-1"></div>
                         <button type="button" onclick="openCommandPalette()"
                                 class="p-2 rounded hover:bg-white/10 text-gray-400 text-xs transition-colors"
@@ -1516,6 +1528,153 @@
             banner.remove();
         }
     };
+
+    // ============================================
+    // Notebook Selection Mode
+    // Select multiple messages to save to notebook
+    // ============================================
+    (function() {
+        let selectionMode = false;
+        const selectedIds = new Set();
+
+        function getMessageItems() {
+            return document.querySelectorAll('#message-list .message-item[data-message-id]');
+        }
+
+        // Floating action bar (created once, reused)
+        let actionBar = null;
+        function getActionBar() {
+            if (actionBar) return actionBar;
+            actionBar = document.createElement('div');
+            actionBar.id = 'note-selection-bar';
+            actionBar.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 hidden';
+            actionBar.innerHTML = `
+                <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-dark-800 border border-white/20 shadow-2xl backdrop-blur-lg">
+                    <span class="text-sm text-gray-300">
+                        <span id="note-sel-count" class="font-bold text-white">0</span> messages selected
+                    </span>
+                    <button onclick="saveSelectionToNotebook()" class="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Save to Notebook
+                    </button>
+                    <button onclick="toggleNoteSelection()" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(actionBar);
+            return actionBar;
+        }
+
+        function updateActionBar() {
+            const bar = getActionBar();
+            const countEl = bar.querySelector('#note-sel-count');
+            if (countEl) countEl.textContent = selectedIds.size;
+            if (selectedIds.size > 0) {
+                bar.classList.remove('hidden');
+            } else if (selectionMode) {
+                bar.classList.remove('hidden');
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        function handleMessageClick(e) {
+            if (!selectionMode) return;
+            // Don't interfere with links, buttons inside the message
+            if (e.target.closest('a, button')) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const item = e.currentTarget;
+            const msgId = item.getAttribute('data-message-id');
+            if (!msgId) return;
+
+            if (selectedIds.has(msgId)) {
+                selectedIds.delete(msgId);
+                item.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-500/10');
+                const check = item.querySelector('.note-sel-check');
+                if (check) check.remove();
+            } else {
+                selectedIds.add(msgId);
+                item.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-500/10');
+                // Add checkmark overlay
+                if (!item.querySelector('.note-sel-check')) {
+                    const check = document.createElement('div');
+                    check.className = 'note-sel-check absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white z-10';
+                    check.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+                    item.style.position = 'relative';
+                    item.appendChild(check);
+                }
+            }
+            updateActionBar();
+        }
+
+        window.toggleNoteSelection = function() {
+            selectionMode = !selectionMode;
+            const btn = document.getElementById('note-select-btn');
+
+            if (selectionMode) {
+                // Enter selection mode
+                if (btn) {
+                    btn.classList.add('bg-emerald-600/30', 'text-emerald-400');
+                    btn.classList.remove('text-gray-300');
+                }
+                getMessageItems().forEach(function(item) {
+                    item.classList.add('cursor-pointer');
+                    item.addEventListener('click', handleMessageClick, true);
+                });
+                getActionBar().classList.remove('hidden');
+                updateActionBar();
+                if (window.showToast) {
+                    window.showToast('Click messages to select them, then save to notebook', 'info', 3000);
+                }
+            } else {
+                // Exit selection mode — clear everything
+                if (btn) {
+                    btn.classList.remove('bg-emerald-600/30', 'text-emerald-400');
+                    btn.classList.add('text-gray-300');
+                }
+                getMessageItems().forEach(function(item) {
+                    item.classList.remove('cursor-pointer', 'ring-2', 'ring-emerald-500', 'bg-emerald-500/10');
+                    item.removeEventListener('click', handleMessageClick, true);
+                    var check = item.querySelector('.note-sel-check');
+                    if (check) check.remove();
+                });
+                selectedIds.clear();
+                getActionBar().classList.add('hidden');
+            }
+        };
+
+        window.saveSelectionToNotebook = function() {
+            if (selectedIds.size === 0) {
+                if (window.showToast) window.showToast('No messages selected', 'warning');
+                return;
+            }
+
+            const ids = Array.from(selectedIds).join(',');
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.style.display = 'none';
+            // Use HTMX for inline feedback
+            form.setAttribute('hx-post', '/notes/from-messages');
+            form.setAttribute('hx-target', 'body');
+            form.setAttribute('hx-swap', 'beforeend');
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'message_ids';
+            input.value = ids;
+            form.appendChild(input);
+
+            document.body.appendChild(form);
+            htmx.process(form);
+            htmx.trigger(form, 'submit');
+
+            // Exit selection mode
+            toggleNoteSelection();
+        };
+    })();
 </script>
 {% endblock %}
 {% endblock %}

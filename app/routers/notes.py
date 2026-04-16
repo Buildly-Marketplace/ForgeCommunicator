@@ -498,6 +498,97 @@ async def create_note_from_message(
     )
 
 
+@router.post("/from-messages")
+async def create_note_from_messages(
+    request: Request,
+    user: CurrentUser,
+    db: DBSession,
+    message_ids: Annotated[str, Form()],
+):
+    """Create a note from multiple selected messages.
+
+    Accepts a comma-separated list of message IDs, fetches them in order,
+    and compiles them into a single note with links back to the channel.
+    """
+    # Parse and validate IDs
+    try:
+        ids = [int(mid.strip()) for mid in message_ids.split(",") if mid.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid message IDs")
+
+    if not ids:
+        raise HTTPException(status_code=400, detail="No messages selected")
+
+    # Fetch messages in chronological order
+    result = await db.execute(
+        select(Message)
+        .where(Message.id.in_(ids), Message.deleted_at == None)
+        .options(
+            selectinload(Message.user),
+            selectinload(Message.channel).selectinload(Channel.workspace),
+        )
+        .order_by(Message.created_at.asc())
+    )
+    messages = result.scalars().all()
+
+    if not messages:
+        raise HTTPException(status_code=404, detail="No messages found")
+
+    # Verify the user has workspace access (check first message's workspace)
+    first_msg = messages[0]
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == first_msg.channel.workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Build markdown content with links
+    workspace_id = first_msg.channel.workspace_id
+    channel = first_msg.channel
+    channel_url = f"/workspaces/{workspace_id}/channels/{channel.id}"
+
+    content = f"## Selected Messages from [#{channel.name}]({channel_url})\n\n"
+    content += f"*{len(messages)} messages collected*\n\n---\n\n"
+
+    for msg in messages:
+        author = msg.user.display_name if msg.user else "Unknown"
+        timestamp = msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else ""
+        msg_url = f"{channel_url}#message-{msg.id}"
+        content += f"**{author}** — *[{timestamp}]({msg_url})*\n\n"
+        content += f"{msg.body}\n\n---\n\n"
+
+    note = Note(
+        owner_id=user.id,
+        title=f"Messages from #{channel.name}",
+        content=content.rstrip("---\n\n"),
+        workspace_id=workspace_id,
+        channel_id=channel.id,
+        source_type=NoteSourceType.MESSAGE,
+        source_message_id=first_msg.id,
+        visibility=NoteVisibility.PRIVATE,
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(f'''
+            <div id="note-save-result" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-green-600 text-white shadow-lg text-sm flex items-center gap-2 animate-fade-in">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                {len(messages)} messages saved to <a href="/notes/{note.id}" class="underline font-medium">notebook</a>
+            </div>
+            <script>setTimeout(() => document.getElementById('note-save-result')?.remove(), 4000);</script>
+        ''')
+
+    return RedirectResponse(
+        url=f"/notes/{note.id}/edit",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.post("/from-thread/{message_id}")
 async def create_note_from_thread(
     request: Request,

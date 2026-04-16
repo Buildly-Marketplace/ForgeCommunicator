@@ -311,6 +311,20 @@
             console.log('Clearing cache and reloading...');
             
             try {
+                // Fetch the current server version BEFORE clearing, so post-reload
+                // init recognizes we're already up-to-date
+                try {
+                    const resp = await fetch('/version', { cache: 'no-store' });
+                    if (resp.ok) {
+                        const sv = await resp.json();
+                        localStorage.setItem('app_version', sv.version);
+                        localStorage.setItem('app_cache_key', sv.cache_key);
+                    }
+                } catch (_) { /* best-effort */ }
+
+                // Flag so the post-reload page suppresses SW re-registration events
+                sessionStorage.setItem('app_just_updated', Date.now().toString());
+
                 // Unregister service worker so it re-registers fresh
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -324,10 +338,6 @@
                     await Promise.all(cacheNames.map(name => caches.delete(name)));
                     console.log('Caches cleared:', cacheNames);
                 }
-                
-                // Clear version tracking
-                localStorage.removeItem('app_version');
-                localStorage.removeItem('app_cache_key');
                 
                 // Force reload from server
                 if (window.showToast) {
@@ -345,8 +355,17 @@
             }
         },
         
-        // Show persistent update banner
+        // Show persistent update banner (suppressed right after an update)
         showUpdateBanner: function(versionInfo) {
+            // If we just performed an update, suppress the banner for 15 seconds
+            const justUpdated = sessionStorage.getItem('app_just_updated');
+            if (justUpdated && (Date.now() - parseInt(justUpdated, 10)) < 15000) {
+                console.log('Suppressing update banner — just updated');
+                sessionStorage.removeItem('app_just_updated');
+                return;
+            }
+            sessionStorage.removeItem('app_just_updated');
+
             const banner = document.getElementById('app-update-banner');
             if (banner) {
                 const text = document.getElementById('update-banner-text');
