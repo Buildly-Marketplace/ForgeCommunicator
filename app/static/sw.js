@@ -71,22 +71,29 @@ self.addEventListener('install', (event) => {
 // Activate event - claim clients immediately, clean up old caches in background
 self.addEventListener('activate', (event) => {
     console.log('[SW] Service worker activating...');
-    // Claim clients immediately
-    event.waitUntil(clients.claim());
-    
-    // Clean up old caches in background
-    caches.keys()
-        .then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => {
-                        console.log('[SW] Deleting old cache:', name);
-                        return caches.delete(name);
-                    })
-            );
-        })
-        .catch(err => console.log('[SW] Cache cleanup error (non-blocking):', err));
+    // Claim clients immediately, then clean old caches and notify clients
+    event.waitUntil(
+        self.clients.claim()
+            .then(() => caches.keys())
+            .then((cacheNames) => {
+                const oldCaches = cacheNames.filter((name) => name !== CACHE_NAME);
+                if (oldCaches.length > 0) {
+                    console.log('[SW] Deleting old caches:', oldCaches);
+                    // Notify all clients that a new version is active
+                    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+                        .then((clients) => {
+                            clients.forEach((client) => {
+                                client.postMessage({
+                                    type: 'NEW_VERSION_AVAILABLE',
+                                    cache_name: CACHE_NAME
+                                });
+                            });
+                        });
+                }
+                return Promise.all(oldCaches.map((name) => caches.delete(name)));
+            })
+            .catch(err => console.log('[SW] Activate error (non-blocking):', err))
+    );
 });
 
 // Fetch event - network first, fallback to cache

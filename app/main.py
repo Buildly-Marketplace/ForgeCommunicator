@@ -147,17 +147,27 @@ async def service_worker():
     
     Service workers can only control pages at their level or below.
     By serving from root, the SW can control the entire app.
+    The cache key is injected dynamically so that every deploy produces
+    a byte-different SW file, which triggers the browser update flow.
     """
-    from fastapi.responses import FileResponse
+    from fastapi.responses import Response
     import os
     sw_path = os.path.join(os.path.dirname(__file__), "static", "sw.js")
-    return FileResponse(
-        sw_path,
+    with open(sw_path, "r") as f:
+        sw_content = f.read()
+    # Inject the server-derived cache key so every deploy changes the SW file
+    cache_key = f"forge-communicator-{settings.app_version}-{settings.build_sha[:8] if settings.build_sha else 'dev'}"
+    sw_content = sw_content.replace(
+        "let CACHE_NAME = 'forge-communicator-v14';",
+        f"let CACHE_NAME = '{cache_key}';",
+    )
+    return Response(
+        content=sw_content,
         media_type="application/javascript",
         headers={
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Service-Worker-Allowed": "/",
-        }
+        },
     )
 
 

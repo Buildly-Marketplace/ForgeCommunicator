@@ -299,7 +299,33 @@
     
     <!-- Toast notifications -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
-    
+
+    <!-- App Update Banner (persistent, non-dismissible until acted on) -->
+    <div id="app-update-banner" class="hidden fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style="padding-top: env(safe-area-inset-top);">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center flex-1 min-w-0">
+                    <span class="flex p-2 rounded-lg bg-emerald-800">
+                        <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </span>
+                    <p class="ml-3 text-sm font-medium text-white">
+                        <span id="update-banner-text">A new version is available!</span>
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.cacheManager.clearCacheAndReload()" class="px-4 py-2 bg-white text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-50 shadow-sm transition-colors">
+                        Update Now
+                    </button>
+                    <button onclick="document.getElementById('app-update-banner').classList.add('hidden')" class="p-1 text-emerald-200 hover:text-white" aria-label="Dismiss">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Push Notification Prompt Banner -->
     {% if user %}
     <div id="push-notification-prompt" class="hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg">
@@ -446,6 +472,30 @@
                     .then(registration => {
                         console.log('Service Worker registered:', registration.scope);
                         
+                        // If a new SW is already waiting, show the update banner
+                        if (registration.waiting) {
+                            console.log('New SW waiting — showing update banner');
+                            if (window.cacheManager) {
+                                window.cacheManager.showUpdateBanner({});
+                            }
+                        }
+
+                        // Detect when a new SW is installed and waiting
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // New SW installed while old one is still active
+                                        console.log('New SW installed — showing update banner');
+                                        if (window.cacheManager) {
+                                            window.cacheManager.showUpdateBanner({});
+                                        }
+                                    }
+                                });
+                            }
+                        });
+
                         // Check for updates periodically
                         setInterval(() => {
                             registration.update();

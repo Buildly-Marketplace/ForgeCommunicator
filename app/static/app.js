@@ -274,6 +274,9 @@
     // ============================================
     
     window.cacheManager = {
+        UPDATE_CHECK_INTERVAL_MS: 5 * 60 * 1000, // Check every 5 minutes
+        _checkIntervalId: null,
+
         // Check for app updates
         checkForUpdates: async function() {
             try {
@@ -282,10 +285,12 @@
                 
                 const serverVersion = await response.json();
                 const storedVersion = localStorage.getItem('app_version');
+                const storedCacheKey = localStorage.getItem('app_cache_key');
                 
-                console.log('Current version:', storedVersion, 'Server version:', serverVersion.version);
+                console.log('Current version:', storedVersion, 'Server version:', serverVersion.version, 'Cache key:', serverVersion.cache_key);
                 
-                if (storedVersion && storedVersion !== serverVersion.version) {
+                // Detect update by version OR cache_key change (cache_key includes build_sha)
+                if (storedVersion && (storedVersion !== serverVersion.version || storedCacheKey !== serverVersion.cache_key)) {
                     console.log('New version available!');
                     return serverVersion;
                 }
@@ -306,12 +311,14 @@
             console.log('Clearing cache and reloading...');
             
             try {
-                // Tell service worker to clear cache
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+                // Unregister service worker so it re-registers fresh
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(r => r.unregister()));
+                    console.log('Service workers unregistered');
                 }
                 
-                // Also clear caches from the main thread (in case SW is not ready)
+                // Clear all caches from the main thread
                 if ('caches' in window) {
                     const cacheNames = await caches.keys();
                     await Promise.all(cacheNames.map(name => caches.delete(name)));
@@ -324,12 +331,12 @@
                 
                 // Force reload from server
                 if (window.showToast) {
-                    window.showToast('Cache cleared! Reloading...', 'success');
+                    window.showToast('Updating... please wait.', 'success');
                 }
                 
                 setTimeout(() => {
                     window.location.reload(true);
-                }, 500);
+                }, 300);
                 
             } catch (e) {
                 console.error('Error clearing cache:', e);
@@ -338,34 +345,38 @@
             }
         },
         
-        // Show update available notification
-        showUpdateNotification: function(versionInfo) {
-            // Check if toast system or alert
-            if (window.showToast) {
-                const toastHtml = `
-                    <div class="flex items-center gap-3">
-                        <span>New version available! (${versionInfo.version})</span>
-                        <button onclick="window.cacheManager.clearCacheAndReload()" 
-                                class="px-2 py-1 bg-white text-blue-600 rounded text-sm font-medium hover:bg-blue-50">
-                            Update Now
-                        </button>
-                    </div>
-                `;
-                window.showToast(toastHtml, 'info', 10000, true);
+        // Show persistent update banner
+        showUpdateBanner: function(versionInfo) {
+            const banner = document.getElementById('app-update-banner');
+            if (banner) {
+                const text = document.getElementById('update-banner-text');
+                if (text && versionInfo && versionInfo.version) {
+                    text.textContent = `A new version (${versionInfo.version}) is available!`;
+                }
+                banner.classList.remove('hidden');
+                console.log('Update banner shown');
             } else {
-                if (confirm(`New version ${versionInfo.version} available. Reload to update?`)) {
+                // Fallback: use confirm dialog (e.g. before DOM ready)
+                if (confirm('A new version is available. Reload to update?')) {
                     this.clearCacheAndReload();
                 }
             }
         },
         
-        // Initialize - check for updates on page load
+        // Initialize - check for updates on page load and periodically
         init: async function() {
-            // Listen for cache cleared message from service worker
+            const self = this;
+
             if ('serviceWorker' in navigator) {
+                // Listen for messages from service worker
                 navigator.serviceWorker.addEventListener('message', (event) => {
                     if (event.data && event.data.type === 'CACHE_CLEARED') {
                         console.log('Service worker confirmed cache cleared');
+                    }
+                    // SW activated with a new version — show update banner
+                    if (event.data && event.data.type === 'NEW_VERSION_AVAILABLE') {
+                        console.log('SW reports new version:', event.data.cache_name);
+                        self.showUpdateBanner({ version: event.data.cache_name });
                     }
                     // Handle push notification received (from SW)
                     if (event.data && event.data.type === 'PUSH_RECEIVED') {
@@ -389,15 +400,44 @@
                         }
                     }
                 });
+
+                // When a new SW takes control, show the update banner
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('New service worker activated — update available');
+                    self.showUpdateBanner({});
+                });
             }
             
             // Check for updates after a short delay (don't block initial load)
             setTimeout(async () => {
-                const update = await this.checkForUpdates();
+                const update = await self.checkForUpdates();
                 if (update) {
-                    this.showUpdateNotification(update);
+                    self.showUpdateBanner(update);
                 }
             }, 3000);
+
+            // Periodic version check (catches updates while PWA stays open)
+            this._checkIntervalId = setInterval(async () => {
+                const update = await self.checkForUpdates();
+                if (update) {
+                    self.showUpdateBanner(update);
+                    // Also trigger SW update check
+                    if ('serviceWorker' in navigator) {
+                        const reg = await navigator.serviceWorker.getRegistration();
+                        if (reg) reg.update();
+                    }
+                }
+            }, this.UPDATE_CHECK_INTERVAL_MS);
+
+            // Also check on visibility change (user returns to PWA tab/app)
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible') {
+                    const update = await self.checkForUpdates();
+                    if (update) {
+                        self.showUpdateBanner(update);
+                    }
+                }
+            });
         }
     };
     
