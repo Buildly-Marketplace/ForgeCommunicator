@@ -319,135 +319,136 @@ async def send_message(
     )
     message = result.scalar_one()
     
-    # Send push notifications for DMs and @mentions
-    try:
+    # Send push notifications in background (fire-and-forget) to avoid blocking the response
+    import asyncio
+
+    async def _send_push_notifications():
+        """Background task for push notifications — uses its own DB session."""
+        from app.db import async_session_maker
         from app.services.push import push_service
         from app.models.user import User
         from app.models.workspace import Workspace
         import re
         import logging
-        push_logger = logging.getLogger(__name__)
-        
-        # Check if this is a DM channel
-        if channel.is_dm:
-            # Get workspace name for notification
-            ws_result = await db.execute(
-                select(Workspace.name).where(Workspace.id == workspace_id)
-            )
-            workspace_name = ws_result.scalar_one_or_none() or "Message"
-            
-            # Get all members of the DM except the sender
-            result = await db.execute(
-                select(ChannelMembership.user_id)
-                .where(
-                    ChannelMembership.channel_id == channel_id,
-                    ChannelMembership.user_id != user.id,
-                )
-            )
-            recipient_ids = [row[0] for row in result.fetchall()]
-            
-            push_logger.info("DM sent by user %s to channel %s, notifying %d recipients: %s", 
-                           user.id, channel_id, len(recipient_ids), recipient_ids)
-            
-            for recipient_id in recipient_ids:
-                sent = await push_service.notify_dm(
-                    db=db,
-                    recipient_user_id=recipient_id,
-                    sender_name=user.display_name,
-                    workspace_id=workspace_id,
-                    channel_id=channel_id,
-                    message_preview=body[:100],
-                    workspace_name=workspace_name,
-                )
-                push_logger.info("Push notification result for user %s: sent=%s", recipient_id, sent)
-        
-        # Check for @mentions in regular channels
-        mention_pattern = re.compile(r'@(\w+(?:\s+\w+)?)', re.IGNORECASE)
-        mentions = mention_pattern.findall(body)
-        mentioned_user_ids: set[int] = set()
+        push_logger = logging.getLogger(__name__ + ".push_bg")
 
-        if mentions:
-            for mention_name in mentions:
-                # Find user by display name
-                result = await db.execute(
-                    select(User)
-                    .join(Membership, Membership.user_id == User.id)
-                    .where(
-                        Membership.workspace_id == workspace_id,
-                        User.display_name.ilike(f"%{mention_name}%"),
-                        User.id != user.id,  # Don't notify yourself
+        try:
+            async with async_session_maker() as bg_db:
+                # Check if this is a DM channel
+                if channel.is_dm:
+                    ws_result = await bg_db.execute(
+                        select(Workspace.name).where(Workspace.id == workspace_id)
                     )
-                )
-                mentioned_user = result.scalar_one_or_none()
+                    workspace_name = ws_result.scalar_one_or_none() or "Message"
 
-                if mentioned_user:
-                    mentioned_user_ids.add(mentioned_user.id)
-                    await push_service.notify_mention(
-                        db=db,
-                        mentioned_user_id=mentioned_user.id,
-                        sender_name=user.display_name,
-                        channel_name=channel.display_name,
-                        workspace_id=workspace_id,
-                        channel_id=channel_id,
-                        message_preview=body[:100],
+                    result = await bg_db.execute(
+                        select(ChannelMembership.user_id)
+                        .where(
+                            ChannelMembership.channel_id == channel_id,
+                            ChannelMembership.user_id != user.id,
+                        )
                     )
+                    recipient_ids = [row[0] for row in result.fetchall()]
 
-        # Check for AI agent mentions and trigger responses
-        for mention_name in mentions:
-            # Find AI agent by display name in this workspace
-            result = await db.execute(
-                select(AIAgent)
-                .where(
-                    AIAgent.workspace_id == workspace_id,
-                    AIAgent.is_active == True,
-                    AIAgent.display_name.ilike(f"%{mention_name}%"),
-                )
-            )
-            mentioned_agent = result.scalar_one_or_none()
-            
-            if mentioned_agent and mentioned_agent.capabilities and mentioned_agent.capabilities.get('can_respond_mentions'):
-                # Trigger AI response in background
-                import asyncio
-                asyncio.create_task(
-                    _generate_ai_mention_response(
-                        db_factory=db._session_factory if hasattr(db, '_session_factory') else None,
-                        agent_id=mentioned_agent.id,
-                        channel_id=channel_id,
-                        workspace_id=workspace_id,
-                        message_id=message.id,
-                        user_message=body,
-                        user_name=user.display_name,
+                    push_logger.info("DM by user %s to channel %s, notifying %d recipients",
+                                     user.id, channel_id, len(recipient_ids))
+
+                    for recipient_id in recipient_ids:
+                        await push_service.notify_dm(
+                            db=bg_db,
+                            recipient_user_id=recipient_id,
+                            sender_name=user.display_name,
+                            workspace_id=workspace_id,
+                            channel_id=channel_id,
+                            message_preview=body[:100],
+                            workspace_name=workspace_name,
+                            message_id=message.id,
+                        )
+
+                # @mentions
+                mention_pattern = re.compile(r'@(\w+(?:\s+\w+)?)', re.IGNORECASE)
+                mentions = mention_pattern.findall(body)
+                mentioned_user_ids: set[int] = set()
+
+                if mentions:
+                    for mention_name in mentions:
+                        result = await bg_db.execute(
+                            select(User)
+                            .join(Membership, Membership.user_id == User.id)
+                            .where(
+                                Membership.workspace_id == workspace_id,
+                                User.display_name.ilike(f"%{mention_name}%"),
+                                User.id != user.id,
+                            )
+                        )
+                        mentioned_user = result.scalar_one_or_none()
+
+                        if mentioned_user:
+                            mentioned_user_ids.add(mentioned_user.id)
+                            await push_service.notify_mention(
+                                db=bg_db,
+                                mentioned_user_id=mentioned_user.id,
+                                sender_name=user.display_name,
+                                channel_name=channel.display_name,
+                                workspace_id=workspace_id,
+                                channel_id=channel_id,
+                                message_preview=body[:100],
+                                message_id=message.id,
+                            )
+
+                # AI agent mentions
+                for mention_name in mentions:
+                    result = await bg_db.execute(
+                        select(AIAgent)
+                        .where(
+                            AIAgent.workspace_id == workspace_id,
+                            AIAgent.is_active == True,
+                            AIAgent.display_name.ilike(f"%{mention_name}%"),
+                        )
                     )
-                )
+                    mentioned_agent = result.scalar_one_or_none()
 
-        # Notify members who opted in to all channel messages (non-DM top-level messages only)
-        if not channel.is_dm and not parent_id:
-            result = await db.execute(
-                select(Membership).where(
-                    Membership.workspace_id == workspace_id,
-                    Membership.notify_all_messages == True,  # noqa: E712
-                    Membership.user_id != user.id,
-                )
-            )
-            all_msg_members = result.scalars().all()
+                    if mentioned_agent and mentioned_agent.capabilities and mentioned_agent.capabilities.get('can_respond_mentions'):
+                        asyncio.create_task(
+                            _generate_ai_mention_response(
+                                db_factory=bg_db._session_factory if hasattr(bg_db, '_session_factory') else None,
+                                agent_id=mentioned_agent.id,
+                                channel_id=channel_id,
+                                workspace_id=workspace_id,
+                                message_id=message.id,
+                                user_message=body,
+                                user_name=user.display_name,
+                            )
+                        )
 
-            for member in all_msg_members:
-                # Skip users already notified via @mention to avoid duplicates
-                if member.user_id in mentioned_user_ids:
-                    continue
-                await push_service.notify_channel_message(
-                    db=db,
-                    user_id=member.user_id,
-                    sender_name=user.display_name,
-                    channel_name=channel.display_name,
-                    workspace_id=workspace_id,
-                    channel_id=channel_id,
-                    message_preview=body[:100],
-                )
-    except Exception as e:
-        # Don't fail the message send if push notification fails
-        import logging
-        logging.getLogger(__name__).error(f"Push notification error: {e}")
+                # Notify members who opted in to all channel messages (non-DM top-level only)
+                if not channel.is_dm and not parent_id:
+                    result = await bg_db.execute(
+                        select(Membership).where(
+                            Membership.workspace_id == workspace_id,
+                            Membership.notify_all_messages == True,  # noqa: E712
+                            Membership.user_id != user.id,
+                        )
+                    )
+                    all_msg_members = result.scalars().all()
+
+                    for member in all_msg_members:
+                        if member.user_id in mentioned_user_ids:
+                            continue
+                        await push_service.notify_channel_message(
+                            db=bg_db,
+                            user_id=member.user_id,
+                            sender_name=user.display_name,
+                            channel_name=channel.display_name,
+                            workspace_id=workspace_id,
+                            channel_id=channel_id,
+                            message_preview=body[:100],
+                            message_id=message.id,
+                        )
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Background push notification error: {e}")
+
+    asyncio.create_task(_send_push_notifications())
     
     # Broadcast new message via WebSocket to other users in the channel
     try:

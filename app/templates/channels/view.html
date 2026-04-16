@@ -245,7 +245,7 @@
                 <form hx-post="/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages"
                       hx-target="#message-list"
                       hx-swap="beforeend"
-                      hx-on::after-request="this.reset(); scrollToBottom(); hideMentionDropdown();"
+                      hx-on::after-request="if(event.detail.successful){this.reset(); updateLastMessageId(); scrollToBottom(); hideMentionDropdown();}"
                       id="message-form"
                       class="space-y-2">
                     
@@ -751,6 +751,18 @@
         });
     })();
 
+    // Global fallback for updateLastMessageId (used by hx-on handlers in both poll and ws modes)
+    if (!window.updateLastMessageId) {
+        window.updateLastMessageId = function() {
+            let maxId = 0;
+            document.querySelectorAll('[id^="message-"]').forEach(function(el) {
+                const id = parseInt(el.id.replace('message-', ''), 10);
+                if (!isNaN(id) && id > maxId) maxId = id;
+            });
+            if (maxId > 0) window._pollLastMessageId = maxId;
+        };
+    }
+
     // ============================================
     // Native WebSocket for real-time messaging
     // ============================================
@@ -779,7 +791,11 @@
                     break;
                 }
             }
+            // Also expose for HTMX polling fallback
+            window._pollLastMessageId = lastMessageId;
         }
+        // Expose globally so hx-on handlers can call it
+        window.updateLastMessageId = updateLastMessageId;
 
         // Fetch any messages missed during a WebSocket gap
         async function catchUpMessages() {
@@ -792,12 +808,23 @@
                 if (response.ok) {
                     const html = await response.text();
                     if (html && html.trim()) {
+                        // Parse into a temporary container to deduplicate
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
                         const messageList = document.getElementById('message-list');
                         if (messageList) {
-                            messageList.insertAdjacentHTML('beforeend', html);
-                            updateLastMessageId();
-                            scrollToBottom();
-                            markChannelRead();
+                            let added = false;
+                            for (const child of Array.from(temp.children)) {
+                                // Skip messages already in the DOM (dedup)
+                                if (child.id && document.getElementById(child.id)) continue;
+                                messageList.appendChild(child);
+                                added = true;
+                            }
+                            if (added) {
+                                updateLastMessageId();
+                                scrollToBottom();
+                                markChannelRead();
+                            }
                         }
                     }
                 }
@@ -949,10 +976,11 @@
         // Connect when page loads
         document.addEventListener('DOMContentLoaded', connect);
 
-        // Safety-net: poll for missed messages every 30s (covers WS micro-gaps)
+        // Safety-net: poll for missed messages every 30s ONLY when WS is disconnected
         document.addEventListener('DOMContentLoaded', function() {
             catchUpInterval = setInterval(function() {
                 if (document.hidden) return; // skip when tab not visible
+                if (socket && socket.readyState === WebSocket.OPEN) return; // skip when WS is healthy
                 catchUpMessages();
             }, 30000);
         });

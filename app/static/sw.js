@@ -4,7 +4,7 @@
 
 // Cache name is checked against server version on each page load
 // When a new version is deployed, the old cache is automatically cleared
-let CACHE_NAME = 'forge-communicator-v13';
+let CACHE_NAME = 'forge-communicator-v14';
 const OFFLINE_URL = '/offline';
 
 // Static assets to cache for offline use

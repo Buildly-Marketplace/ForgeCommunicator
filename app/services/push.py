@@ -168,6 +168,7 @@ class PushNotificationService:
         workspace_id: int,
         channel_id: int,
         message_preview: str,
+        message_id: int | None = None,
     ):
         """Send notification for a @mention."""
         await self.send_notification(
@@ -176,7 +177,7 @@ class PushNotificationService:
             title=f"{sender_name} mentioned you in {channel_name}",
             body=message_preview[:100],
             url=f"/workspaces/{workspace_id}/channels/{channel_id}",
-            tag=f"mention-{channel_id}",
+            tag=f"mention-{channel_id}-{message_id}" if message_id else f"mention-{channel_id}-{__import__('time').time_ns()}",
         )
     
     async def notify_channel_message(
@@ -188,6 +189,7 @@ class PushNotificationService:
         workspace_id: int,
         channel_id: int,
         message_preview: str,
+        message_id: int | None = None,
     ) -> int:
         """Send notification for a regular channel message to a subscribed member.
 
@@ -199,7 +201,7 @@ class PushNotificationService:
             title=f"{sender_name} in {channel_name}",
             body=message_preview[:100],
             url=f"/workspaces/{workspace_id}/channels/{channel_id}",
-            tag=f"channel-{channel_id}",
+            tag=f"channel-{channel_id}-{message_id}" if message_id else f"channel-{channel_id}-{__import__('time').time_ns()}",
         )
 
     async def notify_dm(
@@ -211,6 +213,7 @@ class PushNotificationService:
         channel_id: int,
         message_preview: str,
         workspace_name: str = None,
+        message_id: int | None = None,
     ) -> int:
         """Send notification for a direct message.
         
@@ -228,7 +231,7 @@ class PushNotificationService:
             title=title,
             body=message_preview[:100],
             url=f"/workspaces/{workspace_id}/channels/{channel_id}",
-            tag=f"dm-{channel_id}",
+            tag=f"dm-{channel_id}-{message_id}" if message_id else f"dm-{channel_id}-{__import__('time').time_ns()}",
         )
 
 
