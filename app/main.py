@@ -279,6 +279,10 @@ app.include_router(invites.router)
 app.include_router(notes.router)
 app.include_router(api.router)  # DRF-compatible API for CollabHub
 
+# Mobile JSON API for native apps
+from app.routers import mobile_api
+app.include_router(mobile_api.router)
+
 # Import and include integrations router
 from app.routers import integrations
 app.include_router(integrations.router)

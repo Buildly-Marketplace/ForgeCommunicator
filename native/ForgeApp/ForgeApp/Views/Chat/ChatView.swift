@@ -1,0 +1,159 @@
+import SwiftUI
+
+struct ChatView: View {
+    let channelId: Int
+    let workspaceId: Int
+    let title: String
+
+    @StateObject private var vm: ChatViewModel
+    @EnvironmentObject var authVM: AuthViewModel
+    @State private var draft = ""
+    @FocusState private var inputFocused: Bool
+
+    init(channelId: Int, workspaceId: Int, title: String) {
+        self.channelId = channelId
+        self.workspaceId = workspaceId
+        self.title = title
+        _vm = StateObject(wrappedValue: ChatViewModel(channelId: channelId, workspaceId: workspaceId))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Messages
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        // Pull-to-load-older sentinel
+                        Color.clear
+                            .frame(height: 1)
+                            .onAppear { Task { await vm.loadOlder() } }
+
+                        ForEach(vm.messages) { msg in
+                            MessageBubble(
+                                message: msg,
+                                isMe: msg.userId == authVM.currentUser?.id
+                            )
+                            .id(msg.id)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .onChange(of: vm.messages.count) { _, _ in
+                    if let last = vm.messages.last {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            // Input bar
+            HStack(spacing: 8) {
+                TextField("Message…", text: $draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...5)
+                    .focused($inputFocused)
+                    .onSubmit { sendIfReady() }
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+
+                Button {
+                    sendIfReady()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? .gray : .blue)
+                }
+                .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty || vm.isSending)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            #if os(iOS)
+            .padding(.bottom, 2)
+            #endif
+        }
+        .navigationTitle(title)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+        #endif
+        .task { await vm.loadInitial() }
+        // Simple polling for new messages (will be replaced by WebSocket)
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                await vm.catchUp()
+            }
+        }
+    }
+
+    private func sendIfReady() {
+        let text = draft
+        draft = ""
+        Task { await vm.send(text) }
+    }
+}
+
+// MARK: - Message bubble
+
+struct MessageBubble: View {
+    let message: MessageResponse
+    let isMe: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            if isMe { Spacer(minLength: 60) }
+
+            if !isMe {
+                AvatarView(user: message.author, size: 32)
+            }
+
+            VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {
+                if !isMe {
+                    Text(message.authorName)
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(message.body)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isMe ? Color.blue : Color(.systemGray5), in: bubbleShape)
+                    .foregroundStyle(isMe ? .white : .primary)
+
+                HStack(spacing: 4) {
+                    Text(message.createdAt, style: .time)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if message.isEdited {
+                        Text("edited")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if message.threadReplyCount > 0 {
+                        Text("💬 \(message.threadReplyCount)")
+                            .font(.caption2)
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+
+            if !isMe { Spacer(minLength: 60) }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var bubbleShape: some Shape {
+        RoundedRectangle(cornerRadius: 16)
+    }
+}
+
+#if os(macOS)
+// macOS doesn't have UIColor.systemGray5
+extension Color {
+    static let systemGray5 = Color(nsColor: .controlBackgroundColor)
+}
+#endif
