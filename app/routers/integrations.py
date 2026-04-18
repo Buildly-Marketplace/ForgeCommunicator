@@ -293,7 +293,6 @@ async def slack_sync_channels(
             membership = ChannelMembership(
                 channel_id=forge_channel.id,
                 user_id=user.id,
-                is_owner=True,
             )
             db.add(membership)
         
@@ -595,7 +594,6 @@ async def discord_sync_channels(
                 membership = ChannelMembership(
                     channel_id=forge_channel.id,
                     user_id=user.id,
-                    is_owner=True,
                 )
                 db.add(membership)
             

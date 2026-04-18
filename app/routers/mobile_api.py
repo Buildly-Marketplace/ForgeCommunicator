@@ -1222,7 +1222,6 @@ async def mobile_slack_sync(
             db.add(ChannelMembership(
                 channel_id=forge_channel.id,
                 user_id=user.id,
-                is_owner=True,
             ))
 
         db.add(BridgedChannel(
