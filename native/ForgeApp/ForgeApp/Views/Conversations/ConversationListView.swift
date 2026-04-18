@@ -1,69 +1,42 @@
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct ConversationListView: View {
     @StateObject private var vm = ConversationListViewModel()
     @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var notificationService: NotificationService
-    @State private var filter: InboxFilter = .dms
+    @State private var slackConnected = false
+    @State private var discordConnected = false
 
+    private let api = APIClient.shared
     private let webBaseURL = "https://comms.buildly.io"
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Filter picker
-                Picker("Filter", selection: $filter) {
-                    ForEach(InboxFilter.allCases) { f in
-                        Text(f.label).tag(f)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-                Group {
-                    if vm.isLoading {
-                        ProgressView("Loading…")
+            Group {
+                if vm.isLoading {
+                    ProgressView("Loading…")
+                        .tint(ForgeTheme.primary)
+                        .frame(maxHeight: .infinity)
+                } else if let error = vm.error {
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load() } }
                             .tint(ForgeTheme.primary)
-                            .frame(maxHeight: .infinity)
-                    } else if let error = vm.error {
-                        ContentUnavailableView {
-                            Label("Error", systemImage: "exclamationmark.triangle")
-                        } description: {
-                            Text(error)
-                        } actions: {
-                            Button("Retry") { Task { await vm.load() } }
-                                .tint(ForgeTheme.primary)
-                        }
-                    } else if filteredConversations.isEmpty {
-                        ContentUnavailableView(
-                            emptyTitle,
-                            systemImage: emptyIcon,
-                            description: Text(emptyDescription)
-                        )
-                    } else {
-                        List(filteredConversations) { conv in
-                            NavigationLink(value: conv) {
-                                ConversationRow(
-                                    conversation: conv,
-                                    currentUserId: authVM.currentUser?.id,
-                                    webBaseURL: webBaseURL
-                                )
-                            }
-                            .listRowBackground(ForgeTheme.dark900)
-                            .swipeActions(edge: .trailing) {
-                                Button {
-                                    openInWeb(conv)
-                                } label: {
-                                    Label("Open Web", systemImage: "safari")
-                                }
-                                .tint(ForgeTheme.primary)
-                            }
-                        }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .refreshable { await vm.load() }
                     }
+                } else if vm.conversations.isEmpty {
+                    ContentUnavailableView(
+                        "No conversations yet",
+                        systemImage: "message",
+                        description: Text("Start a conversation to get going.")
+                    )
+                } else {
+                    conversationSections
                 }
             }
             .background(ForgeTheme.dark900)
@@ -76,50 +49,169 @@ struct ConversationListView: View {
                 )
             }
         }
-        .task { await vm.load() }
+        .task {
+            await vm.load()
+            await loadIntegrationStatus()
+        }
         .onChange(of: vm.conversations) { _, convos in
             let total = convos.reduce(0) { $0 + $1.unreadCount }
             notificationService.unreadCount = total
         }
     }
 
-    private var filteredConversations: [ConversationPreview] {
-        switch filter {
-        case .dms:
-            // Show all DMs including bridged Slack/Discord DMs
-            return vm.conversations.filter { $0.isDm }
-        case .mentions:
-            // Show non-DM channels with unread (includes bridged channels with @mentions)
-            return vm.conversations.filter { !$0.isDm && $0.unreadCount > 0 }
-        case .bridged:
-            // Show channels with external (Slack/Discord) messages
-            return vm.conversations.filter {
-                $0.lastMessage?.externalSource != nil
+    // MARK: - Sectioned List
+
+    private var conversationSections: some View {
+        List {
+            // 1. DMs
+            if !dmConversations.isEmpty {
+                Section {
+                    ForEach(dmConversations) { conv in
+                        conversationLink(conv)
+                    }
+                } header: {
+                    sectionHeader("Direct Messages", icon: "message.fill", count: dmUnreadCount)
+                }
+            }
+
+            // 2. @Mentions
+            if !mentionConversations.isEmpty {
+                Section {
+                    ForEach(mentionConversations) { conv in
+                        conversationLink(conv)
+                    }
+                } header: {
+                    sectionHeader("@Mentions", icon: "at", count: mentionConversations.count)
+                }
+            }
+
+            // 3. Channels (non-DM, no unread — i.e. remaining channels)
+            if !channelConversations.isEmpty {
+                Section {
+                    ForEach(channelConversations) { conv in
+                        conversationLink(conv)
+                    }
+                } header: {
+                    sectionHeader("Channels", icon: "number", count: 0)
+                }
+            }
+
+            // 4. Slack (only if connected)
+            if slackConnected, !slackConversations.isEmpty {
+                Section {
+                    ForEach(slackConversations) { conv in
+                        conversationLink(conv)
+                    }
+                } header: {
+                    sectionHeader("Slack", icon: "number.square.fill", count: slackUnreadCount, color: .purple)
+                }
+            }
+
+            // 5. Discord (only if connected)
+            if discordConnected, !discordConversations.isEmpty {
+                Section {
+                    ForEach(discordConversations) { conv in
+                        conversationLink(conv)
+                    }
+                } header: {
+                    sectionHeader("Discord", icon: "gamecontroller.fill", count: discordUnreadCount, color: .indigo)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .refreshable {
+            await vm.load()
+            await loadIntegrationStatus()
+        }
+    }
+
+    // MARK: - Row builder
+
+    private func conversationLink(_ conv: ConversationPreview) -> some View {
+        NavigationLink(value: conv) {
+            ConversationRow(
+                conversation: conv,
+                currentUserId: authVM.currentUser?.id,
+                webBaseURL: webBaseURL
+            )
+        }
+        .listRowBackground(ForgeTheme.dark900)
+        .swipeActions(edge: .trailing) {
+            Button {
+                openInWeb(conv)
+            } label: {
+                Label("Open Web", systemImage: "safari")
+            }
+            .tint(ForgeTheme.primary)
+        }
+    }
+
+    // MARK: - Section header
+
+    private func sectionHeader(_ title: String, icon: String, count: Int, color: Color = ForgeTheme.primary) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.caption)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ForgeTheme.textSecondary)
+            Spacer()
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(color, in: Capsule())
             }
         }
     }
 
-    private var emptyTitle: String {
-        switch filter {
-        case .dms: return "No direct messages"
-        case .mentions: return "No mentions yet"
-        case .bridged: return "No Slack/Discord messages"
-        }
+    // MARK: - Filtered data
+
+    private var dmConversations: [ConversationPreview] {
+        vm.conversations.filter { $0.isDm && $0.lastMessage?.externalSource == nil }
     }
 
-    private var emptyIcon: String {
-        switch filter {
-        case .dms: return "message"
-        case .mentions: return "at"
-        case .bridged: return "link.circle"
-        }
+    private var dmUnreadCount: Int {
+        dmConversations.reduce(0) { $0 + $1.unreadCount }
     }
 
-    private var emptyDescription: String {
-        switch filter {
-        case .dms: return "Start a DM to get going."
-        case .mentions: return "You'll see threads where you're @mentioned."
-        case .bridged: return "Connect Slack or Discord in Integrations to see bridged messages here."
+    private var mentionConversations: [ConversationPreview] {
+        vm.conversations.filter { !$0.isDm && $0.unreadCount > 0 && $0.lastMessage?.externalSource == nil }
+    }
+
+    private var channelConversations: [ConversationPreview] {
+        vm.conversations.filter { !$0.isDm && $0.unreadCount == 0 && $0.lastMessage?.externalSource == nil }
+    }
+
+    private var slackConversations: [ConversationPreview] {
+        vm.conversations.filter { $0.lastMessage?.externalSource == "slack" }
+    }
+
+    private var slackUnreadCount: Int {
+        slackConversations.reduce(0) { $0 + $1.unreadCount }
+    }
+
+    private var discordConversations: [ConversationPreview] {
+        vm.conversations.filter { $0.lastMessage?.externalSource == "discord" }
+    }
+
+    private var discordUnreadCount: Int {
+        discordConversations.reduce(0) { $0 + $1.unreadCount }
+    }
+
+    // MARK: - Actions
+
+    private func loadIntegrationStatus() async {
+        do {
+            let status = try await api.integrationStatus()
+            slackConnected = status.slackConnected
+            discordConnected = status.discordConnected
+        } catch {
+            // Silently ignore — sections just won't show
         }
     }
 
@@ -131,24 +223,6 @@ struct ConversationListView: View {
         #elseif canImport(AppKit)
         NSWorkspace.shared.open(url)
         #endif
-    }
-}
-
-// MARK: - Filter
-
-enum InboxFilter: String, CaseIterable, Identifiable {
-    case dms
-    case mentions
-    case bridged
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .dms: return "DMs"
-        case .mentions: return "@Mentions"
-        case .bridged: return "Slack/Discord"
-        }
     }
 }
 

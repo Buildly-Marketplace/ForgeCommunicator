@@ -10,7 +10,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ForgeApp",
-            path: "ForgeApp"
+            path: "ForgeApp",
+            resources: [
+                .process("Resources/Assets.xcassets"),
+            ]
         ),
     ]
 )

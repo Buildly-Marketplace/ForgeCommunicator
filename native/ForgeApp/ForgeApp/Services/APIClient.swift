@@ -7,7 +7,16 @@ import UIKit
 actor APIClient {
     static let shared = APIClient()
 
-    private var baseURL = URL(string: "https://comms.buildly.io/mobile/v1")!
+    private var baseURL: URL
+
+    private init() {
+        if let saved = UserDefaults.standard.string(forKey: "serverURL"),
+           let base = URL(string: saved) {
+            baseURL = base.appendingPathComponent("mobile/v1")
+        } else {
+            baseURL = URL(string: "https://comms.buildly.io/mobile/v1")!
+        }
+    }
 
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
