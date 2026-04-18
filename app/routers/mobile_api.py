@@ -1200,11 +1200,17 @@ async def mobile_slack_sync(
         is_im = sc.get("is_im", False)
         is_mpim = sc.get("is_mpim", False)
         is_private = sc.get("is_private", False)
-        is_dm = is_im or is_mpim
 
-        # Determine display name
+        # Only 1:1 IMs are DMs; MPIMs (group DMs) are treated as channels
+        is_dm = is_im and not is_mpim
+
+        # Determine display name and skip bots
         if is_im:
             user_info = users_info.get(sc.get("user"), {})
+            # Skip bot/app DMs
+            if user_info.get("is_bot") or user_info.get("id") == "USLACKBOT":
+                skipped += 1
+                continue
             profile = user_info.get("profile", {})
             name = (
                 profile.get("real_name")
@@ -1213,7 +1219,13 @@ async def mobile_slack_sync(
                 or "DM"
             )
         elif is_mpim:
-            name = sc.get("name", "Group DM")
+            # Format group DM name from mpdm-user1--user2--1 to readable form
+            raw = sc.get("name", "Group DM")
+            if raw.startswith("mpdm-"):
+                parts = raw[5:].rsplit("-", 1)[0].split("--")
+                name = ", ".join(p.replace(".", " ").title() for p in parts)
+            else:
+                name = raw
         else:
             name = sc.get("name", "unnamed")
 
@@ -1270,6 +1282,105 @@ async def mobile_slack_sync(
     if skipped:
         msg += f" (skipped {skipped} already bridged)"
     return SyncResult(synced=synced, skipped=skipped, message=msg)
+
+
+@router.post("/integrations/slack/cleanup", response_model=SyncResult)
+async def mobile_slack_cleanup(user: MobileUser, db: DBSession):
+    """Fix existing Slack DM data: mark MPIMs as non-DM, remove bot DM channels."""
+    from app.models.bridged_channel import BridgedChannel, BridgePlatform
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+    from app.services.slack import slack_service
+
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.SLACK,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if not integration or not integration.access_token:
+        return SyncResult(message="No active Slack integration")
+
+    # Get all Slack bridges for this integration
+    result = await db.execute(
+        select(BridgedChannel)
+        .where(
+            BridgedChannel.integration_id == integration.id,
+            BridgedChannel.platform == BridgePlatform.SLACK,
+        )
+    )
+    bridges = result.scalars().all()
+
+    # Get Slack conversations to check types
+    slack_channels = await slack_service.list_channels(
+        integration.access_token,
+        types="public_channel,private_channel,im,mpim",
+    )
+    slack_map = {ch.get("id"): ch for ch in slack_channels}
+
+    # Get user info for IM user IDs (to detect bots)
+    im_user_ids = [
+        ch.get("user")
+        for ch in slack_channels
+        if ch.get("is_im") and ch.get("user")
+    ]
+    users_info = {}
+    if im_user_ids:
+        users_info = await slack_service.get_users_by_ids(
+            integration.access_token, im_user_ids
+        )
+
+    fixed = 0
+    removed = 0
+    for bridge in bridges:
+        sc = slack_map.get(bridge.external_channel_id)
+        if not sc:
+            continue
+
+        channel_id = bridge.channel_id
+        channel_result = await db.execute(
+            select(Channel).where(Channel.id == channel_id)
+        )
+        channel = channel_result.scalar_one_or_none()
+        if not channel:
+            continue
+
+        is_im = sc.get("is_im", False)
+        is_mpim = sc.get("is_mpim", False)
+
+        # Fix MPIMs: should be channels, not DMs
+        if is_mpim and channel.is_dm:
+            channel.is_dm = False
+            # Clean up name
+            raw = sc.get("name", "")
+            if raw.startswith("mpdm-"):
+                parts = raw[5:].rsplit("-", 1)[0].split("--")
+                clean_name = ", ".join(p.replace(".", " ").title() for p in parts)
+                channel.name = f"SLACK:{clean_name}"
+            fixed += 1
+
+        # Remove bot DM channels
+        if is_im:
+            user_info = users_info.get(sc.get("user"), {})
+            if user_info.get("is_bot") or user_info.get("id") == "USLACKBOT":
+                # Delete bridge and channel
+                await db.delete(bridge)
+                # Delete channel memberships first
+                await db.execute(
+                    ChannelMembership.__table__.delete().where(
+                        ChannelMembership.channel_id == channel_id
+                    )
+                )
+                await db.delete(channel)
+                removed += 1
+
+    await db.commit()
+    return SyncResult(
+        synced=fixed,
+        skipped=removed,
+        message=f"Fixed {fixed} MPIMs, removed {removed} bot DMs",
+    )
 
 
 class ImportResult(BaseModel):
