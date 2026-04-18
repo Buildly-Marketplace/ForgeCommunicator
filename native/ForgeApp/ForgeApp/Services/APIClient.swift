@@ -273,6 +273,10 @@ actor APIClient {
         try await requestVoid("POST", path: "integrations/slack/disconnect")
     }
 
+    func syncSlackChannels(workspaceId: Int) async throws -> SlackSyncResult {
+        try await request("POST", path: "integrations/slack/sync", query: ["workspace_id": "\(workspaceId)"])
+    }
+
     func disconnectDiscord() async throws {
         try await requestVoid("POST", path: "integrations/discord/disconnect")
     }

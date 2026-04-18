@@ -1134,6 +1134,116 @@ async def get_discord_auth_url(request: Request, user: MobileUser):
     return IntegrationAuthURL(url=auth_url)
 
 
+class SyncResult(BaseModel):
+    synced: int = 0
+    skipped: int = 0
+    message: str = ""
+
+
+@router.post("/integrations/slack/sync", response_model=SyncResult)
+async def mobile_slack_sync(
+    user: MobileUser,
+    db: DBSession,
+    workspace_id: int = Query(..., description="Workspace to sync Slack channels into"),
+):
+    """Sync Slack channels into a Forge workspace, creating BridgedChannel records."""
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+    from app.models.bridged_channel import BridgePlatform
+    from app.services.slack import slack_service
+
+    # Get active Slack integration
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.SLACK,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if not integration or not integration.access_token:
+        raise HTTPException(status_code=400, detail="No active Slack integration")
+
+    # Verify workspace membership
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this workspace")
+
+    # Fetch Slack channels
+    slack_channels = await slack_service.list_channels(
+        integration.access_token,
+        types="public_channel,private_channel",
+    )
+    if not slack_channels:
+        return SyncResult(message="No Slack channels found")
+
+    synced = 0
+    skipped = 0
+    for sc in slack_channels:
+        ext_id = sc.get("id")
+        name = sc.get("name", "unnamed")
+        is_private = sc.get("is_private", False)
+
+        # Skip already bridged
+        result = await db.execute(
+            select(BridgedChannel).where(
+                BridgedChannel.external_channel_id == ext_id,
+                BridgedChannel.integration_id == integration.id,
+            )
+        )
+        if result.scalar_one_or_none():
+            skipped += 1
+            continue
+
+        # Reuse or create Forge channel
+        forge_name = f"SLACK:{name}"
+        result = await db.execute(
+            select(Channel).where(
+                Channel.workspace_id == workspace_id,
+                Channel.name == forge_name,
+            )
+        )
+        forge_channel = result.scalar_one_or_none()
+        if not forge_channel:
+            forge_channel = Channel(
+                workspace_id=workspace_id,
+                name=forge_name,
+                description=f"Synced from Slack: #{name}",
+                is_private=is_private,
+                is_dm=False,
+                is_archived=False,
+            )
+            db.add(forge_channel)
+            await db.flush()
+            db.add(ChannelMembership(
+                channel_id=forge_channel.id,
+                user_id=user.id,
+                is_owner=True,
+            ))
+
+        db.add(BridgedChannel(
+            channel_id=forge_channel.id,
+            integration_id=integration.id,
+            platform=BridgePlatform.SLACK,
+            external_channel_id=ext_id,
+            external_channel_name=name,
+            sync_incoming=True,
+            sync_outgoing=True,
+            reply_prefix="From Forge:",
+        ))
+        synced += 1
+
+    await db.commit()
+    msg = f"Synced {synced} Slack channels"
+    if skipped:
+        msg += f" (skipped {skipped} already bridged)"
+    return SyncResult(synced=synced, skipped=skipped, message=msg)
+
+
 @router.post("/integrations/slack/disconnect")
 async def mobile_slack_disconnect(user: MobileUser, db: DBSession):
     """Disconnect Slack integration."""

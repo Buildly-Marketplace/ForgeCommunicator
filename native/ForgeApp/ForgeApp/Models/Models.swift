@@ -244,3 +244,9 @@ struct IntegrationStatusResponse: Codable {
 struct IntegrationAuthURLResponse: Codable {
     let url: String
 }
+
+struct SlackSyncResult: Codable {
+    let synced: Int
+    let skipped: Int
+    let message: String
+}
