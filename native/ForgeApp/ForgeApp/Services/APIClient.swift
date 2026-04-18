@@ -277,6 +277,14 @@ actor APIClient {
         try await request("POST", path: "integrations/slack/sync", query: ["workspace_id": "\(workspaceId)"])
     }
 
+    func importMessages(channelId: Int, limit: Int = 20) async throws -> ImportResult {
+        try await request("POST", path: "channels/\(channelId)/import-messages", query: ["limit": "\(limit)"])
+    }
+
+    func slackContacts() async throws -> [SlackContact] {
+        try await request("GET", path: "integrations/slack/contacts")
+    }
+
     func disconnectDiscord() async throws {
         try await requestVoid("POST", path: "integrations/discord/disconnect")
     }

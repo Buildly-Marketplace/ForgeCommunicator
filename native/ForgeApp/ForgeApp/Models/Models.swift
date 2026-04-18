@@ -250,3 +250,33 @@ struct SlackSyncResult: Codable {
     let skipped: Int
     let message: String
 }
+
+// MARK: - Import Result
+
+struct ImportResult: Codable {
+    let imported: Int
+    let message: String
+}
+
+// MARK: - Slack Contact
+
+struct SlackContact: Codable, Identifiable {
+    var id: String { slackUserId }
+    let slackUserId: String
+    let displayName: String
+    let realName: String
+    let email: String?
+    let avatarUrl: String?
+    let title: String?
+    let isOnline: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case slackUserId = "slack_user_id"
+        case displayName = "display_name"
+        case realName = "real_name"
+        case email
+        case avatarUrl = "avatar_url"
+        case title
+        case isOnline = "is_online"
+    }
+}

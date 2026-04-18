@@ -111,7 +111,8 @@ struct ConversationListView: View {
                 ChatView(
                     channelId: conv.channelId,
                     workspaceId: conv.workspaceId,
-                    title: conv.name
+                    title: conv.name,
+                    bridgedPlatform: conv.bridgedPlatform
                 )
             }
         }
@@ -140,7 +141,7 @@ struct ConversationListView: View {
 
     private var conversationContent: some View {
         Group {
-            if filteredConversations.isEmpty && slackSectionConversations.isEmpty && discordSectionConversations.isEmpty {
+            if filteredConversations.isEmpty && activeSlackConversations.isEmpty && activeDiscordConversations.isEmpty {
                 ContentUnavailableView(
                     emptyTitle,
                     systemImage: emptyIcon,
@@ -159,21 +160,26 @@ struct ConversationListView: View {
                         }
                     }
 
-                    // Slack section (shown when bridged Slack conversations exist)
-                    if !slackSectionConversations.isEmpty {
+                    // Slack section — contextual to active tab
+                    if !activeSlackConversations.isEmpty {
                         Section {
-                            ForEach(slackSectionConversations) { conv in
+                            ForEach(activeSlackConversations) { conv in
                                 conversationLink(conv)
                             }
                         } header: {
-                            sectionHeader("Slack", icon: "number.square.fill", count: slackUnreadCount, color: .purple)
+                            sectionHeader(
+                                filter == .dms ? "Slack DMs" : "Slack Channels",
+                                icon: filter == .dms ? "bubble.left.fill" : "number.square.fill",
+                                count: activeSlackConversations.reduce(0) { $0 + $1.unreadCount },
+                                color: .purple
+                            )
                         }
                     }
 
-                    // Discord section (shown when bridged Discord conversations exist)
-                    if !discordSectionConversations.isEmpty {
+                    // Discord section — contextual to active tab
+                    if !activeDiscordConversations.isEmpty {
                         Section {
-                            ForEach(discordSectionConversations) { conv in
+                            ForEach(activeDiscordConversations) { conv in
                                 conversationLink(conv)
                             }
                         } header: {
@@ -278,6 +284,56 @@ struct ConversationListView: View {
         workspaceFiltered.filter { $0.bridgedPlatform == "slack" }
     }
 
+    /// Known Slack bot/app names to filter out of DMs
+    private static let slackBotNames: Set<String> = [
+        "slackbot", "calendly", "canva", "coda", "figma", "github", "github (legacy)",
+        "google calendar", "google cloud monitoring", "google drive", "notion",
+        "zoom", "jira", "jira cloud", "asana", "trello", "linear", "butler",
+        "deal won notification", "item status notification", "polly", "donut",
+        "standuply", "geekbot", "deactivated user", "zapier", "ifttt",
+        "hubspot", "salesforce", "mailchimp", "intercom", "pagerduty",
+        "datadog", "sentry", "pull reminders", "simple poll", "range",
+        "slogging by hackernoon", "spacetime", "statuspage", "sup",
+        "cloze", "sameroom", "standup", "sunsama", "aloha",
+    ]
+
+    private var slackChannelConversations: [ConversationPreview] {
+        slackSectionConversations.filter { !$0.isDm }
+    }
+
+    /// Real person DMs (no bots, no MPIMs)
+    private var slackDmConversations: [ConversationPreview] {
+        slackSectionConversations.filter { conv in
+            guard conv.isDm else { return false }
+            let stripped = conv.name
+                .replacingOccurrences(of: "SLACK:", with: "")
+                .lowercased()
+            // Filter out MPIMs (group DMs with mpdm- prefix)
+            if stripped.hasPrefix("mpdm-") { return false }
+            // Filter out known bots
+            if Self.slackBotNames.contains(stripped) { return false }
+            return true
+        }
+    }
+
+    /// Slack conversations matching the active tab
+    private var activeSlackConversations: [ConversationPreview] {
+        switch filter {
+        case .dms: return slackDmConversations
+        case .channels: return slackChannelConversations
+        case .mentions: return []  // Mentions are native only
+        }
+    }
+
+    /// Discord conversations matching the active tab
+    private var activeDiscordConversations: [ConversationPreview] {
+        switch filter {
+        case .dms: return discordSectionConversations.filter { $0.isDm }
+        case .channels: return discordSectionConversations.filter { !$0.isDm }
+        case .mentions: return []
+        }
+    }
+
     private var slackUnreadCount: Int {
         slackSectionConversations.reduce(0) { $0 + $1.unreadCount }
     }
@@ -352,13 +408,17 @@ struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Source indicator for bridged messages
-            if let source = conversation.lastMessage?.externalSource {
-                sourceIcon(source)
+            // Source indicator for bridged channels
+            if let platform = conversation.bridgedPlatform ?? conversation.lastMessage?.externalSource {
+                sourceIcon(platform)
             }
 
-            // Avatar
-            AvatarView(user: otherMember, size: 48)
+            // Avatar – for bridged DMs without Forge members, show initials from name
+            if conversation.bridgedPlatform != nil && otherMember == nil {
+                bridgedAvatar(size: 48)
+            } else {
+                AvatarView(user: otherMember, size: 48)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -437,7 +497,42 @@ struct ConversationRow: View {
         if conversation.isDm, let other = otherMember {
             return other.displayName
         }
-        return conversation.name
+        return strippedName
+    }
+
+    /// Name with platform prefix removed
+    private var strippedName: String {
+        var name = conversation.name
+        for prefix in ["SLACK:", "DISCORD:"] {
+            if name.hasPrefix(prefix) {
+                name = String(name.dropFirst(prefix.count))
+            }
+        }
+        return name
+    }
+
+    @ViewBuilder
+    private func bridgedAvatar(size: CGFloat) -> some View {
+        let name = strippedName
+        let parts = name.split(separator: " ")
+        let initials: String = parts.count >= 2
+            ? String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
+            : String(name.prefix(2)).uppercased()
+        let color: Color = conversation.bridgedPlatform == "slack" ? .purple : .indigo
+        Circle()
+            .fill(
+                LinearGradient(
+                    colors: [color.opacity(0.3), color.opacity(0.15)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: size, height: size)
+            .overlay {
+                Text(initials)
+                    .font(.system(size: size * 0.38, weight: .semibold))
+                    .foregroundStyle(color)
+            }
     }
 }
 

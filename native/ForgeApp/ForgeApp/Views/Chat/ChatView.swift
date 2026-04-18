@@ -7,6 +7,7 @@ struct ChatView: View {
     let channelId: Int
     let workspaceId: Int
     let title: String
+    let bridgedPlatform: String?
 
     @StateObject private var vm: ChatViewModel
     @EnvironmentObject var authVM: AuthViewModel
@@ -15,10 +16,11 @@ struct ChatView: View {
 
     private let webBaseURL = "https://comms.buildly.io"
 
-    init(channelId: Int, workspaceId: Int, title: String) {
+    init(channelId: Int, workspaceId: Int, title: String, bridgedPlatform: String? = nil) {
         self.channelId = channelId
         self.workspaceId = workspaceId
         self.title = title
+        self.bridgedPlatform = bridgedPlatform
         _vm = StateObject(wrappedValue: ChatViewModel(channelId: channelId, workspaceId: workspaceId))
     }
 
@@ -118,7 +120,13 @@ struct ChatView: View {
                 .help("Open in web browser")
             }
         }
-        .task { await vm.loadInitial() }
+        .task {
+            // Auto-import messages for bridged channels
+            if bridgedPlatform != nil {
+                try? await APIClient.shared.importMessages(channelId: channelId)
+            }
+            await vm.loadInitial()
+        }
         // Simple polling for new messages (will be replaced by WebSocket)
         .task {
             var previousCount = vm.messages.count

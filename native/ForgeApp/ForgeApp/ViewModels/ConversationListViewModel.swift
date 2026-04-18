@@ -16,14 +16,15 @@ final class ConversationListViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            // include_channels=true gives us the full inbox
-            conversations = try await api.conversations(includeChannels: true)
+            let loaded = try await api.conversations(includeChannels: true)
+            conversations = loaded
 
             // Auto-sync Slack channels if connected but none bridged yet
             if !hasSyncedSlack && !conversations.contains(where: { $0.bridgedPlatform == "slack" }) {
                 await autoSyncSlackIfNeeded()
             }
         } catch {
+            print("[ConversationListVM] ERROR: \(error)")
             self.error = error.localizedDescription
         }
     }
@@ -48,7 +49,7 @@ final class ConversationListViewModel: ObservableObject {
             }
         } catch {
             // Sync failure is non-fatal — don't overwrite the main error
-            print("Slack auto-sync failed: \(error)")
+            // Sync failure is non-fatal
         }
     }
 }
