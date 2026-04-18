@@ -29,6 +29,7 @@ from app.models.message import Message
 from app.models.user import AuthProvider, User
 from app.models.user_session import UserSession
 from app.models.workspace import Workspace
+from app.models.bridged_channel import BridgedChannel
 from app.services.password import hash_password, validate_password, verify_password
 from app.services.rate_limiter import auth_rate_limiter
 from app.settings import settings
@@ -201,6 +202,7 @@ class ConversationPreview(BaseModel):
     last_message: MessageResponse | None = None
     unread_count: int = 0
     members: list[UserResponse] = []
+    bridged_platform: str | None = None  # "slack" or "discord" if bridged
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +494,14 @@ async def list_conversations(
     result = await db.execute(query)
     rows = result.all()
 
+    # Look up which channels are bridged to Slack/Discord
+    channel_ids = [ch.id for ch, _ in rows]
+    bridge_result = await db.execute(
+        select(BridgedChannel.channel_id, BridgedChannel.platform)
+        .where(BridgedChannel.channel_id.in_(channel_ids), BridgedChannel.is_active == True)
+    )
+    bridge_map = {row.channel_id: row.platform for row in bridge_result.all()}
+
     previews = []
     for ch, ws_name in rows:
         # Last message
@@ -558,6 +568,7 @@ async def list_conversations(
             last_message=last_msg_resp,
             unread_count=unread,
             members=members,
+            bridged_platform=bridge_map.get(ch.id),
         ))
 
     # Sort by last message time (most recent first)

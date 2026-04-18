@@ -238,7 +238,7 @@ struct ConversationListView: View {
 
     /// Non-bridged conversations (native Forge messages)
     private var nativeConversations: [ConversationPreview] {
-        workspaceFiltered.filter { $0.lastMessage?.externalSource == nil }
+        workspaceFiltered.filter { $0.bridgedPlatform == nil }
     }
 
     // MARK: - Category-filtered data
@@ -267,7 +267,7 @@ struct ConversationListView: View {
     }
 
     private var slackSectionConversations: [ConversationPreview] {
-        workspaceFiltered.filter { $0.lastMessage?.externalSource == "slack" }
+        workspaceFiltered.filter { $0.bridgedPlatform == "slack" }
     }
 
     private var slackUnreadCount: Int {
@@ -275,7 +275,7 @@ struct ConversationListView: View {
     }
 
     private var discordSectionConversations: [ConversationPreview] {
-        workspaceFiltered.filter { $0.lastMessage?.externalSource == "discord" }
+        workspaceFiltered.filter { $0.bridgedPlatform == "discord" }
     }
 
     private var discordUnreadCount: Int {

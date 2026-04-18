@@ -177,6 +177,7 @@ struct ConversationPreview: Codable, Identifiable, Hashable {
     let lastMessage: MessageResponse?
     var unreadCount: Int
     let members: [UserResponse]
+    let bridgedPlatform: String?  // "slack" or "discord" if bridged
 
     enum CodingKeys: String, CodingKey {
         case name, members
@@ -186,6 +187,7 @@ struct ConversationPreview: Codable, Identifiable, Hashable {
         case isDm = "is_dm"
         case lastMessage = "last_message"
         case unreadCount = "unread_count"
+        case bridgedPlatform = "bridged_platform"
     }
 
     static func == (lhs: ConversationPreview, rhs: ConversationPreview) -> Bool { lhs.channelId == rhs.channelId }

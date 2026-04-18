@@ -19,8 +19,18 @@ final class NotificationService: ObservableObject {
 
     private var audioPlayer: AVAudioPlayer?
 
+    /// UNUserNotificationCenter.current() crashes in SwiftPM executables without
+    /// a proper bundle identifier. Access it safely.
+    private var notificationCenter: UNUserNotificationCenter? {
+        guard Bundle.main.bundleIdentifier != nil else { return nil }
+        return UNUserNotificationCenter.current()
+    }
+
     func requestPermission() async {
-        let center = UNUserNotificationCenter.current()
+        guard let center = notificationCenter else {
+            isAuthorized = false
+            return
+        }
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             isAuthorized = granted
@@ -31,7 +41,7 @@ final class NotificationService: ObservableObject {
 
     /// Post a local notification (e.g. new DM while backgrounded).
     func postLocal(title: String, body: String, threadId: String? = nil, url: String? = nil) {
-        guard isAuthorized else { return }
+        guard isAuthorized, let center = notificationCenter else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -49,7 +59,7 @@ final class NotificationService: ObservableObject {
             content: content,
             trigger: nil // deliver immediately
         )
-        UNUserNotificationCenter.current().add(request)
+        center.add(request)
     }
 
     /// Play the notification chirp sound in-app.
@@ -63,7 +73,7 @@ final class NotificationService: ObservableObject {
     func clearBadge() {
         unreadCount = 0
         updateBadge()
-        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        notificationCenter?.removeAllDeliveredNotifications()
     }
 
     func increment() {
