@@ -490,13 +490,23 @@ struct ConversationRow: View {
     }
 
     private var otherMember: UserResponse? {
-        conversation.members.first { $0.id != currentUserId }
+        let others = conversation.members.filter { $0.id != currentUserId }
+        return others.count == 1 ? others.first : nil
     }
 
     private var displayName: String {
+        // 1:1 DM with exactly one other Forge member → show their name
         if conversation.isDm, let other = otherMember {
             return other.displayName
         }
+        // Group DM with multiple others → show all other names
+        if conversation.isDm {
+            let others = conversation.members.filter { $0.id != currentUserId }
+            if others.count > 1 {
+                return others.map(\.displayName).joined(separator: ", ")
+            }
+        }
+        // Bridged or channel → strip platform prefix
         return strippedName
     }
 
