@@ -1173,20 +1173,49 @@ async def mobile_slack_sync(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this workspace")
 
-    # Fetch Slack channels
+    # Fetch Slack channels (including DMs and group DMs)
     slack_channels = await slack_service.list_channels(
         integration.access_token,
-        types="public_channel,private_channel",
+        types="public_channel,private_channel,im,mpim",
     )
     if not slack_channels:
         return SyncResult(message="No Slack channels found")
+
+    # For DMs, we need user info to get display names
+    dm_user_ids = [
+        sc.get("user")
+        for sc in slack_channels
+        if sc.get("is_im") and sc.get("user")
+    ]
+    users_info = {}
+    if dm_user_ids:
+        users_info = await slack_service.get_users_by_ids(
+            integration.access_token, dm_user_ids
+        )
 
     synced = 0
     skipped = 0
     for sc in slack_channels:
         ext_id = sc.get("id")
-        name = sc.get("name", "unnamed")
+        is_im = sc.get("is_im", False)
+        is_mpim = sc.get("is_mpim", False)
         is_private = sc.get("is_private", False)
+        is_dm = is_im or is_mpim
+
+        # Determine display name
+        if is_im:
+            user_info = users_info.get(sc.get("user"), {})
+            profile = user_info.get("profile", {})
+            name = (
+                profile.get("real_name")
+                or user_info.get("real_name")
+                or user_info.get("name")
+                or "DM"
+            )
+        elif is_mpim:
+            name = sc.get("name", "Group DM")
+        else:
+            name = sc.get("name", "unnamed")
 
         # Skip already bridged
         result = await db.execute(
@@ -1212,9 +1241,9 @@ async def mobile_slack_sync(
             forge_channel = Channel(
                 workspace_id=workspace_id,
                 name=forge_name,
-                description=f"Synced from Slack: #{name}",
-                is_private=is_private,
-                is_dm=False,
+                description=f"Synced from Slack: #{name}" if not is_dm else f"Slack DM: {name}",
+                is_private=is_private or is_dm,
+                is_dm=is_dm,
                 is_archived=False,
             )
             db.add(forge_channel)
@@ -1241,6 +1270,152 @@ async def mobile_slack_sync(
     if skipped:
         msg += f" (skipped {skipped} already bridged)"
     return SyncResult(synced=synced, skipped=skipped, message=msg)
+
+
+class ImportResult(BaseModel):
+    imported: int = 0
+    message: str = ""
+
+
+@router.post("/channels/{channel_id}/import-messages", response_model=ImportResult)
+async def mobile_import_messages(
+    user: MobileUser,
+    db: DBSession,
+    channel_id: int,
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Import recent messages from an external bridged channel (e.g. Slack)."""
+    from app.models.bridged_channel import BridgedChannel, BridgePlatform
+    from app.models.external_integration import ExternalIntegration
+    from app.services.slack import slack_service
+
+    # Find bridge for this channel
+    result = await db.execute(
+        select(BridgedChannel)
+        .options(selectinload(BridgedChannel.integration))
+        .where(BridgedChannel.channel_id == channel_id)
+    )
+    bridge = result.scalar_one_or_none()
+    if not bridge:
+        return ImportResult(message="Not a bridged channel")
+
+    integration = bridge.integration
+    if not integration or not integration.access_token:
+        return ImportResult(message="Integration not connected")
+
+    # Verify user has access to the channel
+    result = await db.execute(
+        select(ChannelMembership).where(
+            ChannelMembership.channel_id == channel_id,
+            ChannelMembership.user_id == user.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a channel member")
+
+    imported_count = 0
+
+    if bridge.platform == BridgePlatform.SLACK:
+        messages = await slack_service.get_channel_history(
+            integration.access_token,
+            bridge.external_channel_id,
+            limit=limit,
+        )
+
+        # Get user info for messages
+        user_ids = list(set(m.get("user") for m in messages if m.get("user")))
+        users_info = await slack_service.get_users_by_ids(
+            integration.access_token, user_ids
+        )
+
+        for msg_data in messages:
+            ts = msg_data.get("ts")
+            if not ts or msg_data.get("subtype"):
+                continue
+
+            # Check if already imported
+            result = await db.execute(
+                select(Message).where(
+                    Message.external_message_id == ts,
+                    Message.channel_id == channel_id,
+                )
+            )
+            if result.scalar_one_or_none():
+                continue
+
+            user_info = users_info.get(msg_data.get("user"), {})
+            profile = user_info.get("profile", {})
+            author_name = (
+                profile.get("real_name")
+                or user_info.get("real_name")
+                or user_info.get("name")
+                or "Unknown"
+            )
+            avatar = profile.get("image_48") or profile.get("image_72")
+
+            new_msg = Message(
+                channel_id=channel_id,
+                body=msg_data.get("text", ""),
+                external_source="slack",
+                external_message_id=ts,
+                external_channel_id=bridge.external_channel_id,
+                external_author_name=author_name,
+                external_author_avatar=avatar,
+                created_at=datetime.fromtimestamp(float(ts), tz=timezone.utc),
+            )
+            db.add(new_msg)
+            imported_count += 1
+
+    if imported_count > 0:
+        await db.commit()
+        bridge.last_sync_at = datetime.now(timezone.utc)
+        bridge.messages_imported = (bridge.messages_imported or 0) + imported_count
+        await db.commit()
+
+    return ImportResult(imported=imported_count, message=f"Imported {imported_count} messages")
+
+
+class SlackContactOut(BaseModel):
+    slack_user_id: str
+    display_name: str
+    real_name: str
+    email: str | None = None
+    avatar_url: str | None = None
+    title: str | None = None
+    is_online: bool = False
+
+
+@router.get("/integrations/slack/contacts", response_model=list[SlackContactOut])
+async def mobile_slack_contacts(user: MobileUser, db: DBSession):
+    """List contacts from connected Slack workspace."""
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+    from app.services.slack import slack_service
+
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.SLACK,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if not integration or not integration.access_token:
+        return []
+
+    members = await slack_service.list_users(integration.access_token)
+    contacts = []
+    for m in members:
+        profile = m.get("profile", {})
+        contacts.append(SlackContactOut(
+            slack_user_id=m.get("id", ""),
+            display_name=profile.get("display_name") or m.get("name", ""),
+            real_name=profile.get("real_name") or m.get("real_name", ""),
+            email=profile.get("email"),
+            avatar_url=profile.get("image_72") or profile.get("image_48"),
+            title=profile.get("title") or None,
+            is_online=m.get("presence") == "active",
+        ))
+    return contacts
 
 
 @router.post("/integrations/slack/disconnect")

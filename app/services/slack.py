@@ -292,6 +292,48 @@ class SlackService:
                 users[user_id] = user_info
         return users
 
+    async def list_users(self, access_token: str) -> list[dict[str, Any]]:
+        """
+        List all users in the Slack workspace.
+
+        Returns:
+            List of user dictionaries with id, name, real_name, profile, etc.
+        """
+        members: list[dict[str, Any]] = []
+        cursor = None
+
+        async with httpx.AsyncClient() as client:
+            while True:
+                params: dict[str, Any] = {"limit": 200}
+                if cursor:
+                    params["cursor"] = cursor
+
+                response = await client.get(
+                    f"{self.API_BASE_URL}/users.list",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params=params,
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"Failed to list Slack users: {response.status_code}")
+                    break
+
+                data = response.json()
+                if not data.get("ok"):
+                    logger.error(f"Slack API error: {data.get('error')}")
+                    break
+
+                for member in data.get("members", []):
+                    if member.get("deleted") or member.get("is_bot") or member.get("id") == "USLACKBOT":
+                        continue
+                    members.append(member)
+
+                cursor = data.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
+                    break
+
+        return members
+
     def verify_webhook_signature(
         self,
         signature: str,
