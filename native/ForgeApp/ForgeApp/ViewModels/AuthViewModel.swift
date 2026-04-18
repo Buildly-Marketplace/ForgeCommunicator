@@ -67,4 +67,22 @@ final class AuthViewModel: ObservableObject {
         currentUser = nil
         isAuthenticated = false
     }
+
+    func refreshProfile() async {
+        do {
+            currentUser = try await api.me()
+        } catch { /* silent */ }
+    }
+
+    func handleOAuthToken(_ token: String) async {
+        KeychainService.saveToken(token)
+        do {
+            let user = try await api.me()
+            currentUser = user
+            isAuthenticated = true
+        } catch {
+            KeychainService.delete()
+            self.error = "OAuth sign-in failed"
+        }
+    }
 }

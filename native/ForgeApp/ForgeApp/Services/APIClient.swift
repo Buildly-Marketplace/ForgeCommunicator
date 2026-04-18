@@ -158,6 +158,26 @@ actor APIClient {
         try await request("GET", path: "me")
     }
 
+    func updateProfile(_ update: ProfileUpdate) async throws -> UserResponse {
+        try await request("PATCH", path: "me", body: update)
+    }
+
+    // MARK: - OAuth
+
+    struct OAuthStartResponse: Decodable {
+        let authUrl: String
+        let state: String
+
+        enum CodingKeys: String, CodingKey {
+            case authUrl = "auth_url"
+            case state
+        }
+    }
+
+    func oauthStart(provider: String) async throws -> OAuthStartResponse {
+        try await request("GET", path: "auth/oauth/\(provider)/start")
+    }
+
     func getUser(id: Int) async throws -> UserResponse {
         try await request("GET", path: "users/\(id)")
     }

@@ -298,8 +298,124 @@ async def mobile_logout(request: Request, user: MobileUser):
 
 
 # ---------------------------------------------------------------------------
-# Profile
+# Google OAuth for native apps
 # ---------------------------------------------------------------------------
+
+
+class OAuthStartResponse(BaseModel):
+    auth_url: str
+    state: str
+
+
+class OAuthTokenRequest(BaseModel):
+    provider: str = "google"
+    code: str
+    state: str
+    redirect_uri: str
+
+
+@router.get("/auth/oauth/{provider}/start", response_model=OAuthStartResponse)
+async def mobile_oauth_start(request: Request, provider: str):
+    """Return the OAuth authorization URL for the native app to open in a browser."""
+    from app.services.auth_providers import get_oauth_provider
+    import secrets
+
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(status_code=400, detail=f"OAuth provider '{provider}' not available")
+
+    state = secrets.token_urlsafe(32)
+    # For native apps, use a custom redirect URI that the app can intercept
+    redirect_uri = str(request.base_url).rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
+
+    params = oauth_provider.get_authorization_params(state)
+    # Override the redirect_uri to point to our mobile callback
+    params["redirect_uri"] = redirect_uri
+    auth_url = f"{oauth_provider.authorization_url}?" + "&".join(
+        f"{k}={v}" for k, v in params.items()
+    )
+
+    return OAuthStartResponse(auth_url=auth_url, state=state)
+
+
+@router.get("/auth/oauth/{provider}/callback")
+async def mobile_oauth_callback(
+    request: Request,
+    db: DBSession,
+    provider: str,
+    code: str | None = Query(default=None),
+    state: str = Query(default=""),
+    error: str | None = Query(default=None),
+):
+    """Handle OAuth callback for native apps — returns JSON with token."""
+    from app.services.auth_providers import get_oauth_provider
+
+    if error:
+        raise HTTPException(status_code=400, detail=f"OAuth denied: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+    oauth_provider = get_oauth_provider(provider)
+    if not oauth_provider:
+        raise HTTPException(status_code=400, detail=f"OAuth provider '{provider}' not available")
+
+    # Override redirect_uri to match what we sent during authorization
+    redirect_uri = str(request.base_url).rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
+
+    try:
+        tokens = await oauth_provider.exchange_code(code, redirect_uri=redirect_uri)
+        access_token = tokens["access_token"]
+        refresh_token = tokens.get("refresh_token")
+        user_info = await oauth_provider.get_user_info(access_token)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"OAuth exchange failed: {e}")
+
+    # Find or create user
+    result = await db.execute(
+        select(User).where(
+            (User.email == user_info.email) |
+            ((User.auth_provider == provider) & (User.provider_sub == user_info.sub))
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if user:
+        user.provider_sub = user_info.sub
+        if user_info.picture:
+            user.avatar_url = user_info.picture
+        if provider == "google" and refresh_token:
+            user.google_refresh_token = refresh_token
+    else:
+        from app.routers.auth import get_approval_defaults
+        approval_defaults = await get_approval_defaults(db)
+        is_admin = settings.is_admin_email(user_info.email)
+
+        user = User(
+            email=user_info.email,
+            display_name=user_info.name or user_info.email.split("@")[0],
+            auth_provider=AuthProvider(provider),
+            provider_sub=user_info.sub,
+            avatar_url=user_info.picture,
+            is_platform_admin=is_admin,
+            is_approved=True if is_admin else approval_defaults["is_approved"],
+            can_create_workspaces=True if is_admin else approval_defaults["can_create_workspaces"],
+        )
+        if provider == "google" and refresh_token:
+            user.google_refresh_token = refresh_token
+        db.add(user)
+        await db.flush()
+
+    session = UserSession.create_session(user_id=user.id, request=request, is_pwa=False)
+    session.device_type = "mobile"
+    session.device_name = "Native App"
+    db.add(session)
+    user.update_last_seen()
+    await db.commit()
+
+    return AuthResponse(
+        token=session.session_token,
+        user=UserResponse.from_user(user),
+    )
 
 
 @router.get("/me", response_model=UserResponse)

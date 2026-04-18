@@ -6,6 +6,7 @@ import AppKit
 struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var showStatusPicker = false
+    @State private var showEditProfile = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,15 @@ struct ProfileView: View {
                                         .foregroundStyle(ForgeTheme.textMuted)
                                 }
                             }
+                            Spacer()
+                            Button {
+                                showEditProfile = true
+                            } label: {
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(ForgeTheme.primary)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.vertical, 8)
                         .listRowBackground(ForgeTheme.dark800)
@@ -36,6 +46,32 @@ struct ProfileView: View {
                         Section("Bio") {
                             Text(bio)
                                 .foregroundStyle(.white)
+                        }
+                        .listRowBackground(ForgeTheme.dark800)
+                    }
+
+                    // Edit Profile action
+                    Section {
+                        Button {
+                            showEditProfile = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "person.crop.circle.badge.pencil")
+                                    .font(.title3)
+                                    .foregroundStyle(ForgeTheme.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Edit Profile")
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(.white)
+                                    Text("Name, bio, title, phone & avatar")
+                                        .font(.caption)
+                                        .foregroundStyle(ForgeTheme.textSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(ForgeTheme.textMuted)
+                            }
                         }
                         .listRowBackground(ForgeTheme.dark800)
                     }
@@ -121,6 +157,10 @@ struct ProfileView: View {
             .forgeLogoToolbar(title: "Profile")
             .sheet(isPresented: $showStatusPicker) {
                 StatusPickerView()
+                    .environmentObject(authVM)
+            }
+            .sheet(isPresented: $showEditProfile) {
+                EditProfileView()
                     .environmentObject(authVM)
             }
         }

@@ -44,6 +44,25 @@ struct UserResponse: Codable, Identifiable, Hashable {
     var isOnline: Bool { status == "active" }
 }
 
+// MARK: - Profile Update
+
+struct ProfileUpdate: Encodable {
+    var displayName: String?
+    var bio: String?
+    var title: String?
+    var phone: String?
+    var avatarUrl: String?
+    var status: String?
+    var statusMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case bio, title, phone, status
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case statusMessage = "status_message"
+    }
+}
+
 // MARK: - Auth
 
 struct LoginRequest: Encodable {

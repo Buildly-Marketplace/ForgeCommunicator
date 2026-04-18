@@ -102,7 +102,7 @@ class GoogleOAuthProvider(OAuthProvider):
         
         return params
     
-    async def exchange_code(self, code: str) -> dict[str, Any]:
+    async def exchange_code(self, code: str, redirect_uri: str | None = None) -> dict[str, Any]:
         """Exchange authorization code for tokens."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -112,7 +112,7 @@ class GoogleOAuthProvider(OAuthProvider):
                     "client_secret": self.client_secret,
                     "code": code,
                     "grant_type": "authorization_code",
-                    "redirect_uri": self.redirect_uri,
+                    "redirect_uri": redirect_uri or self.redirect_uri,
                 },
             )
             response.raise_for_status()

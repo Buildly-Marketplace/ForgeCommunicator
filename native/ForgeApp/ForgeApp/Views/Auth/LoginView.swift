@@ -187,6 +187,39 @@ struct LoginView: View {
                     }
                     .disabled(!isValid || authVM.isLoading)
 
+                    // Divider with "or"
+                    HStack(spacing: 12) {
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                        Text("or")
+                            .font(.caption)
+                            .foregroundStyle(ForgeTheme.textMuted)
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                    }
+                    .padding(.vertical, 4)
+
+                    // Sign in with Google
+                    Button {
+                        Task { await signInWithGoogle() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "g.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                            Text("Sign in with Google")
+                                .font(.body.weight(.medium))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.08))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                    }
+                    .disabled(authVM.isLoading)
+
                     // Toggle login / register
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) { isRegistering.toggle() }
@@ -257,5 +290,22 @@ struct LoginView: View {
         } else {
             await authVM.login(email: email, password: password)
         }
+    }
+
+    private func signInWithGoogle() async {
+        applyServerURL(serverURL)
+        // Open the Google OAuth flow in the system browser
+        // The backend returns a URL to open
+        let baseURL = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oauthURL = "\(baseURL)/auth/oauth/google?pwa=0"
+        guard let url = URL(string: oauthURL) else {
+            authVM.error = "Invalid server URL"
+            return
+        }
+        #if canImport(UIKit)
+        await UIApplication.shared.open(url)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(url)
+        #endif
     }
 }

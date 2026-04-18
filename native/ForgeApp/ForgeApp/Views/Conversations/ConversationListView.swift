@@ -159,8 +159,8 @@ struct ConversationListView: View {
                         }
                     }
 
-                    // Slack section (always shown when connected & has data, regardless of filter)
-                    if slackConnected, !slackSectionConversations.isEmpty {
+                    // Slack section (shown when bridged Slack conversations exist)
+                    if !slackSectionConversations.isEmpty {
                         Section {
                             ForEach(slackSectionConversations) { conv in
                                 conversationLink(conv)
@@ -170,8 +170,8 @@ struct ConversationListView: View {
                         }
                     }
 
-                    // Discord section
-                    if discordConnected, !discordSectionConversations.isEmpty {
+                    // Discord section (shown when bridged Discord conversations exist)
+                    if !discordSectionConversations.isEmpty {
                         Section {
                             ForEach(discordSectionConversations) { conv in
                                 conversationLink(conv)
@@ -367,7 +367,7 @@ struct ConversationRow: View {
                         .lineLimit(1)
                     Spacer()
                     if let date = conversation.lastMessage?.createdAt {
-                        Text(date, style: .relative)
+                        Text(date.shortTimestamp)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -476,5 +476,34 @@ struct AvatarView: View {
                     .font(.system(size: size * 0.38, weight: .semibold))
                     .foregroundStyle(ForgeTheme.primary)
             }
+    }
+}
+
+// MARK: - Date formatting
+
+extension Date {
+    /// Friendly timestamp: "Just now" for < 1 hour, then "Xh", "Xd", or the date.
+    var shortTimestamp: String {
+        let now = Date()
+        let seconds = now.timeIntervalSince(self)
+
+        if seconds < 3600 {
+            return "Just now"
+        }
+
+        let hours = Int(seconds / 3600)
+        if hours < 24 {
+            return "\(hours)h ago"
+        }
+
+        let days = Int(seconds / 86400)
+        if days < 7 {
+            return "\(days)d ago"
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        return formatter.string(from: self)
     }
 }
