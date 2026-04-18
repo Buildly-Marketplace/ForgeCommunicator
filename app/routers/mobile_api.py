@@ -925,3 +925,123 @@ async def create_dm(
         name=new_channel.name, display_name=display_name,
         is_dm=True, is_private=True,
     )
+
+
+# ---------------------------------------------------------------------------
+# Integrations (Slack / Discord) — mobile endpoints
+# ---------------------------------------------------------------------------
+
+
+class IntegrationStatus(BaseModel):
+    slack_connected: bool = False
+    slack_workspace: str | None = None
+    discord_connected: bool = False
+    discord_server: str | None = None
+
+
+class IntegrationAuthURL(BaseModel):
+    url: str
+
+
+@router.get("/integrations/status", response_model=IntegrationStatus)
+async def get_integration_status(user: MobileUser, db: DBSession):
+    """Return which integrations the user has connected."""
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.is_active == True,
+        )
+    )
+    integrations = result.scalars().all()
+
+    status = IntegrationStatus()
+    for integ in integrations:
+        if integ.integration_type == IntegrationType.SLACK:
+            status.slack_connected = True
+            status.slack_workspace = integ.external_team_name
+        elif integ.integration_type == IntegrationType.DISCORD:
+            status.discord_connected = True
+            status.discord_server = integ.external_team_name
+    return status
+
+
+@router.get("/integrations/slack/auth-url", response_model=IntegrationAuthURL)
+async def get_slack_auth_url(request: Request, user: MobileUser):
+    """Return the Slack OAuth consent URL for the native app to open in Safari."""
+    from app.services.slack import slack_service
+    import secrets
+
+    if not slack_service.is_configured:
+        raise HTTPException(status_code=400, detail="Slack integration is not configured on this server")
+
+    proto = request.headers.get("X-Forwarded-Proto", "https" if not settings.debug else "http")
+    host = request.headers.get("X-Forwarded-Host", request.url.netloc)
+    redirect_uri = f"{proto}://{host}/integrations/slack/callback"
+
+    state = secrets.token_urlsafe(32)
+    auth_url = slack_service.get_authorization_url(state, redirect_uri)
+
+    # Store state in a short-lived session-like mechanism
+    # The callback will need to handle this — for now return the raw URL
+    return IntegrationAuthURL(url=auth_url)
+
+
+@router.get("/integrations/discord/auth-url", response_model=IntegrationAuthURL)
+async def get_discord_auth_url(request: Request, user: MobileUser):
+    """Return the Discord OAuth consent URL for the native app to open in Safari."""
+    from app.services.discord import discord_service
+    import secrets
+
+    if not discord_service.is_configured:
+        raise HTTPException(status_code=400, detail="Discord integration is not configured on this server")
+
+    proto = request.headers.get("X-Forwarded-Proto", "https" if not settings.debug else "http")
+    host = request.headers.get("X-Forwarded-Host", request.url.netloc)
+    redirect_uri = f"{proto}://{host}/integrations/discord/callback"
+
+    state = secrets.token_urlsafe(32)
+    auth_url = discord_service.get_authorization_url(state, redirect_uri)
+
+    return IntegrationAuthURL(url=auth_url)
+
+
+@router.post("/integrations/slack/disconnect")
+async def mobile_slack_disconnect(user: MobileUser, db: DBSession):
+    """Disconnect Slack integration."""
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.SLACK,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if integration:
+        integration.is_active = False
+        integration.access_token = None
+        integration.refresh_token = None
+        await db.commit()
+    return {"ok": True}
+
+
+@router.post("/integrations/discord/disconnect")
+async def mobile_discord_disconnect(user: MobileUser, db: DBSession):
+    """Disconnect Discord integration."""
+    from app.models.external_integration import ExternalIntegration, IntegrationType
+
+    result = await db.execute(
+        select(ExternalIntegration).where(
+            ExternalIntegration.user_id == user.id,
+            ExternalIntegration.integration_type == IntegrationType.DISCORD,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if integration:
+        integration.is_active = False
+        integration.access_token = None
+        integration.refresh_token = None
+        await db.commit()
+    return {"ok": True}

@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct ChatView: View {
     let channelId: Int
@@ -9,6 +12,8 @@ struct ChatView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var draft = ""
     @FocusState private var inputFocused: Bool
+
+    private let webBaseURL = "https://comms.buildly.io"
 
     init(channelId: Int, workspaceId: Int, title: String) {
         self.channelId = channelId
@@ -49,6 +54,7 @@ struct ChatView: View {
             }
 
             Divider()
+                .overlay(ForgeTheme.dark600)
 
             // Input bar
             HStack(spacing: 8) {
@@ -58,14 +64,15 @@ struct ChatView: View {
                     .focused($inputFocused)
                     .onSubmit { sendIfReady() }
                     .padding(10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    .background(ForgeTheme.dark700, in: RoundedRectangle(cornerRadius: 20))
+                    .foregroundStyle(.white)
 
                 Button {
                     sendIfReady()
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? .gray : .blue)
+                        .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? ForgeTheme.dark500 : ForgeTheme.primary)
                 }
                 .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty || vm.isSending)
             }
@@ -74,18 +81,36 @@ struct ChatView: View {
             #if os(iOS)
             .padding(.bottom, 2)
             #endif
+            .background(ForgeTheme.dark800)
         }
+        .background(ForgeTheme.dark900)
         .navigationTitle(title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    openInWeb()
+                } label: {
+                    Image(systemName: "safari")
+                        .foregroundStyle(ForgeTheme.primary)
+                }
+                .help("Open in web browser")
+            }
+        }
         .task { await vm.loadInitial() }
         // Simple polling for new messages (will be replaced by WebSocket)
         .task {
+            var previousCount = vm.messages.count
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 await vm.catchUp()
+                if vm.messages.count > previousCount {
+                    NotificationService.shared.playSound()
+                    previousCount = vm.messages.count
+                }
             }
         }
     }
@@ -94,6 +119,16 @@ struct ChatView: View {
         let text = draft
         draft = ""
         Task { await vm.send(text) }
+    }
+
+    private func openInWeb() {
+        let urlString = "\(webBaseURL)/workspaces/\(workspaceId)/channels/\(channelId)"
+        guard let url = URL(string: urlString) else { return }
+        #if canImport(UIKit)
+        UIApplication.shared.open(url)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(url)
+        #endif
     }
 }
 
@@ -115,28 +150,28 @@ struct MessageBubble: View {
                 if !isMe {
                     Text(message.authorName)
                         .font(.caption.bold())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ForgeTheme.textSecondary)
                 }
 
                 Text(message.body)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(isMe ? Color.blue : Color(.systemGray5), in: bubbleShape)
-                    .foregroundStyle(isMe ? .white : .primary)
+                    .background(isMe ? ForgeTheme.primary : ForgeTheme.dark700, in: bubbleShape)
+                    .foregroundStyle(.white)
 
                 HStack(spacing: 4) {
                     Text(message.createdAt, style: .time)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ForgeTheme.textMuted)
                     if message.isEdited {
                         Text("edited")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ForgeTheme.textMuted)
                     }
                     if message.threadReplyCount > 0 {
                         Text("💬 \(message.threadReplyCount)")
                             .font(.caption2)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(ForgeTheme.primary)
                     }
                 }
             }
@@ -150,10 +185,3 @@ struct MessageBubble: View {
         RoundedRectangle(cornerRadius: 16)
     }
 }
-
-#if os(macOS)
-// macOS doesn't have UIColor.systemGray5
-extension Color {
-    static let systemGray5 = Color(nsColor: .controlBackgroundColor)
-}
-#endif

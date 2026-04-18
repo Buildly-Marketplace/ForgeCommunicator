@@ -1,14 +1,13 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// HTTP client for the ForgeCommunicator mobile API (`/mobile/v1/`).
 actor APIClient {
     static let shared = APIClient()
 
-    #if DEBUG
-    private var baseURL = URL(string: "http://localhost:8000/mobile/v1")!
-    #else
-    private var baseURL = URL(string: "https://your-forge-instance.com/mobile/v1")!
-    #endif
+    private var baseURL = URL(string: "https://comms.buildly.io/mobile/v1")!
 
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
@@ -227,10 +226,32 @@ actor APIClient {
         return try decoder.decode(ChannelResponse.self, from: data)
     }
 
+    // MARK: - Integrations
+
+    func integrationStatus() async throws -> IntegrationStatusResponse {
+        try await request("GET", path: "integrations/status")
+    }
+
+    func slackAuthURL() async throws -> IntegrationAuthURLResponse {
+        try await request("GET", path: "integrations/slack/auth-url")
+    }
+
+    func discordAuthURL() async throws -> IntegrationAuthURLResponse {
+        try await request("GET", path: "integrations/discord/auth-url")
+    }
+
+    func disconnectSlack() async throws {
+        try await requestVoid("POST", path: "integrations/slack/disconnect")
+    }
+
+    func disconnectDiscord() async throws {
+        try await requestVoid("POST", path: "integrations/discord/disconnect")
+    }
+
     // MARK: - Helpers
 
     private var deviceName: String {
-        #if os(iOS)
+        #if canImport(UIKit)
         return UIDevice.current.name
         #else
         return Host.current().localizedName ?? "Mac"

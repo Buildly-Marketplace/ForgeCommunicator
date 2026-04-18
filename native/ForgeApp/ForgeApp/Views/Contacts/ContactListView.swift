@@ -26,6 +26,7 @@ struct ContactListView: View {
 
                 if isLoading {
                     ProgressView()
+                        .tint(ForgeTheme.primary)
                         .frame(maxHeight: .infinity)
                 } else {
                     List(filteredMembers) { user in
@@ -34,23 +35,27 @@ struct ContactListView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.displayName)
                                     .font(.body.weight(.medium))
+                                    .foregroundStyle(.white)
                                 if let title = user.title {
                                     Text(title)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(ForgeTheme.textSecondary)
                                 }
                             }
                             Spacer()
                             Circle()
-                                .fill(user.isOnline ? .green : .gray.opacity(0.4))
+                                .fill(user.isOnline ? .green : ForgeTheme.dark500)
                                 .frame(width: 8, height: 8)
                         }
                         .padding(.vertical, 2)
+                        .listRowBackground(ForgeTheme.dark900)
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle("Contacts")
+            .background(ForgeTheme.dark900)
+            .forgeLogoToolbar(title: "Contacts")
             .searchable(text: $searchText, prompt: "Search people")
             .onChange(of: selectedWorkspace) { _, ws in
                 if let ws { Task { await loadMembers(ws.id) } }

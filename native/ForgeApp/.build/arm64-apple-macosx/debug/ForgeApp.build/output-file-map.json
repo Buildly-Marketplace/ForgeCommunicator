@@ -1,0 +1,110 @@
+{
+  "": {
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/primary.swiftdeps"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/ForgeApp.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeApp.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeApp.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeApp.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeApp.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Models/Models.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/Models.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/Models.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/Models~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/Models.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/Models.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Resources/ForgeTheme.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeTheme.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeTheme.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeTheme.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ForgeTheme.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Services/APIClient.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/APIClient.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/APIClient.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/APIClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/APIClient.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/APIClient.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Services/KeychainService.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/KeychainService.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/KeychainService.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/KeychainService~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/KeychainService.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/KeychainService.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Services/WebSocketService.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/WebSocketService.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/WebSocketService.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/WebSocketService~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/WebSocketService.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/WebSocketService.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/ViewModels/AppState.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AppState.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AppState.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AppState~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AppState.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AppState.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/ViewModels/AuthViewModel.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AuthViewModel.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AuthViewModel.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AuthViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AuthViewModel.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/AuthViewModel.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/ViewModels/ChatViewModel.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatViewModel.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatViewModel.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatViewModel.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatViewModel.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/ViewModels/ConversationListViewModel.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListViewModel.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListViewModel.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListViewModel.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListViewModel.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Views/Auth/LoginView.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/LoginView.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/LoginView.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/LoginView~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/LoginView.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/LoginView.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Views/Chat/ChatView.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatView.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatView.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatView~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatView.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ChatView.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Views/Contacts/ContactListView.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ContactListView.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ContactListView.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ContactListView~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ContactListView.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ContactListView.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Views/Conversations/ConversationListView.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListView.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListView.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListView~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListView.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ConversationListView.dia"
+  },
+  "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/ForgeApp/Views/Profile/ProfileView.swift": {
+    "dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ProfileView.d",
+    "object": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ProfileView.swift.o",
+    "swiftmodule": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ProfileView~partial.swiftmodule",
+    "swift-dependencies": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ProfileView.swiftdeps",
+    "diagnostics": "/Users/greglind/Projects/buildly/ForgeCommunicator/native/ForgeApp/.build/arm64-apple-macosx/debug/ForgeApp.build/ProfileView.dia"
+  }
+}

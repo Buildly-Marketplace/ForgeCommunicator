@@ -203,3 +203,23 @@ struct SendMessageRequest: Encodable {
         case parentId = "parent_id"
     }
 }
+
+// MARK: - Integrations
+
+struct IntegrationStatusResponse: Codable {
+    let slackConnected: Bool
+    let slackWorkspace: String?
+    let discordConnected: Bool
+    let discordServer: String?
+
+    enum CodingKeys: String, CodingKey {
+        case slackConnected = "slack_connected"
+        case slackWorkspace = "slack_workspace"
+        case discordConnected = "discord_connected"
+        case discordServer = "discord_server"
+    }
+}
+
+struct IntegrationAuthURLResponse: Codable {
+    let url: String
+}
