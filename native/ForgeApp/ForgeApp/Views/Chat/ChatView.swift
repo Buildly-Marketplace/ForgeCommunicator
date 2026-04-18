@@ -90,7 +90,25 @@ struct ChatView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         #endif
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
+                if let otherEmail = vm.otherUserEmail {
+                    Button {
+                        FaceTimeHelper.videoCall(email: otherEmail)
+                    } label: {
+                        Image(systemName: "video.fill")
+                            .foregroundStyle(ForgeTheme.primary)
+                    }
+                    .help("FaceTime video call")
+
+                    Button {
+                        FaceTimeHelper.audioCall(email: otherEmail)
+                    } label: {
+                        Image(systemName: "phone.fill")
+                            .foregroundStyle(.green)
+                    }
+                    .help("FaceTime audio call")
+                }
+
                 Button {
                     openInWeb()
                 } label: {

@@ -43,6 +43,30 @@ struct ContactListView: View {
                                 }
                             }
                             Spacer()
+
+                            // FaceTime call buttons
+                            Button {
+                                FaceTimeHelper.videoCall(email: user.email)
+                            } label: {
+                                Image(systemName: "video.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(ForgeTheme.primary)
+                                    .padding(6)
+                                    .background(ForgeTheme.primary.opacity(0.15), in: Circle())
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                FaceTimeHelper.audioCall(email: user.email)
+                            } label: {
+                                Image(systemName: "phone.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                                    .padding(6)
+                                    .background(Color.green.opacity(0.15), in: Circle())
+                            }
+                            .buttonStyle(.plain)
+
                             Circle()
                                 .fill(user.isOnline ? .green : ForgeTheme.dark500)
                                 .frame(width: 8, height: 8)

@@ -65,6 +65,26 @@ struct ProfileView: View {
 
                     // Google Calendar sync indicator
                     Section("Connected Accounts") {
+                        NavigationLink {
+                            IntegrationsView()
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "link.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(ForgeTheme.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Integrations")
+                                        .font(.body)
+                                        .foregroundStyle(.white)
+                                    Text("Slack, Discord & more")
+                                        .font(.caption)
+                                        .foregroundStyle(ForgeTheme.textSecondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .listRowBackground(ForgeTheme.dark800)
+
                         Button {
                             openGoogleConnect()
                         } label: {

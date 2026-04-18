@@ -3,40 +3,73 @@ import SwiftUI
 import AppKit
 #endif
 
+// MARK: - Filter enum
+
+enum InboxFilter: String, CaseIterable, Identifiable {
+    case dms
+    case mentions
+    case channels
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .dms: return "DMs"
+        case .mentions: return "@Mentions"
+        case .channels: return "Channels"
+        }
+    }
+}
+
 struct ConversationListView: View {
     @StateObject private var vm = ConversationListViewModel()
     @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var notificationService: NotificationService
+    @State private var filter: InboxFilter = .dms
     @State private var slackConnected = false
     @State private var discordConnected = false
+    @State private var workspaces: [WorkspaceResponse] = []
+    @State private var selectedWorkspaceId: Int? // nil = All
 
     private let api = APIClient.shared
     private let webBaseURL = "https://comms.buildly.io"
 
     var body: some View {
         NavigationStack {
-            Group {
-                if vm.isLoading {
-                    ProgressView("Loading…")
-                        .tint(ForgeTheme.primary)
-                        .frame(maxHeight: .infinity)
-                } else if let error = vm.error {
-                    ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("Retry") { Task { await vm.load() } }
-                            .tint(ForgeTheme.primary)
+            VStack(spacing: 0) {
+                // Workspace picker (only if multiple)
+                if workspaces.count > 1 {
+                    workspacePicker
+                }
+
+                // Sub-navigation segmented picker
+                Picker("Filter", selection: $filter) {
+                    ForEach(InboxFilter.allCases) { f in
+                        Text(f.label).tag(f)
                     }
-                } else if vm.conversations.isEmpty {
-                    ContentUnavailableView(
-                        "No conversations yet",
-                        systemImage: "message",
-                        description: Text("Start a conversation to get going.")
-                    )
-                } else {
-                    conversationSections
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
+                // Content
+                Group {
+                    if vm.isLoading {
+                        ProgressView("Loading…")
+                            .tint(ForgeTheme.primary)
+                            .frame(maxHeight: .infinity)
+                    } else if let error = vm.error {
+                        ContentUnavailableView {
+                            Label("Error", systemImage: "exclamationmark.triangle")
+                        } description: {
+                            Text(error)
+                        } actions: {
+                            Button("Retry") { Task { await vm.load() } }
+                                .tint(ForgeTheme.primary)
+                        }
+                    } else {
+                        conversationContent
+                    }
                 }
             }
             .background(ForgeTheme.dark900)
@@ -51,6 +84,7 @@ struct ConversationListView: View {
         }
         .task {
             await vm.load()
+            await loadWorkspaces()
             await loadIntegrationStatus()
         }
         .onChange(of: vm.conversations) { _, convos in
@@ -59,70 +93,93 @@ struct ConversationListView: View {
         }
     }
 
-    // MARK: - Sectioned List
+    // MARK: - Workspace picker
 
-    private var conversationSections: some View {
-        List {
-            // 1. DMs
-            if !dmConversations.isEmpty {
-                Section {
-                    ForEach(dmConversations) { conv in
-                        conversationLink(conv)
-                    }
-                } header: {
-                    sectionHeader("Direct Messages", icon: "message.fill", count: dmUnreadCount)
+    private var workspacePicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                workspaceChip(name: "All", id: nil)
+                ForEach(workspaces) { ws in
+                    workspaceChip(name: ws.name, id: ws.id)
                 }
             }
-
-            // 2. @Mentions
-            if !mentionConversations.isEmpty {
-                Section {
-                    ForEach(mentionConversations) { conv in
-                        conversationLink(conv)
-                    }
-                } header: {
-                    sectionHeader("@Mentions", icon: "at", count: mentionConversations.count)
-                }
-            }
-
-            // 3. Channels (non-DM, no unread — i.e. remaining channels)
-            if !channelConversations.isEmpty {
-                Section {
-                    ForEach(channelConversations) { conv in
-                        conversationLink(conv)
-                    }
-                } header: {
-                    sectionHeader("Channels", icon: "number", count: 0)
-                }
-            }
-
-            // 4. Slack (only if connected)
-            if slackConnected, !slackConversations.isEmpty {
-                Section {
-                    ForEach(slackConversations) { conv in
-                        conversationLink(conv)
-                    }
-                } header: {
-                    sectionHeader("Slack", icon: "number.square.fill", count: slackUnreadCount, color: .purple)
-                }
-            }
-
-            // 5. Discord (only if connected)
-            if discordConnected, !discordConversations.isEmpty {
-                Section {
-                    ForEach(discordConversations) { conv in
-                        conversationLink(conv)
-                    }
-                } header: {
-                    sectionHeader("Discord", icon: "gamecontroller.fill", count: discordUnreadCount, color: .indigo)
-                }
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .refreshable {
-            await vm.load()
-            await loadIntegrationStatus()
+    }
+
+    private func workspaceChip(name: String, id: Int?) -> some View {
+        let isSelected = selectedWorkspaceId == id
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedWorkspaceId = id
+            }
+        } label: {
+            Text(name)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    isSelected ? ForgeTheme.primary : ForgeTheme.dark800,
+                    in: Capsule()
+                )
+                .foregroundStyle(isSelected ? .white : ForgeTheme.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Content
+
+    private var conversationContent: some View {
+        Group {
+            if filteredConversations.isEmpty && slackSectionConversations.isEmpty && discordSectionConversations.isEmpty {
+                ContentUnavailableView(
+                    emptyTitle,
+                    systemImage: emptyIcon,
+                    description: Text(emptyDescription)
+                )
+            } else {
+                List {
+                    // Main filtered section
+                    if !filteredConversations.isEmpty {
+                        Section {
+                            ForEach(filteredConversations) { conv in
+                                conversationLink(conv)
+                            }
+                        } header: {
+                            sectionHeader(filter.label, icon: filterIcon, count: filteredUnreadCount)
+                        }
+                    }
+
+                    // Slack section (always shown when connected & has data, regardless of filter)
+                    if slackConnected, !slackSectionConversations.isEmpty {
+                        Section {
+                            ForEach(slackSectionConversations) { conv in
+                                conversationLink(conv)
+                            }
+                        } header: {
+                            sectionHeader("Slack", icon: "number.square.fill", count: slackUnreadCount, color: .purple)
+                        }
+                    }
+
+                    // Discord section
+                    if discordConnected, !discordSectionConversations.isEmpty {
+                        Section {
+                            ForEach(discordSectionConversations) { conv in
+                                conversationLink(conv)
+                            }
+                        } header: {
+                            sectionHeader("Discord", icon: "gamecontroller.fill", count: discordUnreadCount, color: .indigo)
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .refreshable {
+                    await vm.load()
+                    await loadIntegrationStatus()
+                }
+            }
         }
     }
 
@@ -169,50 +226,102 @@ struct ConversationListView: View {
         }
     }
 
-    // MARK: - Filtered data
+    // MARK: - Workspace-filtered base
 
-    private var dmConversations: [ConversationPreview] {
-        vm.conversations.filter { $0.isDm && $0.lastMessage?.externalSource == nil }
+    /// All conversations after workspace filter (before category filter)
+    private var workspaceFiltered: [ConversationPreview] {
+        if let wsId = selectedWorkspaceId {
+            return vm.conversations.filter { $0.workspaceId == wsId }
+        }
+        return vm.conversations
     }
 
-    private var dmUnreadCount: Int {
-        dmConversations.reduce(0) { $0 + $1.unreadCount }
+    /// Non-bridged conversations (native Forge messages)
+    private var nativeConversations: [ConversationPreview] {
+        workspaceFiltered.filter { $0.lastMessage?.externalSource == nil }
     }
 
-    private var mentionConversations: [ConversationPreview] {
-        vm.conversations.filter { !$0.isDm && $0.unreadCount > 0 && $0.lastMessage?.externalSource == nil }
+    // MARK: - Category-filtered data
+
+    private var filteredConversations: [ConversationPreview] {
+        switch filter {
+        case .dms:
+            return nativeConversations.filter { $0.isDm }
+        case .mentions:
+            return nativeConversations.filter { !$0.isDm && $0.unreadCount > 0 }
+        case .channels:
+            return nativeConversations.filter { !$0.isDm }
+        }
     }
 
-    private var channelConversations: [ConversationPreview] {
-        vm.conversations.filter { !$0.isDm && $0.unreadCount == 0 && $0.lastMessage?.externalSource == nil }
+    private var filteredUnreadCount: Int {
+        filteredConversations.reduce(0) { $0 + $1.unreadCount }
     }
 
-    private var slackConversations: [ConversationPreview] {
-        vm.conversations.filter { $0.lastMessage?.externalSource == "slack" }
+    private var filterIcon: String {
+        switch filter {
+        case .dms: return "message.fill"
+        case .mentions: return "at"
+        case .channels: return "number"
+        }
+    }
+
+    private var slackSectionConversations: [ConversationPreview] {
+        workspaceFiltered.filter { $0.lastMessage?.externalSource == "slack" }
     }
 
     private var slackUnreadCount: Int {
-        slackConversations.reduce(0) { $0 + $1.unreadCount }
+        slackSectionConversations.reduce(0) { $0 + $1.unreadCount }
     }
 
-    private var discordConversations: [ConversationPreview] {
-        vm.conversations.filter { $0.lastMessage?.externalSource == "discord" }
+    private var discordSectionConversations: [ConversationPreview] {
+        workspaceFiltered.filter { $0.lastMessage?.externalSource == "discord" }
     }
 
     private var discordUnreadCount: Int {
-        discordConversations.reduce(0) { $0 + $1.unreadCount }
+        discordSectionConversations.reduce(0) { $0 + $1.unreadCount }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyTitle: String {
+        switch filter {
+        case .dms: return "No direct messages"
+        case .mentions: return "No mentions yet"
+        case .channels: return "No channels"
+        }
+    }
+
+    private var emptyIcon: String {
+        switch filter {
+        case .dms: return "message"
+        case .mentions: return "at"
+        case .channels: return "number"
+        }
+    }
+
+    private var emptyDescription: String {
+        switch filter {
+        case .dms: return "Start a DM to get going."
+        case .mentions: return "You'll see threads where you're @mentioned."
+        case .channels: return "Join a channel to see it here."
+        }
     }
 
     // MARK: - Actions
+
+    private func loadWorkspaces() async {
+        do {
+            workspaces = try await api.workspaces()
+        } catch { /* silent */ }
+    }
 
     private func loadIntegrationStatus() async {
         do {
             let status = try await api.integrationStatus()
             slackConnected = status.slackConnected
             discordConnected = status.discordConnected
-        } catch {
-            // Silently ignore — sections just won't show
-        }
+        } catch { /* silent */ }
     }
 
     private func openInWeb(_ conv: ConversationPreview) {

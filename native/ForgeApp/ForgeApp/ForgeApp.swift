@@ -53,11 +53,6 @@ struct MainTabView: View {
                 }
                 .badge(notificationService.unreadCount)
 
-            IntegrationsView()
-                .tabItem {
-                    Label("Integrations", systemImage: "link.circle.fill")
-                }
-
             ContactListView()
                 .tabItem {
                     Label("Contacts", systemImage: "person.2.fill")

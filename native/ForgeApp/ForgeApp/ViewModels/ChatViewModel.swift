@@ -64,4 +64,15 @@ final class ChatViewModel: ObservableObject {
             self.error = error.localizedDescription
         }
     }
+
+    /// The email of the other participant (for DM FaceTime calls).
+    /// Returns nil if there's no clear other user (e.g. group channel).
+    var otherUserEmail: String? {
+        let myId = messages.first(where: { $0.author != nil })?.userId
+        let others = Set(messages.compactMap { msg -> String? in
+            guard msg.userId != myId, let email = msg.author?.email else { return nil }
+            return email
+        })
+        return others.count == 1 ? others.first : nil
+    }
 }

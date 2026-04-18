@@ -19,11 +19,7 @@ struct LoginView: View {
 
                 // MARK: - Logo & Branding (matches web splash)
                 VStack(spacing: 12) {
-                    Image("AppIcon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 72, height: 72)
-                        .clipShape(Circle())
+                    ForgeLogoImage(size: 72)
                         .shadow(color: ForgeTheme.primary.opacity(0.4), radius: 12, y: 4)
 
                     Text("ForgeCommunicator")

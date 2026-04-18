@@ -5,17 +5,26 @@ struct ForgeNavHeader: View {
     var title: String = ""
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image("AppIcon")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 28, height: 28)
-                .clipShape(Circle())
+        HStack(spacing: 10) {
+            ForgeLogoImage(size: 28)
 
             Text(title.isEmpty ? "ForgeCommunicator" : title)
                 .font(.headline.bold())
                 .foregroundStyle(.white)
         }
+    }
+}
+
+/// Loads the ForgeCommunicator logo from the SwiftPM resource bundle.
+struct ForgeLogoImage: View {
+    var size: CGFloat = 28
+
+    var body: some View {
+        Image("ForgeLogo", bundle: .module)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .clipShape(Circle())
     }
 }
 

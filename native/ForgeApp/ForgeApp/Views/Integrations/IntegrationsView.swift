@@ -16,19 +16,20 @@ struct IntegrationsView: View {
     private let webBaseURL = "https://comms.buildly.io"
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Checking integrations…")
-                        .tint(ForgeTheme.primary)
-                        .frame(maxHeight: .infinity)
-                } else {
-                    integrationsList
-                }
+        Group {
+            if isLoading {
+                ProgressView("Checking integrations…")
+                    .tint(ForgeTheme.primary)
+                    .frame(maxHeight: .infinity)
+            } else {
+                integrationsList
             }
-            .background(ForgeTheme.dark900)
-            .forgeLogoToolbar(title: "Integrations")
         }
+        .background(ForgeTheme.dark900)
+        .navigationTitle("Integrations")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .task {
             await loadStatus()
         }
