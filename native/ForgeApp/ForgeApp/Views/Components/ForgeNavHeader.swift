@@ -22,9 +22,11 @@ struct ForgeLogoImage: View {
     var body: some View {
         Image("ForgeLogo", bundle: .module)
             .resizable()
+            .interpolation(.high)
+            .antialiased(true)
             .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size)
-            .clipShape(Circle())
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
     }
 }
 

@@ -37,18 +37,51 @@ struct ConversationListView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Workspace picker (only if multiple)
-                if workspaces.count > 1 {
-                    workspacePicker
-                }
-
-                // Sub-navigation segmented picker
-                Picker("Filter", selection: $filter) {
-                    ForEach(InboxFilter.allCases) { f in
-                        Text(f.label).tag(f)
+                // Sub-navigation: workspace dropdown + filter picker
+                HStack(spacing: 8) {
+                    if workspaces.count > 1 {
+                        Menu {
+                            Button {
+                                selectedWorkspaceId = nil
+                            } label: {
+                                if selectedWorkspaceId == nil {
+                                    Label("All Workspaces", systemImage: "checkmark")
+                                } else {
+                                    Text("All Workspaces")
+                                }
+                            }
+                            ForEach(workspaces) { ws in
+                                Button {
+                                    selectedWorkspaceId = ws.id
+                                } label: {
+                                    if selectedWorkspaceId == ws.id {
+                                        Label(ws.name, systemImage: "checkmark")
+                                    } else {
+                                        Text(ws.name)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(selectedWorkspaceName)
+                                    .font(.subheadline.weight(.medium))
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(ForgeTheme.dark700, in: Capsule())
+                        }
                     }
+
+                    Picker("Filter", selection: $filter) {
+                        ForEach(InboxFilter.allCases) { f in
+                            Text(f.label).tag(f)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
 
@@ -93,39 +126,14 @@ struct ConversationListView: View {
         }
     }
 
-    // MARK: - Workspace picker
+    // MARK: - Workspace dropdown helper
 
-    private var workspacePicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                workspaceChip(name: "All", id: nil)
-                ForEach(workspaces) { ws in
-                    workspaceChip(name: ws.name, id: ws.id)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+    private var selectedWorkspaceName: String {
+        if let wsId = selectedWorkspaceId,
+           let ws = workspaces.first(where: { $0.id == wsId }) {
+            return ws.name
         }
-    }
-
-    private func workspaceChip(name: String, id: Int?) -> some View {
-        let isSelected = selectedWorkspaceId == id
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                selectedWorkspaceId = id
-            }
-        } label: {
-            Text(name)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    isSelected ? ForgeTheme.primary : ForgeTheme.dark800,
-                    in: Capsule()
-                )
-                .foregroundStyle(isSelected ? .white : ForgeTheme.textSecondary)
-        }
-        .buttonStyle(.plain)
+        return "All"
     }
 
     // MARK: - Content

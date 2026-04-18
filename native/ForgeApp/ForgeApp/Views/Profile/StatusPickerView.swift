@@ -14,32 +14,22 @@ struct StatusPickerView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Status options
+                // Standard status options
                 Section("Status") {
-                    ForEach(UserStatusOption.allCases) { option in
-                        Button {
-                            selectedStatus = option
-                        } label: {
-                            HStack(spacing: 12) {
-                                Text(option.emoji)
-                                    .font(.title3)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(option.label)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(.white)
-                                    Text(option.description)
-                                        .font(.caption)
-                                        .foregroundStyle(ForgeTheme.textSecondary)
-                                }
-                                Spacer()
-                                if selectedStatus == option {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(ForgeTheme.primary)
-                                }
-                            }
-                        }
-                        .listRowBackground(ForgeTheme.dark800)
+                    ForEach(UserStatusOption.allCases.filter { !$0.isCalendarStatus }) { option in
+                        statusRow(option)
                     }
+                }
+
+                // Calendar-based statuses
+                Section("Calendar") {
+                    ForEach(UserStatusOption.allCases.filter { $0.isCalendarStatus }) { option in
+                        statusRow(option)
+                    }
+                    Text("These statuses sync automatically when Google Calendar is connected.")
+                        .font(.caption)
+                        .foregroundStyle(ForgeTheme.textSecondary)
+                        .listRowBackground(ForgeTheme.dark800)
                 }
 
                 // Custom message
@@ -150,6 +140,31 @@ struct StatusPickerView: View {
         // For now, dismiss with the selection
         dismiss()
     }
+
+    private func statusRow(_ option: UserStatusOption) -> some View {
+        Button {
+            selectedStatus = option
+        } label: {
+            HStack(spacing: 12) {
+                Text(option.emoji)
+                    .font(.title3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.label)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.white)
+                    Text(option.description)
+                        .font(.caption)
+                        .foregroundStyle(ForgeTheme.textSecondary)
+                }
+                Spacer()
+                if selectedStatus == option {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(ForgeTheme.primary)
+                }
+            }
+        }
+        .listRowBackground(ForgeTheme.dark800)
+    }
 }
 
 // MARK: - Status Options
@@ -157,6 +172,8 @@ struct StatusPickerView: View {
 enum UserStatusOption: String, CaseIterable, Identifiable {
     case active
     case away
+    case inMeeting = "in_meeting"
+    case onACall = "on_a_call"
     case dnd
     case offline
 
@@ -166,6 +183,8 @@ enum UserStatusOption: String, CaseIterable, Identifiable {
         switch self {
         case .active: return "🟢"
         case .away: return "🟡"
+        case .inMeeting: return "📅"
+        case .onACall: return "📞"
         case .dnd: return "🔴"
         case .offline: return "⚫"
         }
@@ -173,8 +192,10 @@ enum UserStatusOption: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .active: return "Active"
+        case .active: return "Available"
         case .away: return "Away"
+        case .inMeeting: return "In a Meeting"
+        case .onACall: return "On a Call"
         case .dnd: return "Do Not Disturb"
         case .offline: return "Offline"
         }
@@ -184,8 +205,18 @@ enum UserStatusOption: String, CaseIterable, Identifiable {
         switch self {
         case .active: return "You're available and online"
         case .away: return "You're away from your desk"
+        case .inMeeting: return "Busy — synced from your calendar"
+        case .onACall: return "Currently on a call"
         case .dnd: return "Pause all notifications"
         case .offline: return "Appear offline to others"
+        }
+    }
+
+    /// Whether this status can be auto-set from Google Calendar events.
+    var isCalendarStatus: Bool {
+        switch self {
+        case .inMeeting, .onACall: return true
+        default: return false
         }
     }
 }
