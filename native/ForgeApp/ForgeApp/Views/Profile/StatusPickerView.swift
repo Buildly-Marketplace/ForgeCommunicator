@@ -136,9 +136,19 @@ struct StatusPickerView: View {
 
     private func saveStatus() {
         isSaving = true
-        // TODO: Call API to update status when endpoint is available
-        // For now, dismiss with the selection
-        dismiss()
+        Task {
+            do {
+                let update = ProfileUpdate(
+                    status: selectedStatus.rawValue,
+                    statusMessage: statusMessage.isEmpty ? nil : statusMessage
+                )
+                let updatedUser = try await APIClient.shared.updateProfile(update)
+                authVM.currentUser = updatedUser
+                dismiss()
+            } catch {
+                isSaving = false
+            }
+        }
     }
 
     private func statusRow(_ option: UserStatusOption) -> some View {

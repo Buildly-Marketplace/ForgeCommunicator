@@ -21,18 +21,19 @@ final class WebSocketService: ObservableObject {
     func connect(channelId: Int) {
         disconnect()
 
-        // Build WS URL
-        let scheme: String
-        let host: String
-        #if DEBUG
-        scheme = "ws"
-        host = "localhost:8000"
-        #else
-        scheme = "wss"
-        host = "your-forge-instance.com"
-        #endif
+        // Derive WS URL from the configured server URL (same source as APIClient)
+        let serverBase: String
+        if let saved = UserDefaults.standard.string(forKey: "serverURL") {
+            serverBase = saved
+        } else {
+            serverBase = "https://comms.buildly.io"
+        }
 
-        guard var components = URLComponents(string: "\(scheme)://\(host)/ws/\(channelId)") else { return }
+        let wsBase = serverBase
+            .replacingOccurrences(of: "https://", with: "wss://")
+            .replacingOccurrences(of: "http://", with: "ws://")
+
+        guard var components = URLComponents(string: "\(wsBase)/ws/\(channelId)") else { return }
         if let token = KeychainService.loadToken() {
             components.queryItems = [URLQueryItem(name: "token", value: token)]
         }

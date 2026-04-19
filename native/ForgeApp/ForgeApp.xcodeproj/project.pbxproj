@@ -1,0 +1,627 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00DA3E9396B5464BF25491BF /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73BACCB03273C77DF7CC836 /* ChatView.swift */; };
+		0420A88D5D8649C9BDD46876 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC24D0D278D3CFBABA6546F /* LoginView.swift */; };
+		13B2B555F2122529465296F7 /* ForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0098707383C3DD605E3D5E7 /* ForgeApp.swift */; };
+		1AF66F732B5BC1CE711F7C40 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73BACCB03273C77DF7CC836 /* ChatView.swift */; };
+		23BE8FB761BB95B072CDFDD5 /* ContactListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569BC67353B7D96B8E5245D3 /* ContactListView.swift */; };
+		2775CB0DCDD41B0BBD63A233 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58358F2122E9BAD85BCC492 /* NotificationService.swift */; };
+		27F67C18B03F51274A92ACD3 /* ForgeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC95093F19FCD7CF87D0E93 /* ForgeTheme.swift */; };
+		2852F77006A8CD816B5F912F /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B78993862DD1C19584AACE /* AuthViewModel.swift */; };
+		2B4B5F326381441DA1127959 /* ForgeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC95093F19FCD7CF87D0E93 /* ForgeTheme.swift */; };
+		34CBF8E3A7BE7F2AA6CDB813 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FAA9A02C03528BD0270FEC /* KeychainService.swift */; };
+		382324FCBCC8C4493B2651E6 /* FaceTimeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0892D1E8C75F89C72A7B0CC /* FaceTimeHelper.swift */; };
+		3C3DB903B51B61C76D9E94B6 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B769BC9D45145B941AB318 /* ProfileView.swift */; };
+		419CD0C83524A3CF662A0C2A /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B769BC9D45145B941AB318 /* ProfileView.swift */; };
+		447E260CD76863F278834054 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B54CDE17C1D10CD45A606F /* APIClient.swift */; };
+		4B79237E713086444FDAB0D3 /* ConversationListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D79B6EA629728AD581312922 /* ConversationListViewModel.swift */; };
+		53165B277FA9FC069398AB6F /* IntegrationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9166832FBDB26C52EFF14E /* IntegrationsView.swift */; };
+		5C7C50D82DFAB84EAB150728 /* ForgeNavHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91481BB410EFFE7DD4B5BBE4 /* ForgeNavHeader.swift */; };
+		5E44D7C0E426D1B6A02FA03B /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FAA9A02C03528BD0270FEC /* KeychainService.swift */; };
+		606632650994EE561DCAB5A9 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A159DC6E887C7F84D59229EF /* AppState.swift */; };
+		62BB4517795F9FEB48781944 /* WebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45D78D3972C3B0A38CAE35A /* WebSocketService.swift */; };
+		6339204CB1EF1B28525337FA /* ContactListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569BC67353B7D96B8E5245D3 /* ContactListView.swift */; };
+		658170BDE55BC4A66D1D2A1B /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A159DC6E887C7F84D59229EF /* AppState.swift */; };
+		6AA082EE6B13945DBBCC6FFE /* StatusPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9D2C279F26483CFB74E1E2 /* StatusPickerView.swift */; };
+		6CE031C5184FCF501563DE4D /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58358F2122E9BAD85BCC492 /* NotificationService.swift */; };
+		6DDEA589D34C0EF6CA0603BA /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434861D040E82B401CC2125D /* EditProfileView.swift */; };
+		775B848204FC0A56485EB7B1 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B78993862DD1C19584AACE /* AuthViewModel.swift */; };
+		7C772D034CE043A3E9AE5835 /* FaceTimeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0892D1E8C75F89C72A7B0CC /* FaceTimeHelper.swift */; };
+		9CEF42FB84B7E22C00548456 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E6EBAD6D4DF4841CB5CFFC /* ChatViewModel.swift */; };
+		A14E59CC32CA943A5AC88976 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DC73ADDBBCD8EB9D90DEABBA /* Assets.xcassets */; };
+		A6C96F15BFBF897240F95123 /* ConversationListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D41F5A2934457693336A94 /* ConversationListView.swift */; };
+		A7A86222E84FDAB49AA5DA45 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9623913C8E8C326C88D97E /* Models.swift */; };
+		AE637FF75F15E262E448807E /* IntegrationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9166832FBDB26C52EFF14E /* IntegrationsView.swift */; };
+		B359938E87939D20B8A7C2CD /* ForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0098707383C3DD605E3D5E7 /* ForgeApp.swift */; };
+		B425503B5A4FC5A399C6B48E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DC73ADDBBCD8EB9D90DEABBA /* Assets.xcassets */; };
+		B8F843CD1F8489C66F081C04 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9623913C8E8C326C88D97E /* Models.swift */; };
+		B9619A21C8453C7B004B35B6 /* StatusPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9D2C279F26483CFB74E1E2 /* StatusPickerView.swift */; };
+		BC7BE673276CFDC7904C6FBD /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E6EBAD6D4DF4841CB5CFFC /* ChatViewModel.swift */; };
+		BD80525C2E40BB8D04B28160 /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434861D040E82B401CC2125D /* EditProfileView.swift */; };
+		D02DF8F249AE1419A82B143D /* ForgeNavHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91481BB410EFFE7DD4B5BBE4 /* ForgeNavHeader.swift */; };
+		D2774DA5BC4BCBAF397ED670 /* WebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45D78D3972C3B0A38CAE35A /* WebSocketService.swift */; };
+		D532BD4D2D961B5EB1E9AC07 /* ConversationListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D79B6EA629728AD581312922 /* ConversationListViewModel.swift */; };
+		DEFD99DA6794735FE2F9BF02 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B54CDE17C1D10CD45A606F /* APIClient.swift */; };
+		EAD562ACEE1BD61208C9A7AB /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC24D0D278D3CFBABA6546F /* LoginView.swift */; };
+		F4779BF11215CDB58325B9A2 /* ConversationListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D41F5A2934457693336A94 /* ConversationListView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3F9D2C279F26483CFB74E1E2 /* StatusPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPickerView.swift; sourceTree = "<group>"; };
+		434861D040E82B401CC2125D /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
+		569BC67353B7D96B8E5245D3 /* ContactListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactListView.swift; sourceTree = "<group>"; };
+		61FAA9A02C03528BD0270FEC /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		64E6EBAD6D4DF4841CB5CFFC /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		7DC24D0D278D3CFBABA6546F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		91481BB410EFFE7DD4B5BBE4 /* ForgeNavHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeNavHeader.swift; sourceTree = "<group>"; };
+		9A9623913C8E8C326C88D97E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A0098707383C3DD605E3D5E7 /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
+		A159DC6E887C7F84D59229EF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		AB9166832FBDB26C52EFF14E /* IntegrationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationsView.swift; sourceTree = "<group>"; };
+		B3B78993862DD1C19584AACE /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
+		C0892D1E8C75F89C72A7B0CC /* FaceTimeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceTimeHelper.swift; sourceTree = "<group>"; };
+		C73BACCB03273C77DF7CC836 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		C9D41F5A2934457693336A94 /* ConversationListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListView.swift; sourceTree = "<group>"; };
+		CBE71BD090E5AEE80F5CD105 /* Forge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Forge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D45D78D3972C3B0A38CAE35A /* WebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketService.swift; sourceTree = "<group>"; };
+		D79B6EA629728AD581312922 /* ConversationListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListViewModel.swift; sourceTree = "<group>"; };
+		DC73ADDBBCD8EB9D90DEABBA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DDC95093F19FCD7CF87D0E93 /* ForgeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeTheme.swift; sourceTree = "<group>"; };
+		E58358F2122E9BAD85BCC492 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		E790BBC15DF53B6552CF05C2 /* Forge.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Forge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F2B769BC9D45145B941AB318 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		F9B54CDE17C1D10CD45A606F /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2271ECD3DC430A34802B537B = {
+			isa = PBXGroup;
+			children = (
+				4276CD1DD2A244F8B70D14BF /* ForgeApp */,
+				5688DBDC215DC8D29446D40C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4276CD1DD2A244F8B70D14BF /* ForgeApp */ = {
+			isa = PBXGroup;
+			children = (
+				A0098707383C3DD605E3D5E7 /* ForgeApp.swift */,
+				C34CB75F0642ABBDC9E4C5A7 /* Models */,
+				8383EADCBF1BC074BCF2C86A /* Resources */,
+				67ED98FCFA270C70AC9CE195 /* Services */,
+				EABF94305B4CC4785A89C49F /* ViewModels */,
+				8124BB0FD51E4FA94FA55E74 /* Views */,
+			);
+			path = ForgeApp;
+			sourceTree = "<group>";
+		};
+		464022603D1CC9E88B5D228A /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				91481BB410EFFE7DD4B5BBE4 /* ForgeNavHeader.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		4909C3E4999874A08125C785 /* Contacts */ = {
+			isa = PBXGroup;
+			children = (
+				569BC67353B7D96B8E5245D3 /* ContactListView.swift */,
+			);
+			path = Contacts;
+			sourceTree = "<group>";
+		};
+		5688DBDC215DC8D29446D40C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E790BBC15DF53B6552CF05C2 /* Forge.app */,
+				CBE71BD090E5AEE80F5CD105 /* Forge.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		67ED98FCFA270C70AC9CE195 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F9B54CDE17C1D10CD45A606F /* APIClient.swift */,
+				C0892D1E8C75F89C72A7B0CC /* FaceTimeHelper.swift */,
+				61FAA9A02C03528BD0270FEC /* KeychainService.swift */,
+				E58358F2122E9BAD85BCC492 /* NotificationService.swift */,
+				D45D78D3972C3B0A38CAE35A /* WebSocketService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		6CE044F6926E8910A37F43CC /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				434861D040E82B401CC2125D /* EditProfileView.swift */,
+				F2B769BC9D45145B941AB318 /* ProfileView.swift */,
+				3F9D2C279F26483CFB74E1E2 /* StatusPickerView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		8124BB0FD51E4FA94FA55E74 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D879940B67034034C532BEBC /* Auth */,
+				85C28013C3F83A5A8F51F4E6 /* Chat */,
+				464022603D1CC9E88B5D228A /* Components */,
+				4909C3E4999874A08125C785 /* Contacts */,
+				DCEBA6EF7961A17B953D920E /* Conversations */,
+				C8F18434097615EAAEDE5D2A /* Integrations */,
+				6CE044F6926E8910A37F43CC /* Profile */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		8383EADCBF1BC074BCF2C86A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				DC73ADDBBCD8EB9D90DEABBA /* Assets.xcassets */,
+				DDC95093F19FCD7CF87D0E93 /* ForgeTheme.swift */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		85C28013C3F83A5A8F51F4E6 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				C73BACCB03273C77DF7CC836 /* ChatView.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		C34CB75F0642ABBDC9E4C5A7 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9A9623913C8E8C326C88D97E /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C8F18434097615EAAEDE5D2A /* Integrations */ = {
+			isa = PBXGroup;
+			children = (
+				AB9166832FBDB26C52EFF14E /* IntegrationsView.swift */,
+			);
+			path = Integrations;
+			sourceTree = "<group>";
+		};
+		D879940B67034034C532BEBC /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				7DC24D0D278D3CFBABA6546F /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		DCEBA6EF7961A17B953D920E /* Conversations */ = {
+			isa = PBXGroup;
+			children = (
+				C9D41F5A2934457693336A94 /* ConversationListView.swift */,
+			);
+			path = Conversations;
+			sourceTree = "<group>";
+		};
+		EABF94305B4CC4785A89C49F /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A159DC6E887C7F84D59229EF /* AppState.swift */,
+				B3B78993862DD1C19584AACE /* AuthViewModel.swift */,
+				64E6EBAD6D4DF4841CB5CFFC /* ChatViewModel.swift */,
+				D79B6EA629728AD581312922 /* ConversationListViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1B8890D2BB809487C344A382 /* Forge_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E1A3547F83C533D40046DA4 /* Build configuration list for PBXNativeTarget "Forge_iOS" */;
+			buildPhases = (
+				F66C83DC1D9C521F61DA733E /* Sources */,
+				152E6A2CD43CBE3E00CCCCE4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Forge_iOS;
+			packageProductDependencies = (
+			);
+			productName = Forge_iOS;
+			productReference = E790BBC15DF53B6552CF05C2 /* Forge.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C61AD0BA2E94D190D207D00A /* Forge_macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA7241B29B283338875EB87E /* Build configuration list for PBXNativeTarget "Forge_macOS" */;
+			buildPhases = (
+				8B6E408403DB7DDA374002D7 /* Sources */,
+				B875C37AFCF81F9A2906BD79 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Forge_macOS;
+			packageProductDependencies = (
+			);
+			productName = Forge_macOS;
+			productReference = CBE71BD090E5AEE80F5CD105 /* Forge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		926BD85D325B26D4D5AFF854 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					1B8890D2BB809487C344A382 = {
+						ProvisioningStyle = Automatic;
+					};
+					C61AD0BA2E94D190D207D00A = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 1F35F8A4215F3DBCDF0A8171 /* Build configuration list for PBXProject "ForgeApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2271ECD3DC430A34802B537B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5688DBDC215DC8D29446D40C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1B8890D2BB809487C344A382 /* Forge_iOS */,
+				C61AD0BA2E94D190D207D00A /* Forge_macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		152E6A2CD43CBE3E00CCCCE4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B425503B5A4FC5A399C6B48E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B875C37AFCF81F9A2906BD79 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A14E59CC32CA943A5AC88976 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8B6E408403DB7DDA374002D7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				447E260CD76863F278834054 /* APIClient.swift in Sources */,
+				606632650994EE561DCAB5A9 /* AppState.swift in Sources */,
+				775B848204FC0A56485EB7B1 /* AuthViewModel.swift in Sources */,
+				1AF66F732B5BC1CE711F7C40 /* ChatView.swift in Sources */,
+				9CEF42FB84B7E22C00548456 /* ChatViewModel.swift in Sources */,
+				23BE8FB761BB95B072CDFDD5 /* ContactListView.swift in Sources */,
+				A6C96F15BFBF897240F95123 /* ConversationListView.swift in Sources */,
+				D532BD4D2D961B5EB1E9AC07 /* ConversationListViewModel.swift in Sources */,
+				6DDEA589D34C0EF6CA0603BA /* EditProfileView.swift in Sources */,
+				382324FCBCC8C4493B2651E6 /* FaceTimeHelper.swift in Sources */,
+				B359938E87939D20B8A7C2CD /* ForgeApp.swift in Sources */,
+				D02DF8F249AE1419A82B143D /* ForgeNavHeader.swift in Sources */,
+				2B4B5F326381441DA1127959 /* ForgeTheme.swift in Sources */,
+				53165B277FA9FC069398AB6F /* IntegrationsView.swift in Sources */,
+				5E44D7C0E426D1B6A02FA03B /* KeychainService.swift in Sources */,
+				0420A88D5D8649C9BDD46876 /* LoginView.swift in Sources */,
+				B8F843CD1F8489C66F081C04 /* Models.swift in Sources */,
+				6CE031C5184FCF501563DE4D /* NotificationService.swift in Sources */,
+				3C3DB903B51B61C76D9E94B6 /* ProfileView.swift in Sources */,
+				B9619A21C8453C7B004B35B6 /* StatusPickerView.swift in Sources */,
+				D2774DA5BC4BCBAF397ED670 /* WebSocketService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F66C83DC1D9C521F61DA733E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DEFD99DA6794735FE2F9BF02 /* APIClient.swift in Sources */,
+				658170BDE55BC4A66D1D2A1B /* AppState.swift in Sources */,
+				2852F77006A8CD816B5F912F /* AuthViewModel.swift in Sources */,
+				00DA3E9396B5464BF25491BF /* ChatView.swift in Sources */,
+				BC7BE673276CFDC7904C6FBD /* ChatViewModel.swift in Sources */,
+				6339204CB1EF1B28525337FA /* ContactListView.swift in Sources */,
+				F4779BF11215CDB58325B9A2 /* ConversationListView.swift in Sources */,
+				4B79237E713086444FDAB0D3 /* ConversationListViewModel.swift in Sources */,
+				BD80525C2E40BB8D04B28160 /* EditProfileView.swift in Sources */,
+				7C772D034CE043A3E9AE5835 /* FaceTimeHelper.swift in Sources */,
+				13B2B555F2122529465296F7 /* ForgeApp.swift in Sources */,
+				5C7C50D82DFAB84EAB150728 /* ForgeNavHeader.swift in Sources */,
+				27F67C18B03F51274A92ACD3 /* ForgeTheme.swift in Sources */,
+				AE637FF75F15E262E448807E /* IntegrationsView.swift in Sources */,
+				34CBF8E3A7BE7F2AA6CDB813 /* KeychainService.swift in Sources */,
+				EAD562ACEE1BD61208C9A7AB /* LoginView.swift in Sources */,
+				A7A86222E84FDAB49AA5DA45 /* Models.swift in Sources */,
+				2775CB0DCDD41B0BBD63A233 /* NotificationService.swift in Sources */,
+				419CD0C83524A3CF662A0C2A /* ProfileView.swift in Sources */,
+				6AA082EE6B13945DBBCC6FFE /* StatusPickerView.swift in Sources */,
+				62BB4517795F9FEB48781944 /* WebSocketService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2A312EA1AF5C5F0C31A90888 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ForgeApp.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.buildly.forge;
+				PRODUCT_NAME = Forge;
+				SDKROOT = macosx;
+				SUPPORTS_MACCATALYST = NO;
+			};
+			name = Release;
+		};
+		4D629F12B11C48B363A4E1FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		6E203A21052E01BB6A8C9995 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ForgeApp.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.buildly.forge;
+				PRODUCT_NAME = Forge;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8C36DB7431FF0B8C009C7F9E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ForgeApp.debug.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.buildly.forge;
+				PRODUCT_NAME = Forge;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SUPPORTS_MACCATALYST = NO;
+			};
+			name = Debug;
+		};
+		9B5326566C92A8174D9AD960 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ForgeApp.debug.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.buildly.forge;
+				PRODUCT_NAME = Forge;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E1F00A91AB1420DAAE8635CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1F35F8A4215F3DBCDF0A8171 /* Build configuration list for PBXProject "ForgeApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1F00A91AB1420DAAE8635CB /* Debug */,
+				4D629F12B11C48B363A4E1FF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8E1A3547F83C533D40046DA4 /* Build configuration list for PBXNativeTarget "Forge_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9B5326566C92A8174D9AD960 /* Debug */,
+				6E203A21052E01BB6A8C9995 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FA7241B29B283338875EB87E /* Build configuration list for PBXNativeTarget "Forge_macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8C36DB7431FF0B8C009C7F9E /* Debug */,
+				2A312EA1AF5C5F0C31A90888 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 926BD85D325B26D4D5AFF854 /* Project object */;
+}

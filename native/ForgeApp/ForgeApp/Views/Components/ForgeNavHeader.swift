@@ -20,13 +20,21 @@ struct ForgeLogoImage: View {
     var size: CGFloat = 28
 
     var body: some View {
-        Image("ForgeLogo", bundle: .module)
+        forgeLogoImage
             .resizable()
             .interpolation(.high)
             .antialiased(true)
             .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
+    }
+
+    private var forgeLogoImage: Image {
+        #if SWIFT_PACKAGE
+        Image("ForgeLogo", bundle: .module)
+        #else
+        Image("ForgeLogo", bundle: .main)
+        #endif
     }
 }
 
