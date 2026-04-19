@@ -1,5 +1,7 @@
 # Forge Communicator
 
+![License](https://img.shields.io/badge/license-Buildly%20Forge-blue)
+
 A modern, real-time team communication platform built with FastAPI, HTMX, and WebSockets. Features Slack-like channels, threading, Buildly Labs integration, and white-label branding support.
 
 ## Features
@@ -189,7 +191,15 @@ Set the environment variables in your platform's dashboard and deploy.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+This project uses the Buildly Forge License.
+
+- Free for personal, educational, and evaluation use  
+- Commercial use requires a license from Buildly  
+- Converts to Apache 2.0 two years after purchase  
+
+See [LICENSE.md](./LICENSE.md) for details.
+
+For commercial use: https://buildly.io/licensing
 
 ---
 
