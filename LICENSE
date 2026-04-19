@@ -3,76 +3,77 @@
 ## Business Source License 1.1 → Apache 2.0 Conversion
 
 **Licensor:** Buildly Inc.
-**Licensed Work:** {{PROJECT_NAME}}
+**Licensed Work:** ForgeCommunicator
 
-**License Date:** The date on which you purchase or otherwise obtain a valid commercial license for the Licensed Work.
+---
 
-**Change Date:** Two (2) years after the License Date
+## License Date
 
-**Change License:** Apache License, Version 2.0
+The **License Date** is the date on which you purchase a commercial license for the Licensed Work from Buildly or an authorized provider.
 
 ---
 
 ## Terms
 
-The Licensor grants you the right to copy, modify, create derivative works, and use the Licensed Work for non-production purposes, including personal, educational, and evaluation use.
+You may copy, modify, fork, and use the Licensed Work for **personal, educational, and evaluation purposes**.
 
-Production or commercial use of the Licensed Work is not permitted without a valid commercial license from the Licensor or its authorized partners.
+You may **not** use the Licensed Work in production or for any commercial purpose without purchasing a commercial license.
 
-On the Change Date, this License automatically converts to the Change License, and all restrictions under this License terminate.
+If you use the Licensed Work in production or for commercial purposes without a valid license, you must either:
 
-Each version of the Licensed Work may have its own License Date and corresponding Change Date.
-
-If you use the Licensed Work in production or for commercial purposes without a valid commercial license, you must either:
-
-* obtain a commercial license, or
+* purchase a commercial license, or
 * cease use of the Licensed Work
 
 You must include this License in all copies or substantial portions of the Licensed Work.
 
-This License does not grant any rights to use Buildly trademarks or branding.
+This License does not grant any rights to use Buildly trademarks, branding, or logos.
 
 ---
 
 ## Commercial License
 
-A valid commercial license grants the right to use the Licensed Work in production, including:
+A valid commercial license grants you the right to use the Licensed Work in production, including:
 
 * Internal business systems
 * Enterprise applications
 * Client and agency work
-* SaaS, hosted, or embedded products (subject to commercial terms)
+* SaaS, hosted, or embedded products (subject to your agreement with Buildly)
 
-Commercial licenses may include additional rights, limitations, support, and service-level agreements as defined in a separate agreement.
-
-For commercial licensing: [licensing@buildly.io](mailto:licensing@buildly.io)
+For commercial licensing:
+**[licensing@buildly.io](mailto:licensing@buildly.io)**
 
 ---
 
-## Change Date and License
+## Change Date and Open Source Conversion
 
-On the Change Date:
+Two (2) years after your License Date:
 
-* This License converts to **Apache License, Version 2.0**
-* All restrictions are removed
+* This License automatically converts to the **Apache License, Version 2.0**
+* All commercial restrictions are removed
 * The Licensed Work becomes fully open source
 
 ---
 
 ## Future License (Apache 2.0)
 
+Effective on the Change Date, this software is licensed under:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 ---
 
-## Notice
+## Disclaimer
 
-This License is not an Open Source license.
-
-However, the Licensed Work will automatically convert to Apache 2.0 after the Change Date.
+The Licensed Work is provided “as is”, without warranty of any kind.
 
 ---
 
-## Copyright
+## Summary (Plain English)
 
-© {{YEAR}} Buildly Inc.
+* Free to view, fork, and experiment
+* Commercial use requires a license
+* Becomes fully open source after 2 years
+
+---
+
+© 2026 Buildly Inc. All rights reserved.
