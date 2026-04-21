@@ -52,6 +52,33 @@ final class ChatViewModel: ObservableObject {
         } catch { /* silent */ }
     }
 
+    func react(messageId: Int, emoji: String) async {
+        guard let idx = messages.firstIndex(where: { $0.id == messageId }) else { return }
+        // Optimistic local toggle
+        var msg = messages[idx]
+        if let reactionIdx = msg.reactions.firstIndex(where: { $0.emoji == emoji }) {
+            var r = msg.reactions[reactionIdx]
+            let wasMe = r.reactedByMe
+            let newCount = r.count + (wasMe ? -1 : 1)
+            if newCount <= 0 {
+                msg.reactions.remove(at: reactionIdx)
+            } else {
+                msg.reactions[reactionIdx] = ReactionSummary(emoji: emoji, count: newCount, reactedByMe: !wasMe)
+            }
+        } else {
+            msg.reactions.append(ReactionSummary(emoji: emoji, count: 1, reactedByMe: true))
+        }
+        messages[idx] = msg
+
+        // Confirm with server and apply authoritative state
+        do {
+            let updated = try await api.toggleReaction(workspaceId: workspaceId, channelId: channelId, messageId: messageId, emoji: emoji)
+            if let confirmedIdx = messages.firstIndex(where: { $0.id == messageId }) {
+                messages[confirmedIdx].reactions = updated
+            }
+        } catch { /* silent – optimistic state stays */ }
+    }
+
     func send(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

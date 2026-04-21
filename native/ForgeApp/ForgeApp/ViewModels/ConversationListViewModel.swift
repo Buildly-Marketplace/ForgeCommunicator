@@ -10,6 +10,13 @@ final class ConversationListViewModel: ObservableObject {
     private let api = APIClient.shared
     private var hasSyncedSlack = false
 
+    /// Zero out the unread badge for a channel immediately (called when user opens it).
+    func markChannelRead(channelId: Int) {
+        if let idx = conversations.firstIndex(where: { $0.channelId == channelId }) {
+            conversations[idx].unreadCount = 0
+        }
+    }
+
     func load() async {
         isLoading = conversations.isEmpty
         error = nil

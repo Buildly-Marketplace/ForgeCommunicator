@@ -26,6 +26,7 @@ from app.deps import DBSession
 from app.models.channel import Channel
 from app.models.membership import ChannelMembership, Membership, MembershipRole
 from app.models.message import Message
+from app.models.reaction import MessageReaction
 from app.models.user import AuthProvider, User
 from app.models.user_session import UserSession
 from app.models.workspace import Workspace
@@ -172,6 +173,12 @@ class ChannelResponse(BaseModel):
     members: list["UserResponse"] | None = None
 
 
+class ReactionSummary(BaseModel):
+    emoji: str
+    count: int
+    reacted_by_me: bool = False
+
+
 class MessageResponse(BaseModel):
     id: int
     channel_id: int
@@ -185,6 +192,7 @@ class MessageResponse(BaseModel):
     external_source: str | None = None
     external_author_name: str | None = None
     author: UserResponse | None = None
+    reactions: list[ReactionSummary] = []
 
 
 class SendMessageRequest(BaseModel):
@@ -700,6 +708,31 @@ async def list_conversations(
 # ---------------------------------------------------------------------------
 
 
+async def _load_reactions(db, message_ids: list[int], current_user_id: int) -> dict[int, list[ReactionSummary]]:
+    """Batch-load reactions grouped by emoji for a list of message IDs."""
+    if not message_ids:
+        return {}
+    result = await db.execute(
+        select(MessageReaction).where(MessageReaction.message_id.in_(message_ids))
+    )
+    all_reactions = result.scalars().all()
+
+    grouped: dict[int, dict[str, dict]] = {}
+    for r in all_reactions:
+        bucket = grouped.setdefault(r.message_id, {})
+        entry = bucket.setdefault(r.emoji, {"count": 0, "user_ids": set()})
+        entry["count"] += 1
+        entry["user_ids"].add(r.user_id)
+
+    return {
+        msg_id: [
+            ReactionSummary(emoji=emoji, count=data["count"], reacted_by_me=current_user_id in data["user_ids"])
+            for emoji, data in emojis.items()
+        ]
+        for msg_id, emojis in grouped.items()
+    }
+
+
 @router.get(
     "/workspaces/{workspace_id}/channels/{channel_id}/messages",
     response_model=list[MessageResponse],
@@ -741,6 +774,8 @@ async def list_messages(
     result = await db.execute(query)
     messages = list(reversed(result.scalars().all()))
 
+    reactions_map = await _load_reactions(db, [m.id for m in messages], user.id)
+
     return [
         MessageResponse(
             id=m.id, channel_id=m.channel_id, user_id=m.user_id,
@@ -751,6 +786,7 @@ async def list_messages(
             external_source=m.external_source,
             external_author_name=m.external_author_name,
             author=UserResponse.from_user(m.user) if m.user else None,
+            reactions=reactions_map.get(m.id, []),
         )
         for m in messages
     ]
@@ -979,6 +1015,61 @@ async def mark_channel_read(
         if latest_id:
             cm.last_read_message_id = latest_id
             await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Reactions
+# ---------------------------------------------------------------------------
+
+
+class ToggleReactionRequest(BaseModel):
+    emoji: str
+
+
+@router.post(
+    "/workspaces/{workspace_id}/channels/{channel_id}/messages/{message_id}/reactions/toggle",
+    response_model=list[ReactionSummary],
+)
+async def toggle_reaction(
+    workspace_id: int, channel_id: int, message_id: int,
+    body: ToggleReactionRequest,
+    user: MobileUser, db: DBSession,
+):
+    """Toggle an emoji reaction on a message. Returns updated reaction list."""
+    # Verify membership
+    result = await db.execute(
+        select(Membership).where(
+            Membership.workspace_id == workspace_id, Membership.user_id == user.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member")
+
+    # Verify message exists in channel
+    result = await db.execute(
+        select(Message).where(Message.id == message_id, Message.channel_id == channel_id, Message.deleted_at == None)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Toggle reaction
+    result = await db.execute(
+        select(MessageReaction).where(
+            MessageReaction.message_id == message_id,
+            MessageReaction.user_id == user.id,
+            MessageReaction.emoji == body.emoji,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+    else:
+        db.add(MessageReaction(message_id=message_id, user_id=user.id, emoji=body.emoji))
+    await db.commit()
+
+    # Return updated reaction list
+    reactions_map = await _load_reactions(db, [message_id], user.id)
+    return reactions_map.get(message_id, [])
 
 
 # ---------------------------------------------------------------------------

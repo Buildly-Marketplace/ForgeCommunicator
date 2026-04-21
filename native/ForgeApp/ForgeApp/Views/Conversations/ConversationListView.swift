@@ -208,6 +208,9 @@ struct ConversationListView: View {
             )
         }
         .listRowBackground(ForgeTheme.dark900)
+        .simultaneousGesture(TapGesture().onEnded {
+            vm.markChannelRead(channelId: conv.channelId)
+        })
         .swipeActions(edge: .trailing) {
             Button {
                 openInWeb(conv)

@@ -149,6 +149,18 @@ struct ChannelResponse: Codable, Identifiable, Hashable {
 
 // MARK: - Message
 
+struct ReactionSummary: Codable, Identifiable, Equatable {
+    var id: String { emoji }
+    let emoji: String
+    let count: Int
+    let reactedByMe: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case emoji, count
+        case reactedByMe = "reacted_by_me"
+    }
+}
+
 struct MessageResponse: Codable, Identifiable, Hashable {
     let id: Int
     let channelId: Int
@@ -162,9 +174,10 @@ struct MessageResponse: Codable, Identifiable, Hashable {
     let externalSource: String?
     let externalAuthorName: String?
     let author: UserResponse?
+    var reactions: [ReactionSummary]
 
     enum CodingKeys: String, CodingKey {
-        case id, body, author
+        case id, body, author, reactions
         case channelId = "channel_id"
         case userId = "user_id"
         case parentId = "parent_id"
@@ -174,6 +187,23 @@ struct MessageResponse: Codable, Identifiable, Hashable {
         case isEdited = "is_edited"
         case externalSource = "external_source"
         case externalAuthorName = "external_author_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        channelId = try container.decode(Int.self, forKey: .channelId)
+        userId = try container.decodeIfPresent(Int.self, forKey: .userId)
+        body = try container.decode(String.self, forKey: .body)
+        parentId = try container.decodeIfPresent(Int.self, forKey: .parentId)
+        threadReplyCount = try container.decode(Int.self, forKey: .threadReplyCount)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        isEdited = try container.decode(Bool.self, forKey: .isEdited)
+        externalSource = try container.decodeIfPresent(String.self, forKey: .externalSource)
+        externalAuthorName = try container.decodeIfPresent(String.self, forKey: .externalAuthorName)
+        author = try container.decodeIfPresent(UserResponse.self, forKey: .author)
+        reactions = (try? container.decodeIfPresent([ReactionSummary].self, forKey: .reactions)) ?? []
     }
 
     static func == (lhs: MessageResponse, rhs: MessageResponse) -> Bool { lhs.id == rhs.id }

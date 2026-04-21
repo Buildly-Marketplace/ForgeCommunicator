@@ -38,7 +38,8 @@ struct ChatView: View {
                         ForEach(vm.messages) { msg in
                             MessageBubble(
                                 message: msg,
-                                isMe: msg.userId == authVM.currentUser?.id
+                                isMe: msg.userId == authVM.currentUser?.id,
+                                onReact: { emoji in Task { await vm.react(messageId: msg.id, emoji: emoji) } }
                             )
                             .id(msg.id)
                         }
@@ -160,9 +161,12 @@ struct ChatView: View {
 
 // MARK: - Message bubble
 
+private let quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "👎", "🎉", "🚀"]
+
 struct MessageBubble: View {
     let message: MessageResponse
     let isMe: Bool
+    let onReact: (String) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -184,6 +188,22 @@ struct MessageBubble: View {
                     .padding(.vertical, 8)
                     .background(isMe ? ForgeTheme.primary : ForgeTheme.dark700, in: bubbleShape)
                     .foregroundStyle(.white)
+                    .contextMenu {
+                        Section("React") {
+                            ForEach(quickEmojis, id: \.self) { emoji in
+                                Button {
+                                    onReact(emoji)
+                                } label: {
+                                    Text("\(emoji)  \(emojiLabel(emoji))")
+                                }
+                            }
+                        }
+                    }
+
+                // Reaction chips
+                if !message.reactions.isEmpty {
+                    reactionChips
+                }
 
                 HStack(spacing: 4) {
                     Text(message.createdAt, style: .time)
@@ -207,7 +227,97 @@ struct MessageBubble: View {
         .padding(.vertical, 2)
     }
 
+    @ViewBuilder
+    private var reactionChips: some View {
+        FlowLayout(spacing: 4) {
+            ForEach(message.reactions) { reaction in
+                Button {
+                    onReact(reaction.emoji)
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(reaction.emoji)
+                            .font(.caption)
+                        Text("\(reaction.count)")
+                            .font(.caption2.bold())
+                            .foregroundStyle(reaction.reactedByMe ? ForgeTheme.primary : .white)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        reaction.reactedByMe
+                            ? ForgeTheme.primary.opacity(0.2)
+                            : ForgeTheme.dark600,
+                        in: Capsule()
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(reaction.reactedByMe ? ForgeTheme.primary : Color.clear, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private var bubbleShape: some Shape {
         RoundedRectangle(cornerRadius: 16)
+    }
+
+    private func emojiLabel(_ emoji: String) -> String {
+        switch emoji {
+        case "👍": return "Thumbs Up"
+        case "❤️": return "Heart"
+        case "😂": return "Laugh"
+        case "😮": return "Wow"
+        case "😢": return "Sad"
+        case "👎": return "Thumbs Down"
+        case "🎉": return "Celebrate"
+        case "🚀": return "Rocket"
+        default: return emoji
+        }
+    }
+}
+
+// MARK: - Simple flow layout for reaction chips
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                y += rowHeight + spacing
+                x = 0
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        y += rowHeight
+        return CGSize(width: maxWidth, height: y)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX && x > bounds.minX {
+                y += rowHeight + spacing
+                x = bounds.minX
+                rowHeight = 0
+            }
+            view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }

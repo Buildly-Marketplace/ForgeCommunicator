@@ -239,6 +239,15 @@ actor APIClient {
         try await requestVoid("POST", path: "workspaces/\(workspaceId)/channels/\(channelId)/read")
     }
 
+    func toggleReaction(workspaceId: Int, channelId: Int, messageId: Int, emoji: String) async throws -> [ReactionSummary] {
+        struct Body: Encodable { let emoji: String }
+        return try await request(
+            "POST",
+            path: "workspaces/\(workspaceId)/channels/\(channelId)/messages/\(messageId)/reactions/toggle",
+            body: Body(emoji: emoji)
+        )
+    }
+
     func createDM(workspaceId: Int, userIds: [Int]) async throws -> ChannelResponse {
         var components = URLComponents(url: baseURL.appendingPathComponent("workspaces/\(workspaceId)/dm"), resolvingAgainstBaseURL: true)!
         components.queryItems = userIds.map { URLQueryItem(name: "user_ids", value: "\($0)") }
