@@ -416,11 +416,25 @@ struct ConversationRow: View {
                 sourceIcon(platform)
             }
 
-            // Avatar – for bridged DMs without Forge members, show initials from name
-            if conversation.bridgedPlatform != nil && otherMember == nil {
+            // Avatar
+            if !conversation.isDm {
+                // Public/private channel — show a building icon
+                ChannelIconView(
+                    size: 48,
+                    color: conversation.bridgedPlatform == "slack" ? .purple
+                         : conversation.bridgedPlatform == "discord" ? .indigo
+                         : ForgeTheme.primary
+                )
+            } else if conversation.bridgedPlatform != nil && otherMember == nil {
+                // Bridged DM without resolved Forge member
                 bridgedAvatar(size: 48)
             } else {
-                AvatarView(user: otherMember, size: 48)
+                let others = conversation.members.filter { $0.id != currentUserId }
+                if others.count > 1 {
+                    OverlappingAvatarsView(users: others, size: 48)
+                } else {
+                    AvatarView(user: others.first, size: 48, fallbackName: displayName)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -554,6 +568,7 @@ struct ConversationRow: View {
 struct AvatarView: View {
     let user: UserResponse?
     let size: CGFloat
+    var fallbackName: String? = nil
 
     var body: some View {
         if let url = user?.avatarUrl.flatMap({ URL(string: $0) }) {
@@ -569,6 +584,17 @@ struct AvatarView: View {
         }
     }
 
+    private var resolvedInitials: String {
+        if let user = user { return user.initials }
+        let name = fallbackName ?? ""
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
+        }
+        let twoChars = String(name.prefix(2)).uppercased()
+        return twoChars.isEmpty ? "?" : twoChars
+    }
+
     private var initialsView: some View {
         Circle()
             .fill(
@@ -580,10 +606,77 @@ struct AvatarView: View {
             )
             .frame(width: size, height: size)
             .overlay {
-                Text(user?.initials ?? "?")
+                Text(resolvedInitials)
                     .font(.system(size: size * 0.38, weight: .semibold))
                     .foregroundStyle(ForgeTheme.primary)
             }
+    }
+}
+
+// MARK: - Overlapping group avatars
+
+/// Shows 2–3 small avatar circles overlapping, like iOS Messages group threads.
+struct OverlappingAvatarsView: View {
+    let users: [UserResponse]
+    let size: CGFloat
+
+    private var smallSize: CGFloat { size * 0.65 }
+    private var offset: CGFloat { size * 0.28 }
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(users.prefix(3).enumerated()), id: \.offset) { idx, user in
+                AvatarView(user: user, size: smallSize)
+                    .offset(x: xOffset(for: idx), y: yOffset(for: idx))
+                    .zIndex(Double(users.count - idx))
+            }
+        }
+        .frame(width: size, height: size)
+    }
+
+    private func xOffset(for idx: Int) -> CGFloat {
+        let count = min(users.count, 3)
+        switch (count, idx) {
+        case (2, 0): return -offset * 0.5
+        case (2, 1): return  offset * 0.5
+        case (3, 0): return -offset * 0.7
+        case (3, 1): return  offset * 0.7
+        case (3, 2): return  0
+        default: return 0
+        }
+    }
+
+    private func yOffset(for idx: Int) -> CGFloat {
+        let count = min(users.count, 3)
+        switch (count, idx) {
+        case (3, 2): return offset * 0.55
+        default: return 0
+        }
+    }
+}
+
+// MARK: - Channel icon
+
+/// Stylised icon for public channels (non-DM conversations).
+struct ChannelIconView: View {
+    var size: CGFloat = 48
+    var color: Color = ForgeTheme.primary
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.28)
+                .fill(
+                    LinearGradient(
+                        colors: [color.opacity(0.25), color.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size, height: size)
+            Image(systemName: "building.2.fill")
+                .font(.system(size: size * 0.42, weight: .semibold))
+                .foregroundStyle(color)
+        }
     }
 }
 

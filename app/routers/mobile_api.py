@@ -146,6 +146,8 @@ class UpdateProfileRequest(BaseModel):
     avatar_url: str | None = None
     status: str | None = None
     status_message: str | None = None
+    github_url: str | None = None
+    linkedin_url: str | None = None
 
 
 class WorkspaceResponse(BaseModel):

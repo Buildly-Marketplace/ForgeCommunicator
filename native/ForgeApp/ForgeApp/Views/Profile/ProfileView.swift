@@ -7,6 +7,7 @@ struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var showStatusPicker = false
     @State private var showEditProfile = false
+    @State private var showServerSettings = false
 
     var body: some View {
         NavigationStack {
@@ -63,7 +64,7 @@ struct ProfileView: View {
                                     Text("Edit Profile")
                                         .font(.body.weight(.medium))
                                         .foregroundStyle(.white)
-                                    Text("Name, bio, title, phone & avatar")
+                                    Text("Name, bio, title, phone, GitHub & LinkedIn")
                                         .font(.caption)
                                         .foregroundStyle(ForgeTheme.textSecondary)
                                 }
@@ -151,6 +152,32 @@ struct ProfileView: View {
                     }
                     .listRowBackground(ForgeTheme.dark800)
                 }
+
+                Section("Server") {
+                    Button {
+                        showServerSettings = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "server.rack")
+                                .font(.title3)
+                                .foregroundStyle(ForgeTheme.primary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Server Settings")
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(.white)
+                                Text(UserDefaults.standard.string(forKey: "serverURL") ?? "comms.buildly.io")
+                                    .font(.caption)
+                                    .foregroundStyle(ForgeTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(ForgeTheme.textMuted)
+                        }
+                    }
+                    .listRowBackground(ForgeTheme.dark800)
+                }
             }
             .scrollContentBackground(.hidden)
             .background(ForgeTheme.dark900)
@@ -161,6 +188,10 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileView()
+                    .environmentObject(authVM)
+            }
+            .sheet(isPresented: $showServerSettings) {
+                ServerSettingsView()
                     .environmentObject(authVM)
             }
         }

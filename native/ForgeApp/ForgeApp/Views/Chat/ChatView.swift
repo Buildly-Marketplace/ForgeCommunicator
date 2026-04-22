@@ -173,7 +173,7 @@ struct MessageBubble: View {
             if isMe { Spacer(minLength: 60) }
 
             if !isMe {
-                AvatarView(user: message.author, size: 32)
+                AvatarView(user: message.author, size: 32, fallbackName: message.authorName)
             }
 
             VStack(alignment: isMe ? .trailing : .leading, spacing: 2) {

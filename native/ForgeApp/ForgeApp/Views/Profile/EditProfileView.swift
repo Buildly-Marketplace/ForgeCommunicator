@@ -9,6 +9,8 @@ struct EditProfileView: View {
     @State private var title: String = ""
     @State private var phone: String = ""
     @State private var avatarUrl: String = ""
+    @State private var githubUrl: String = ""
+    @State private var linkedinUrl: String = ""
     @State private var isSaving = false
     @State private var error: String?
 
@@ -70,6 +72,28 @@ struct EditProfileView: View {
                         .listRowBackground(ForgeTheme.dark800)
                 }
 
+                Section("GitHub") {
+                    TextField("https://github.com/username", text: $githubUrl)
+                        .forgeDarkInput()
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .autocapitalization(.none)
+                        .textContentType(.URL)
+                        #endif
+                        .listRowBackground(ForgeTheme.dark800)
+                }
+
+                Section("LinkedIn") {
+                    TextField("https://linkedin.com/in/username", text: $linkedinUrl)
+                        .forgeDarkInput()
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .autocapitalization(.none)
+                        .textContentType(.URL)
+                        #endif
+                        .listRowBackground(ForgeTheme.dark800)
+                }
+
                 if let error {
                     Section {
                         Text(error)
@@ -91,14 +115,21 @@ struct EditProfileView: View {
                         .foregroundStyle(ForgeTheme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task { await save() }
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Save") {
+                            Task { await save() }
+                        }
+                        .disabled(displayName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .foregroundStyle(ForgeTheme.primary)
                     }
-                    .disabled(isSaving || displayName.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .foregroundStyle(ForgeTheme.primary)
                 }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 460, idealWidth: 520, minHeight: 620)
+        #endif
         .onAppear {
             if let user = authVM.currentUser {
                 displayName = user.displayName
@@ -106,6 +137,8 @@ struct EditProfileView: View {
                 title = user.title ?? ""
                 phone = user.phone ?? ""
                 avatarUrl = user.avatarUrl ?? ""
+                githubUrl = user.githubUrl ?? ""
+                linkedinUrl = user.linkedinUrl ?? ""
             }
         }
     }
@@ -121,6 +154,8 @@ struct EditProfileView: View {
         update.title = title.isEmpty ? nil : title
         update.phone = phone.isEmpty ? nil : phone
         update.avatarUrl = avatarUrl.isEmpty ? nil : avatarUrl
+        update.githubUrl = githubUrl.isEmpty ? nil : githubUrl
+        update.linkedinUrl = linkedinUrl.isEmpty ? nil : linkedinUrl
 
         do {
             let updated = try await api.updateProfile(update)
@@ -131,3 +166,4 @@ struct EditProfileView: View {
         }
     }
 }
+

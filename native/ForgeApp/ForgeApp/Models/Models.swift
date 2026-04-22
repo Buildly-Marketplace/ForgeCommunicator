@@ -54,12 +54,16 @@ struct ProfileUpdate: Encodable {
     var avatarUrl: String?
     var status: String?
     var statusMessage: String?
+    var githubUrl: String?
+    var linkedinUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case bio, title, phone, status
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
         case statusMessage = "status_message"
+        case githubUrl = "github_url"
+        case linkedinUrl = "linkedin_url"
     }
 }
 
