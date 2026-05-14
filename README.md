@@ -143,6 +143,44 @@ ForgeCommunicator uses environment variables to designate platform administrator
 
 ## Development
 
+### Native App
+
+Forge includes a native Apple app in [native/ForgeApp](native/ForgeApp) with separate schemes for macOS and iOS.
+
+#### Build locally on macOS
+
+1. Open [native/ForgeApp/ForgeApp.xcodeproj](native/ForgeApp/ForgeApp.xcodeproj) in Xcode.
+2. Select the `Forge_macOS` scheme and run it on `My Mac`.
+3. Or build from the command line:
+
+    ```bash
+    xcodebuild \
+       -project native/ForgeApp/ForgeApp.xcodeproj \
+       -scheme Forge_macOS \
+       -destination 'platform=macOS' \
+       CODE_SIGNING_ALLOWED=NO \
+       build
+    ```
+
+#### Build a macOS installer
+
+Use the bundled script to build a distributable DMG:
+
+```bash
+./scripts/build_macos_dmg.sh
+```
+
+The script builds the `Forge_macOS` target, stages the `.app` bundle, and creates `dist/Forge-macOS.dmg`. Open the DMG and drag Forge into `Applications` to install it.
+
+#### Prepare for iPhone and iPad later
+
+The same Xcode project also contains the `Forge_iOS` scheme. When you are ready to distribute on the App Store:
+
+1. Configure your Apple Developer Team and bundle identifiers in Xcode.
+2. Set up signing, provisioning, and App Store metadata for the iOS target.
+3. Archive the iOS app from Xcode or with `xcodebuild archive`.
+4. Upload the archive to App Store Connect for TestFlight and App Store review.
+
 ### Seed Demo Data
 
 ```bash
