@@ -354,3 +354,7 @@ extension ISO8601DateFormatter {
         return f
     }()
 }
+
+extension Notification.Name {
+    static let sessionExpired = Notification.Name("sessionExpired")
+}
