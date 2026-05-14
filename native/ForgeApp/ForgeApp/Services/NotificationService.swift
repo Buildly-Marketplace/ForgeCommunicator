@@ -3,6 +3,9 @@ import UserNotifications
 #if canImport(AppKit)
 import AppKit
 #endif
+#if canImport(UIKit)
+import AudioToolbox
+#endif
 #if canImport(AVFoundation)
 import AVFoundation
 #endif
@@ -35,11 +38,8 @@ final class NotificationService: ObservableObject {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             isAuthorized = granted
             if granted {
-                center.getNotificationSettings { settings in
-                    if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
-                        self.isAuthorized = true
-                    }
-                }
+                let settings = await center.notificationSettings()
+                isAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
             }
         } catch {
             isAuthorized = false
@@ -74,7 +74,11 @@ final class NotificationService: ObservableObject {
         #if canImport(UIKit)
         AudioServicesPlaySystemSound(1007)
         #elseif canImport(AppKit)
-        NSSound(named: NSSound.Name("Submarine"))?.play() ?? NSSound.beep()
+        if let sound = NSSound(named: NSSound.Name("Submarine")) {
+            sound.play()
+        } else {
+            NSSound.beep()
+        }
         #endif
     }
 
