@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     @EnvironmentObject var authVM: AuthViewModel
@@ -294,18 +295,62 @@ struct LoginView: View {
 
     private func signInWithGoogle() async {
         applyServerURL(serverURL)
-        // Open the Google OAuth flow in the system browser
-        // The backend returns a URL to open
-        let baseURL = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let oauthURL = "\(baseURL)/auth/oauth/google?pwa=0"
-        guard let url = URL(string: oauthURL) else {
-            authVM.error = "Invalid server URL"
-            return
+        do {
+            // 1. Ask the server for the OAuth authorization URL
+            let oauthStart = try await api.oauthStart(provider: "google")
+
+            guard let authURL = URL(string: oauthStart.authUrl) else {
+                authVM.error = "Invalid OAuth URL from server"
+                return
+            }
+
+            // 2. Open the URL in ASWebAuthenticationSession.
+            //    The server callback will redirect to forge://oauth?token=...
+            //    which this session will intercept and return to us.
+            let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+                let session = ASWebAuthenticationSession(
+                    url: authURL,
+                    callbackURLScheme: "forge"
+                ) { url, error in
+                    OAuthPresentationContext.shared.clear()
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let url {
+                        continuation.resume(returning: url)
+                    } else {
+                        continuation.resume(throwing: URLError(.cancelled))
+                    }
+                }
+                session.prefersEphemeralWebBrowserSession = false
+                #if canImport(UIKit)
+                session.presentationContextProvider = OAuthPresentationContext.shared
+                #elseif canImport(AppKit)
+                session.presentationContextProvider = OAuthPresentationContext.shared
+                #endif
+                if !session.start() {
+                    OAuthPresentationContext.shared.clear()
+                    continuation.resume(throwing: URLError(.cannotLoadFromNetwork))
+                    return
+                }
+                // Retain the session for the duration of the flow
+                OAuthPresentationContext.shared.retain(session)
+            }
+
+            // 3. Extract the token from forge://oauth?token=...
+            guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+                  let token = components.queryItems?.first(where: { $0.name == "token" })?.value,
+                  !token.isEmpty
+            else {
+                authVM.error = "OAuth sign-in failed: missing token"
+                return
+            }
+
+            await authVM.handleOAuthToken(token)
+
+        } catch ASWebAuthenticationSessionError.canceledLogin {
+            // User cancelled — do nothing
+        } catch {
+            authVM.error = "Google sign-in failed: \(error.localizedDescription)"
         }
-        #if canImport(UIKit)
-        await UIApplication.shared.open(url)
-        #elseif canImport(AppKit)
-        NSWorkspace.shared.open(url)
-        #endif
     }
 }

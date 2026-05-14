@@ -85,6 +85,7 @@ actor APIClient {
         case 200...299:
             return try decoder.decode(T.self, from: data)
         case 401:
+            NotificationCenter.default.post(name: .sessionExpired, object: nil)
             throw APIError.unauthorized
         case 403:
             throw APIError.forbidden
@@ -123,7 +124,10 @@ actor APIClient {
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw APIError.unknown }
         guard (200...299).contains(http.statusCode) else {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                throw APIError.unauthorized
+            }
             throw APIError.server(http.statusCode, detail(from: data))
         }
     }

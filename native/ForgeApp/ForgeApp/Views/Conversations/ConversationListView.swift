@@ -26,7 +26,6 @@ struct ConversationListView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var notificationService: NotificationService
     @State private var filter: InboxFilter = .dms
-    @State private var slackConnected = false
     @State private var discordConnected = false
     @State private var workspaces: [WorkspaceResponse] = []
     @State private var selectedWorkspaceId: Int? // nil = All
@@ -124,6 +123,9 @@ struct ConversationListView: View {
         .onChange(of: vm.conversations) { _, convos in
             let total = convos.reduce(0) { $0 + $1.unreadCount }
             notificationService.unreadCount = total
+            if total > 0 {
+                notificationService.playSound()
+            }
         }
     }
 
@@ -141,7 +143,7 @@ struct ConversationListView: View {
 
     private var conversationContent: some View {
         Group {
-            if filteredConversations.isEmpty && activeSlackConversations.isEmpty && activeDiscordConversations.isEmpty {
+            if filteredConversations.isEmpty && activeDiscordConversations.isEmpty {
                 ContentUnavailableView(
                     emptyTitle,
                     systemImage: emptyIcon,
@@ -157,22 +159,6 @@ struct ConversationListView: View {
                             }
                         } header: {
                             sectionHeader(filter.label, icon: filterIcon, count: filteredUnreadCount)
-                        }
-                    }
-
-                    // Slack section — contextual to active tab
-                    if !activeSlackConversations.isEmpty {
-                        Section {
-                            ForEach(activeSlackConversations) { conv in
-                                conversationLink(conv)
-                            }
-                        } header: {
-                            sectionHeader(
-                                filter == .dms ? "Slack DMs" : "Slack Channels",
-                                icon: filter == .dms ? "bubble.left.fill" : "number.square.fill",
-                                count: activeSlackConversations.reduce(0) { $0 + $1.unreadCount },
-                                color: .purple
-                            )
                         }
                     }
 
@@ -283,51 +269,6 @@ struct ConversationListView: View {
         }
     }
 
-    private var slackSectionConversations: [ConversationPreview] {
-        workspaceFiltered.filter { $0.bridgedPlatform == "slack" }
-    }
-
-    /// Known Slack bot/app names to filter out of DMs
-    private static let slackBotNames: Set<String> = [
-        "slackbot", "calendly", "canva", "coda", "figma", "github", "github (legacy)",
-        "google calendar", "google cloud monitoring", "google drive", "notion",
-        "zoom", "jira", "jira cloud", "asana", "trello", "linear", "butler",
-        "deal won notification", "item status notification", "polly", "donut",
-        "standuply", "geekbot", "deactivated user", "zapier", "ifttt",
-        "hubspot", "salesforce", "mailchimp", "intercom", "pagerduty",
-        "datadog", "sentry", "pull reminders", "simple poll", "range",
-        "slogging by hackernoon", "spacetime", "statuspage", "sup",
-        "cloze", "sameroom", "standup", "sunsama", "aloha",
-    ]
-
-    private var slackChannelConversations: [ConversationPreview] {
-        slackSectionConversations.filter { !$0.isDm }
-    }
-
-    /// Real person DMs (no bots, no MPIMs)
-    private var slackDmConversations: [ConversationPreview] {
-        slackSectionConversations.filter { conv in
-            guard conv.isDm else { return false }
-            let stripped = conv.name
-                .replacingOccurrences(of: "SLACK:", with: "")
-                .lowercased()
-            // Filter out MPIMs (group DMs with mpdm- prefix)
-            if stripped.hasPrefix("mpdm-") { return false }
-            // Filter out known bots
-            if Self.slackBotNames.contains(stripped) { return false }
-            return true
-        }
-    }
-
-    /// Slack conversations matching the active tab
-    private var activeSlackConversations: [ConversationPreview] {
-        switch filter {
-        case .dms: return slackDmConversations
-        case .channels: return slackChannelConversations
-        case .mentions: return []  // Mentions are native only
-        }
-    }
-
     /// Discord conversations matching the active tab
     private var activeDiscordConversations: [ConversationPreview] {
         switch filter {
@@ -335,10 +276,6 @@ struct ConversationListView: View {
         case .channels: return discordSectionConversations.filter { !$0.isDm }
         case .mentions: return []
         }
-    }
-
-    private var slackUnreadCount: Int {
-        slackSectionConversations.reduce(0) { $0 + $1.unreadCount }
     }
 
     private var discordSectionConversations: [ConversationPreview] {
@@ -386,7 +323,6 @@ struct ConversationListView: View {
     private func loadIntegrationStatus() async {
         do {
             let status = try await api.integrationStatus()
-            slackConnected = status.slackConnected
             discordConnected = status.discordConnected
         } catch { /* silent */ }
     }

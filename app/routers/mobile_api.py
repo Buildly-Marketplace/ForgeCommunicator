@@ -422,9 +422,14 @@ async def mobile_oauth_callback(
     user.update_last_seen()
     await db.commit()
 
-    return AuthResponse(
-        token=session.session_token,
-        user=UserResponse.from_user(user),
+    # Redirect to the native app via custom URL scheme so ASWebAuthenticationSession
+    # can intercept it and hand the token back to the app.
+    from fastapi.responses import RedirectResponse as FastRedirect
+    from urllib.parse import quote
+    token = session.session_token
+    return FastRedirect(
+        url=f"forge://oauth?token={quote(token, safe='')}",
+        status_code=302,
     )
 
 

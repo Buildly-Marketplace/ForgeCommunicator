@@ -53,6 +53,11 @@ struct MainTabView: View {
                 }
                 .badge(notificationService.unreadCount)
 
+            SlackConversationsView()
+                .tabItem {
+                    Label("Slack", systemImage: "number.square.fill")
+                }
+
             ContactListView()
                 .tabItem {
                     Label("Contacts", systemImage: "person.2.fill")

@@ -43,5 +43,16 @@
 	<string>Forge uses the microphone for FaceTime audio and video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Forge accesses your photo library to set your profile avatar.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.buildly.forge</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>forge</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

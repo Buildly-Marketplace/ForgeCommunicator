@@ -10,6 +10,18 @@ final class AuthViewModel: ObservableObject {
 
     private let api = APIClient.shared
 
+    init() {
+        NotificationCenter.default.addObserver(
+            forName: .sessionExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.handleSessionExpired()
+            }
+        }
+    }
+
     /// Try to restore a saved session from the Keychain.
     func restoreSession() async {
         guard KeychainService.loadToken() != nil else { return }
@@ -21,9 +33,7 @@ final class AuthViewModel: ObservableObject {
             currentUser = user
             isAuthenticated = true
         } catch {
-            // Token expired or invalid — clear it
-            KeychainService.delete()
-            isAuthenticated = false
+            await handleSessionExpired()
         }
     }
 
@@ -81,8 +91,15 @@ final class AuthViewModel: ObservableObject {
             currentUser = user
             isAuthenticated = true
         } catch {
-            KeychainService.delete()
+            await handleSessionExpired()
             self.error = "OAuth sign-in failed"
         }
+    }
+
+    private func handleSessionExpired() async {
+        KeychainService.delete()
+        currentUser = nil
+        isAuthenticated = false
+        isLoading = false
     }
 }

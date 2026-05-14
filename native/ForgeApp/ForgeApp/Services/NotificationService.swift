@@ -34,6 +34,13 @@ final class NotificationService: ObservableObject {
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             isAuthorized = granted
+            if granted {
+                center.getNotificationSettings { settings in
+                    if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+                        self.isAuthorized = true
+                    }
+                }
+            }
         } catch {
             isAuthorized = false
         }
@@ -64,9 +71,10 @@ final class NotificationService: ObservableObject {
 
     /// Play the notification chirp sound in-app.
     func playSound() {
-        // Use system sound as fallback
-        #if canImport(AppKit)
-        NSSound.beep()
+        #if canImport(UIKit)
+        AudioServicesPlaySystemSound(1007)
+        #elseif canImport(AppKit)
+        NSSound(named: NSSound.Name("Submarine"))?.play() ?? NSSound.beep()
         #endif
     }
 
