@@ -128,22 +128,22 @@ struct ContentView: View {
     private func symbolName(for type: AccountType) -> String {
         switch type {
         case .communicator:
-            return "bubble.left.and.bubble.right.fill"
+            return "waveform"
         case .whatsapp:
-            return "message.fill"
+            return "bubble.left"
         case .signal:
-            return "bolt.horizontal.fill"
+            return "dot.radiowaves.left.and.right"
         }
     }
 
     private func symbolColor(for type: AccountType) -> Color {
         switch type {
         case .communicator:
-            return .cyan
+            return ForgeTheme.primary
         case .whatsapp:
             return .green
         case .signal:
-            return .blue
+            return ForgeTheme.amber
         }
     }
 

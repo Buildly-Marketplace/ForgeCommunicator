@@ -29,6 +29,15 @@ struct ForgeBadgeIcon: View {
                 .frame(width: size * 0.52, height: size * 0.56)
                 .offset(y: -size * 0.06)
 
+            Text("COMMS")
+                .font(.system(size: max(size * 0.07, 5), weight: .bold, design: .monospaced))
+                .foregroundStyle(ForgeTheme.silver)
+                .tracking(max(size * 0.012, 0.4))
+                .lineLimit(1)
+                .minimumScaleFactor(0.45)
+                .frame(width: size * 0.44)
+                .offset(y: -size * 0.22)
+
             HStack(spacing: max(size * 0.035, 1.2)) {
                 WaveBar(height: size * 0.18, color: ForgeTheme.primary.opacity(0.76))
                 WaveBar(height: size * 0.30, color: ForgeTheme.primary)
@@ -36,7 +45,7 @@ struct ForgeBadgeIcon: View {
                 WaveBar(height: size * 0.29, color: ForgeTheme.primary)
                 WaveBar(height: size * 0.20, color: ForgeTheme.primary.opacity(0.82))
             }
-            .offset(y: -size * 0.06)
+            .offset(y: -size * 0.01)
 
             HStack(spacing: size * 0.10) {
                 Capsule().fill(ForgeTheme.primary)

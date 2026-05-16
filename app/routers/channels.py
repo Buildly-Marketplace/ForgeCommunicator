@@ -27,6 +27,36 @@ from app.templates_config import templates
 router = APIRouter(prefix="/workspaces/{workspace_id}/channels", tags=["channels"])
 
 
+async def get_sidebar_bridge_metadata(channels: list[Channel], db) -> dict:
+    """Return bridge-derived grouping data for the channel sidebar."""
+    channel_ids = [ch.id for ch in channels]
+    slack_channel_ids = set()
+    slack_channel_names = {}
+
+    if channel_ids:
+        result = await db.execute(
+            select(BridgedChannel).where(
+                BridgedChannel.channel_id.in_(channel_ids),
+                BridgedChannel.platform == "slack",
+                BridgedChannel.is_active == True,
+            )
+        )
+        for bridge in result.scalars().all():
+            slack_channel_ids.add(bridge.channel_id)
+            slack_channel_names[bridge.channel_id] = bridge.external_channel_name
+
+    # Backwards-compatible fallback for older synced channel names.
+    for ch in channels:
+        if ch.name.startswith("SLACK:"):
+            slack_channel_ids.add(ch.id)
+            slack_channel_names.setdefault(ch.id, ch.name[6:])
+
+    return {
+        "slack_channel_ids": slack_channel_ids,
+        "slack_channel_names": slack_channel_names,
+    }
+
+
 async def get_workspace_and_membership(
     workspace_id: int,
     user_id: int,
@@ -83,6 +113,7 @@ async def list_channels(
         .order_by(Channel.name)
     )
     channels = result.scalars().all()
+    sidebar_bridge_metadata = await get_sidebar_bridge_metadata(channels, db)
     
     # Get products for grouping
     result = await db.execute(
@@ -100,6 +131,8 @@ async def list_channels(
                 "channels": channels,
                 "products": products,
                 "current_channel_id": None,
+                "unread_channels": {},
+                **sidebar_bridge_metadata,
             },
         )
     
@@ -111,6 +144,7 @@ async def list_channels(
             "workspace": workspace,
             "channels": channels,
             "products": products,
+            **sidebar_bridge_metadata,
         },
     )
 
@@ -500,6 +534,7 @@ async def channel_view(
             "poll_interval": settings.poll_interval_seconds,
             "bridge": bridge,
             "dm_partner": dm_partner,
+            **sidebar_bridge_metadata,
         },
     )
 

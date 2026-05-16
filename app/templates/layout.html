@@ -339,6 +339,20 @@
             box-shadow: 0 0 8px rgba(77, 182, 255, 0.9);
         }
 
+        .forge-signal-mark::before {
+            content: 'COMMS';
+            position: absolute;
+            top: -0.38rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-size: 0.28rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--forge-silver);
+            text-shadow: 0 0 8px rgba(77, 182, 255, 0.62);
+        }
+
         .forge-signal-mark span:nth-child(1) { height: 0.36rem; opacity: 0.72; }
         .forge-signal-mark span:nth-child(2) { height: 0.62rem; }
         .forge-signal-mark span:nth-child(3) { height: 0.9rem; background: var(--forge-amber); box-shadow: 0 0 8px rgba(255, 200, 87, 0.72); }
@@ -432,6 +446,18 @@
             background: linear-gradient(180deg, var(--forge-blue), #2563eb);
             border: 1px solid rgba(230, 234, 241, 0.18);
             box-shadow: 0 0 12px rgba(77, 182, 255, 0.34);
+        }
+
+        .slack-folder > summary {
+            list-style: none;
+        }
+
+        .slack-folder > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .slack-folder[open] .slack-folder-chevron {
+            transform: rotate(90deg);
         }
 
         .forge-artifact-icon {

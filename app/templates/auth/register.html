@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join {{ brand.full_name }} - Connect. Collaborate. Create.</title>
+    <title>Join {{ brand.full_name }} - Mission Ready Communication</title>
     <link rel="icon" href="{{ brand.favicon_url }}" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;700;800&display=swap');
         
         /* CRITICAL: Full scrolling reset for mobile/PWA */
         * {
@@ -28,9 +28,20 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+
+        :root {
+            --forge-void: #0b0f17;
+            --forge-navy: #111827;
+            --forge-panel: #1b2638;
+            --forge-elevated: #2d3a50;
+            --forge-blue: #4db6ff;
+            --forge-amber: #ffc857;
+            --forge-silver: #e6eaf1;
+            --forge-border: rgba(230, 234, 241, 0.12);
+        }
         
         .splash-bg {
-            background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f172a 100%);
+            background: linear-gradient(135deg, var(--forge-void) 0%, var(--forge-navy) 46%, var(--forge-panel) 100%);
             position: relative;
             min-height: 100vh;
             padding-bottom: 2rem;
@@ -45,8 +56,8 @@
             bottom: 0;
             background: 
                 radial-gradient(ellipse at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(14, 165, 233, 0.08) 0%, transparent 70%);
+                radial-gradient(ellipse at 80% 20%, rgba(255, 200, 87, 0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(77, 182, 255, 0.08) 0%, transparent 70%);
             pointer-events: none;
         }
         
@@ -64,7 +75,7 @@
             position: absolute;
             width: 4px;
             height: 4px;
-            background: rgba(59, 130, 246, 0.6);
+            background: rgba(77, 182, 255, 0.6);
             border-radius: 50%;
             animation: float 8s infinite ease-in-out;
         }
@@ -84,7 +95,7 @@
         }
         
         .glow-text {
-            text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            text-shadow: 0 0 30px rgba(77, 182, 255, 0.48);
         }
         
         .btn-oauth {
@@ -99,8 +110,9 @@
         
         .login-form-panel {
             backdrop-filter: blur(20px);
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(145deg, rgba(27, 38, 56, 0.78), rgba(11, 15, 23, 0.82));
+            border: 1px solid var(--forge-border);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.06), 0 16px 42px rgba(0, 0, 0, 0.34);
         }
         
         .stars {
@@ -126,6 +138,112 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        .forge-wordmark {
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--forge-silver);
+            text-shadow: 0 0 26px rgba(77, 182, 255, 0.38);
+        }
+
+        .forge-submark {
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.42em;
+            text-transform: uppercase;
+            color: var(--forge-amber);
+        }
+
+        .forge-device-mark {
+            width: 7.5rem;
+            height: 7.5rem;
+            border-radius: 1.75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background:
+                linear-gradient(145deg, rgba(230, 234, 241, 0.16), rgba(11, 15, 23, 0.18)),
+                linear-gradient(155deg, #39342d 0%, #0b0f17 48%, #1b2638 100%);
+            border: 1px solid rgba(230, 234, 241, 0.22);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.18), 0 18px 42px rgba(0, 0, 0, 0.42), 0 0 28px rgba(77, 182, 255, 0.16);
+        }
+
+        .forge-device-mark::before {
+            content: '';
+            position: absolute;
+            inset: 1rem 1.1rem 1.85rem;
+            border-radius: 0.7rem;
+            background:
+                radial-gradient(circle at 50% 18%, rgba(230, 234, 241, 0.16), transparent 38%),
+                linear-gradient(180deg, #111827, #0b0f17);
+            border: 1px solid rgba(77, 182, 255, 0.18);
+        }
+
+        .forge-device-mark::after {
+            content: '';
+            position: absolute;
+            bottom: 0.78rem;
+            left: 50%;
+            width: 0.78rem;
+            height: 0.22rem;
+            border-radius: 999px;
+            transform: translateX(-50%);
+            background: var(--forge-amber);
+            box-shadow: -1.05rem 0 0 rgba(77, 182, 255, 0.86), 1.05rem 0 0 rgba(230, 234, 241, 0.42);
+        }
+
+        .forge-signal-mark {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            width: 3.2rem;
+            height: 2.3rem;
+        }
+
+        .forge-signal-mark span {
+            display: block;
+            width: 3px;
+            border-radius: 999px;
+            background: var(--forge-blue);
+            box-shadow: 0 0 10px rgba(77, 182, 255, 0.9);
+        }
+
+        .forge-signal-mark::before {
+            content: 'COMMS';
+            position: absolute;
+            top: -0.7rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-size: 0.52rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--forge-silver);
+            text-shadow: 0 0 10px rgba(77, 182, 255, 0.72);
+        }
+
+        .forge-signal-mark span:nth-child(1) { height: 0.72rem; opacity: 0.72; }
+        .forge-signal-mark span:nth-child(2) { height: 1.25rem; }
+        .forge-signal-mark span:nth-child(3) { height: 1.9rem; background: var(--forge-amber); box-shadow: 0 0 10px rgba(255, 200, 87, 0.72); }
+        .forge-signal-mark span:nth-child(4) { height: 1.2rem; }
+        .forge-signal-mark span:nth-child(5) { height: 0.86rem; opacity: 0.78; }
+
+        .forge-primary-button {
+            background: linear-gradient(180deg, #4d8eff 0%, #1957b8 100%);
+            border: 1px solid rgba(77, 182, 255, 0.52);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.18), 0 14px 30px rgba(36, 112, 255, 0.24);
+        }
+
+        .forge-primary-button:hover {
+            filter: brightness(1.08);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.22), 0 16px 34px rgba(77, 182, 255, 0.28);
+        }
     </style>
 </head>
 <body class="splash-bg">
@@ -149,50 +267,38 @@
             
             <!-- Logo and Title -->
             <div class="mb-8">
-                <!-- Logo with 3D effect -->
-                <div class="flex justify-center lg:justify-start mb-4">
-                    <div class="relative">
-                        <img src="{{ brand.logo_url }}" alt="{{ brand.company }}" 
-                             class="h-32 w-32 lg:h-36 lg:w-36 rounded-xl shadow-lg"
-                             style="box-shadow: 0 8px 20px rgba(59, 130, 246, 0.12), 0 3px 8px rgba(0,0,0,0.15); transform: perspective(500px) rotateX(3deg);">
-                        <!-- Subtle reflection/shine -->
-                        <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none"></div>
-                    </div>
+                <!-- Device-style app mark from the Forge design system -->
+                <div class="flex justify-center lg:justify-start mb-5">
+                    <span class="forge-device-mark" aria-label="Forge Communicator">
+                        <span class="forge-signal-mark" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </span>
+                    </span>
                 </div>
                 
-                <!-- Title with Communicator Badge -->
-                <div class="flex items-center justify-center lg:justify-start gap-3 mb-4">
-                    <!-- Communicator Badge Icon -->
-                    <div class="relative flex-shrink-0">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg"
-                             style="box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
-                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <h1 class="text-4xl lg:text-5xl font-bold text-white glow-text">
-                        ForgeCommunicator
-                    </h1>
+                <!-- Title lockup -->
+                <div class="mb-4">
+                    <h1 class="forge-wordmark text-4xl lg:text-5xl">FORGE</h1>
+                    <p class="forge-submark mt-2 text-sm lg:text-base">COMMUNICATOR</p>
                 </div>
-                <p class="text-2xl lg:text-3xl font-light text-blue-300 tracking-wide">
-                    Connect. Collaborate. Create.
+                <p class="text-2xl lg:text-3xl font-light text-blue-300 tracking-wide glow-text">
+                    Clear channels. One crew. Mission ready.
                 </p>
             </div>
             
             <!-- Features -->
             <div class="space-y-4 max-w-md">
                 <div class="flex items-center gap-3 text-gray-300">
-                    <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-10 h-10 bg-[rgba(77,182,255,0.16)] border border-[rgba(77,182,255,0.24)] rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[var(--forge-blue)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
                     </div>
                     <span>Real-time messaging & channels</span>
                 </div>
                 <div class="flex items-center gap-3 text-gray-300">
-                    <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-10 h-10 bg-[rgba(255,200,87,0.16)] border border-[rgba(255,200,87,0.24)] rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-[var(--forge-amber)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                     </div>
@@ -222,14 +328,14 @@
                 {% endif %}
                 
                 {% if registration_mode == 'closed' %}
-                <div class="bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 px-4 py-3 rounded-lg mb-6">
+                <div class="bg-[rgba(255,200,87,0.16)] border border-[rgba(255,200,87,0.38)] text-[var(--forge-amber)] px-4 py-3 rounded-lg mb-6">
                     <p class="font-medium">Registration is currently closed</p>
-                    <p class="text-sm mt-1 text-yellow-200/80">Please contact your administrator for access.</p>
+                    <p class="text-sm mt-1 text-yellow-100/80">Please contact your administrator for access.</p>
                 </div>
                 {% elif registration_mode == 'invite_only' %}
-                <div class="bg-blue-500/20 border border-blue-500/50 text-blue-300 px-4 py-3 rounded-lg mb-6">
+                <div class="bg-[rgba(77,182,255,0.16)] border border-[rgba(77,182,255,0.38)] text-[var(--forge-blue)] px-4 py-3 rounded-lg mb-6">
                     <p class="font-medium">Invite only</p>
-                    <p class="text-sm mt-1 text-blue-200/80">You can register, but you'll need an invite code to join a workspace.</p>
+                    <p class="text-sm mt-1 text-blue-100/80">You can register, but you'll need an invite code to join a workspace.</p>
                 </div>
                 {% endif %}
                 
@@ -255,7 +361,7 @@
                     <a href="/auth/oauth/buildly"
                        rel="noopener"
                        onclick="handleOAuthClick(event, '/auth/oauth/buildly')"
-                       class="btn-oauth w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-700 hover:to-purple-700">
+                       class="btn-oauth forge-primary-button w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl text-white font-medium">
                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 2 7 12 12 22 7 12 2"/>
                             <polyline points="2 17 12 22 22 17"/>
@@ -286,35 +392,35 @@
                     <div>
                         <label for="display_name" class="block text-sm font-medium text-gray-300 mb-1">Display Name</label>
                         <input id="display_name" name="display_name" type="text" required
-                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:border-transparent transition-all"
                                placeholder="John Doe">
                     </div>
                     
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
                         <input id="email" name="email" type="email" autocomplete="email" required
-                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:border-transparent transition-all"
                                placeholder="you@example.com">
                     </div>
                     
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-300 mb-1">Password</label>
                         <input id="password" name="password" type="password" autocomplete="new-password" required
-                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:border-transparent transition-all"
                                placeholder="At least 8 characters">
                     </div>
                     
                     <div>
                         <label for="confirm_password" class="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
                         <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required
-                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:border-transparent transition-all"
                                placeholder="Confirm your password">
                     </div>
                     
                     <div id="error-message"></div>
                     
                     <button type="submit"
-                            class="btn-oauth w-full py-3.5 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900">
+                            class="btn-oauth forge-primary-button w-full py-3.5 px-4 rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:ring-offset-2 focus:ring-offset-gray-900">
                         Create Account
                     </button>
                 </form>
@@ -362,7 +468,7 @@
                            target="_blank" 
                            rel="noopener noreferrer"
                            class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all group">
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-[rgba(77,182,255,0.16)] border border-[rgba(77,182,255,0.24)] text-[var(--forge-blue)] flex items-center justify-center flex-shrink-0">
                                 <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polygon points="12 2 2 7 12 12 22 7 12 2"/>
                                     <polyline points="2 17 12 22 22 17"/>

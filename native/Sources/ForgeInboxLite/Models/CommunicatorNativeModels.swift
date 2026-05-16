@@ -116,7 +116,7 @@ enum CommunicatorConversationGroupKind: Equatable, Hashable {
         case .channels:
             return "number"
         case let .bridged(platform):
-            return platform == "slack" ? "message.fill" : "bubble.left.and.bubble.right.fill"
+            return platform == "slack" ? "message.fill" : "bubble.left"
         }
     }
 }

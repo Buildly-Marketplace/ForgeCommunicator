@@ -21,8 +21,10 @@
             <i class="fab fa-discord text-white text-xs"></i>
         </div>
         {% elif message.external_source == 'ai_agent' %}
-        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center border-2 border-dark-800" title="AI Agent">
-            <span class="text-white text-xs">✨</span>
+        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-[rgba(77,182,255,0.24)] rounded-full flex items-center justify-center border-2 border-dark-800 text-[var(--forge-blue)]" title="AI Agent">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3 1.9 5.4L19 10.3l-5.1 1.9L12 18l-1.9-5.8L5 10.3l5.1-1.9L12 3Z"/>
+            </svg>
         </div>
         {% endif %}
         {% else %}
@@ -50,7 +52,7 @@
             {% elif message.external_source == 'discord' %}
             <span class="text-xs px-1.5 py-0.5 bg-indigo-600/20 text-indigo-400 rounded">Discord</span>
             {% elif message.external_source == 'ai_agent' %}
-            <span class="text-xs px-1.5 py-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-400 rounded">AI</span>
+            <span class="text-xs px-1.5 py-0.5 bg-[rgba(77,182,255,0.16)] text-[var(--forge-blue)] border border-[rgba(77,182,255,0.24)] rounded">AI</span>
             {% endif %}
             {% else %}
             <a href="/profile/user/{{ message.user.id }}" class="font-medium text-white hover:text-blue-400 transition-colors">{{ message.user.display_name }}</a>

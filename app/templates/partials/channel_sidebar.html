@@ -1,5 +1,18 @@
 <!-- Channel Sidebar Partial -->
 <div id="channel-sidebar-content" class="px-2 py-4">
+    {% set sidebar_unread_channels = unread_channels if unread_channels is defined else {} %}
+    {% set sidebar_slack_channel_ids = slack_channel_ids if slack_channel_ids is defined else [] %}
+    {% set sidebar_slack_channel_names = slack_channel_names if slack_channel_names is defined else {} %}
+    {% set current_sidebar_channel_id = current_channel_id if current_channel_id is defined else none %}
+    {% set slack_ns = namespace(has_dms=false, has_channels=false, unread_total=0) %}
+    {% for ch in channels %}
+        {% if ch.id in sidebar_slack_channel_ids %}
+            {% if ch.is_dm %}{% set slack_ns.has_dms = true %}{% else %}{% set slack_ns.has_channels = true %}{% endif %}
+            {% set slack_ns.unread_total = slack_ns.unread_total + sidebar_unread_channels.get(ch.id, 0) %}
+        {% endif %}
+    {% endfor %}
+    {% set slack_folder_open = slack_ns.unread_total > 0 or current_sidebar_channel_id in sidebar_slack_channel_ids %}
+
     <!-- Quick Actions -->
     <div class="px-2 mb-4">
         <button type="button"
@@ -30,7 +43,7 @@
         
         <nav class="space-y-1">
             {% for ch in channels %}
-            {% if not ch.is_private and not ch.product_id and not ch.is_dm and not ch.name.startswith('SLACK:') %}
+            {% if not ch.is_private and not ch.product_id and not ch.is_dm and ch.id not in sidebar_slack_channel_ids %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
                id="channel-link-{{ ch.id }}"
                data-channel-id="{{ ch.id }}"
@@ -51,6 +64,7 @@
             {% set private_channels = channels|selectattr('is_private')|rejectattr('is_dm')|list %}
             {% if private_channels %}
             {% for ch in private_channels %}
+            {% if ch.id not in sidebar_slack_channel_ids %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
                id="channel-link-{{ ch.id }}"
                data-channel-id="{{ ch.id }}"
@@ -66,83 +80,105 @@
                 </span>
                 {% endif %}
             </a>
+            {% endif %}
             {% endfor %}
             {% endif %}
         </nav>
     </div>
 
     <!-- Slack Section -->
-    {% set slack_ns = namespace(has_dms=false, has_channels=false) %}
+    {% if slack_ns.has_dms or slack_ns.has_channels %}
     <div id="slack-section" class="mb-4">
-        {% for ch in channels %}
-            {% if ch.name.startswith('SLACK:') and ch.is_dm %}{% set slack_ns.has_dms = true %}{% endif %}
-            {% if ch.name.startswith('SLACK:') and not ch.is_dm %}{% set slack_ns.has_channels = true %}{% endif %}
-        {% endfor %}
-        {% if slack_ns.has_dms or slack_ns.has_channels %}
-        <div class="flex items-center justify-between px-2 mb-2">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Slack</h3>
-            <a href="/profile/integrations"
-               class="text-gray-400 hover:text-purple-400 transition-colors"
-               title="Manage Slack integration">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                </svg>
-            </a>
-        </div>
-
-        <nav class="space-y-2">
-            {% if slack_ns.has_dms %}
-            <div>
-                <div class="px-2 mb-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Direct Messages</div>
-                <nav class="space-y-1">
-                    {% for ch in channels %}
-                    {% if ch.is_dm and ch.name.startswith('SLACK:') %}
-                    <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
-                       id="channel-link-{{ ch.id }}"
-                       data-channel-id="{{ ch.id }}"
-                       class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
-                              {% if current_channel_id == ch.id %}bg-purple-500/20 text-purple-300 border border-purple-500/30{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
-                        <i class="fab fa-slack mr-2 text-purple-400"></i>
-                        <span class="truncate flex-1">{{ ch.name[6:] }}</span>
-                        {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
-                        <span class="unread-badge min-w-[18px] h-[18px] bg-purple-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
-                            {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
-                        </span>
-                        {% endif %}
-                    </a>
+        <details class="slack-folder" {% if slack_folder_open %}open{% endif %}>
+            <summary class="flex items-center justify-between px-2 py-1.5 mb-1 rounded-lg cursor-pointer text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+                <span class="flex items-center min-w-0 gap-2">
+                    <svg class="slack-folder-chevron w-3.5 h-3.5 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="m9 5 7 7-7 7"/>
+                    </svg>
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[rgba(255,200,87,0.14)] border border-[rgba(255,200,87,0.24)] text-[var(--forge-amber)]">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 5v5m0 4v5m5-12h5m-5 5h5M5 7h5m4 0h5M5 17h5m4 0h5"/>
+                        </svg>
+                    </span>
+                    <span class="text-xs font-semibold uppercase tracking-wider truncate">Slack</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    {% if slack_ns.unread_total > 0 %}
+                    <span class="unread-badge min-w-[18px] h-[18px] bg-[var(--forge-amber)] rounded-full text-gray-950 text-xs font-bold flex items-center justify-center px-1">
+                        {{ slack_ns.unread_total if slack_ns.unread_total < 100 else '99+' }}
+                    </span>
                     {% endif %}
-                    {% endfor %}
-                </nav>
-            </div>
-            {% endif %}
-
-            {% if slack_ns.has_channels %}
-            <div>
-                <div class="px-2 mb-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Channels</div>
-                <nav class="space-y-1">
-                    {% for ch in channels %}
-                    {% if not ch.is_dm and ch.name.startswith('SLACK:') %}
-                    <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
-                       id="channel-link-{{ ch.id }}"
-                       data-channel-id="{{ ch.id }}"
-                       class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
-                              {% if current_channel_id == ch.id %}bg-purple-500/20 text-purple-300 border border-purple-500/30{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
-                        <span class="mr-2 text-purple-400">#</span>
-                        <span class="truncate flex-1">{{ ch.name[6:] }}</span>
-                        {% if unread_channels.get(ch.id, 0) > 0 and current_channel_id != ch.id %}
-                        <span class="unread-badge min-w-[18px] h-[18px] bg-purple-500 rounded-full text-white text-xs font-bold flex items-center justify-center px-1">
-                            {{ unread_channels.get(ch.id) if unread_channels.get(ch.id, 0) < 100 else '99+' }}
-                        </span>
-                        {% endif %}
+                    <a href="/profile/integrations"
+                       class="text-gray-500 hover:text-[var(--forge-blue)] transition-colors"
+                       title="Manage Slack integration"
+                       onclick="event.stopPropagation()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        </svg>
                     </a>
-                    {% endif %}
-                    {% endfor %}
-                </nav>
-            </div>
-            {% endif %}
-        </nav>
-        {% endif %}
+                </span>
+            </summary>
+
+            <nav class="space-y-2 pl-2">
+                {% if slack_ns.has_dms %}
+                <div>
+                    <div class="px-2 mb-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Direct Messages</div>
+                    <nav class="space-y-1">
+                        {% for ch in channels %}
+                        {% if ch.is_dm and ch.id in sidebar_slack_channel_ids %}
+                        {% set slack_label = sidebar_slack_channel_names.get(ch.id, ch.name[6:] if ch.name.startswith('SLACK:') else ch.name) %}
+                        <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
+                           id="channel-link-{{ ch.id }}"
+                           data-channel-id="{{ ch.id }}"
+                           class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
+                                  {% if current_sidebar_channel_id == ch.id %}bg-[rgba(255,200,87,0.14)] text-[var(--forge-amber)] border border-[rgba(255,200,87,0.28)]{% elif sidebar_unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
+                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[rgba(255,200,87,0.12)] border border-[rgba(255,200,87,0.22)] text-[var(--forge-amber)] mr-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 6.5h14v9H9l-4 3v-12Z"/>
+                                </svg>
+                            </span>
+                            <span class="truncate flex-1">{{ slack_label }}</span>
+                            {% if sidebar_unread_channels.get(ch.id, 0) > 0 and current_sidebar_channel_id != ch.id %}
+                            <span class="unread-badge min-w-[18px] h-[18px] bg-[var(--forge-amber)] rounded-full text-gray-950 text-xs font-bold flex items-center justify-center px-1">
+                                {{ sidebar_unread_channels.get(ch.id) if sidebar_unread_channels.get(ch.id, 0) < 100 else '99+' }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        {% endif %}
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endif %}
+
+                {% if slack_ns.has_channels %}
+                <div>
+                    <div class="px-2 mb-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Channels</div>
+                    <nav class="space-y-1">
+                        {% for ch in channels %}
+                        {% if not ch.is_dm and ch.id in sidebar_slack_channel_ids %}
+                        {% set slack_label = sidebar_slack_channel_names.get(ch.id, ch.name[6:] if ch.name.startswith('SLACK:') else ch.name) %}
+                        <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
+                           id="channel-link-{{ ch.id }}"
+                           data-channel-id="{{ ch.id }}"
+                           class="channel-link group flex items-center px-2 py-1.5 text-sm font-medium rounded-lg transition-colors
+                                  {% if current_sidebar_channel_id == ch.id %}bg-[rgba(255,200,87,0.14)] text-[var(--forge-amber)] border border-[rgba(255,200,87,0.28)]{% elif sidebar_unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-300 hover:bg-white/5 hover:text-white{% endif %}">
+                            <span class="mr-2 text-[var(--forge-amber)]">#</span>
+                            <span class="truncate flex-1">{{ slack_label }}</span>
+                            {% if sidebar_unread_channels.get(ch.id, 0) > 0 and current_sidebar_channel_id != ch.id %}
+                            <span class="unread-badge min-w-[18px] h-[18px] bg-[var(--forge-amber)] rounded-full text-gray-950 text-xs font-bold flex items-center justify-center px-1">
+                                {{ sidebar_unread_channels.get(ch.id) if sidebar_unread_channels.get(ch.id, 0) < 100 else '99+' }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        {% endif %}
+                        {% endfor %}
+                    </nav>
+                </div>
+                {% endif %}
+            </nav>
+        </details>
     </div>
+    {% endif %}
     
     <!-- Direct Messages Section -->
     <div id="dm-section" class="mb-4">
@@ -162,7 +198,7 @@
             {% if dm_channels %}
             {% set dm_ns = namespace(has_regular_dm=false) %}
             {% for ch in dm_channels %}
-            {% if not ch.name.startswith('SLACK:') %}
+            {% if ch.id not in sidebar_slack_channel_ids %}
             {% set dm_ns.has_regular_dm = true %}
             <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
                id="channel-link-{{ ch.id }}"
@@ -212,7 +248,7 @@
             <!-- Product channels -->
             <nav class="ml-4 space-y-0.5">
                 {% for ch in channels %}
-                {% if ch.product_id == product.id %}
+                {% if ch.product_id == product.id and ch.id not in sidebar_slack_channel_ids %}
                 <a href="/workspaces/{{ workspace.id }}/channels/{{ ch.id }}"
                    class="group flex items-center px-2 py-1 text-sm rounded-md 
                           {% if current_channel_id == ch.id %}bg-gray-900 text-white{% elif unread_channels.get(ch.id, 0) > 0 %}text-white font-bold{% else %}text-gray-400 hover:bg-gray-700 hover:text-white{% endif %}">

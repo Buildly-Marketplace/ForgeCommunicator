@@ -18,19 +18,19 @@
     </filter>
   </defs>
   <rect width="128" height="128" rx="28" fill="#0b0f17"/>
-  <rect x="20" y="10" width="88" height="108" rx="24" fill="url(#body)" stroke="#e6eaf1" stroke-opacity="0.24" stroke-width="2"/>
-  <rect x="36" y="26" width="56" height="58" rx="8" fill="url(#screen)" stroke="#4db6ff" stroke-opacity="0.28"/>
-  <g filter="url(#glow)" stroke-linecap="round">
-    <path d="M43 58h6" stroke="#4db6ff" stroke-width="3"/>
-    <path d="M53 49v18" stroke="#4db6ff" stroke-width="3"/>
-    <path d="M61 42v32" stroke="#ffc857" stroke-width="3"/>
-    <path d="M69 48v20" stroke="#4db6ff" stroke-width="3"/>
-    <path d="M78 55h7" stroke="#4db6ff" stroke-width="3"/>
+  <rect x="24" y="12" width="80" height="106" rx="24" fill="url(#body)" stroke="#e6eaf1" stroke-opacity="0.24" stroke-width="2"/>
+  <rect x="38" y="28" width="52" height="58" rx="8" fill="url(#screen)" stroke="#4db6ff" stroke-opacity="0.34"/>
+  <g>
+    <rect x="45" y="60" width="6" height="3" rx="1.5" fill="#4db6ff"/>
+    <rect x="54" y="52" width="3" height="19" rx="1.5" fill="#4db6ff"/>
+    <rect x="62" y="46" width="3" height="31" rx="1.5" fill="#ffc857"/>
+    <rect x="70" y="52" width="3" height="19" rx="1.5" fill="#4db6ff"/>
+    <rect x="77" y="60" width="6" height="3" rx="1.5" fill="#4db6ff"/>
   </g>
-  <text x="64" y="39" text-anchor="middle" font-family="Orbitron, system-ui, sans-serif" font-size="9" font-weight="700" letter-spacing="2.5" fill="#e6eaf1">FORGE</text>
-  <rect x="41" y="95" width="12" height="4" rx="2" fill="#4db6ff"/>
-  <rect x="58" y="95" width="12" height="4" rx="2" fill="#ffc857"/>
-  <rect x="75" y="95" width="12" height="4" rx="2" fill="#e6eaf1" fill-opacity="0.5"/>
-  <circle cx="38" cy="100" r="2" fill="#111827" opacity="0.8"/>
-  <circle cx="90" cy="100" r="2" fill="#111827" opacity="0.8"/>
+  <text x="64" y="42" text-anchor="middle" font-family="monospace" font-size="7" font-weight="700" letter-spacing="1.1" fill="#e6eaf1">COMMS</text>
+  <rect x="43" y="96" width="12" height="4" rx="2" fill="#4db6ff"/>
+  <rect x="59" y="96" width="12" height="4" rx="2" fill="#ffc857"/>
+  <rect x="75" y="96" width="12" height="4" rx="2" fill="#e6eaf1" fill-opacity="0.5"/>
+  <circle cx="40" cy="101" r="2" fill="#111827" opacity="0.8"/>
+  <circle cx="90" cy="101" r="2" fill="#111827" opacity="0.8"/>
 </svg>
