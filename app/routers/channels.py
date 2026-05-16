@@ -318,6 +318,7 @@ async def channel_view(
         .order_by(Channel.name)
     )
     channels = result.scalars().all()
+    sidebar_bridge_metadata = await get_sidebar_bridge_metadata(channels, db)
     
     # Get products
     result = await db.execute(
