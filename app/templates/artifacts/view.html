@@ -9,23 +9,31 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts" class="text-gray-400 hover:text-blue-400 transition-colors">
+                    <a href="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts" class="forge-icon-button p-2 rounded-lg">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </a>
                     <div class="flex items-center space-x-2">
                         {% if artifact.type.value == 'decision' %}
-                        <span class="text-xl">⚖️</span>
-                        <span class="text-sm font-medium text-purple-400 uppercase">Decision</span>
+                        <span class="forge-artifact-icon forge-artifact-decision">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v18m-7-7 4-8 4 8m-8 0h8m-2 0a4 4 0 0 1-8 0m16 0-4-8-4 8m4 0h8m-2 0a4 4 0 0 1-8 0"/></svg>
+                        </span>
+                        <span class="text-sm font-medium text-[var(--forge-amber)] uppercase">Decision</span>
                         {% elif artifact.type.value == 'feature' %}
-                        <span class="text-xl">✨</span>
-                        <span class="text-sm font-medium text-blue-400 uppercase">Feature</span>
+                        <span class="forge-artifact-icon forge-artifact-feature">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m12 3 1.9 5.4L19 10.3l-5.1 1.9L12 18l-1.9-5.8L5 10.3l5.1-1.9L12 3Z"/></svg>
+                        </span>
+                        <span class="text-sm font-medium text-[var(--forge-blue)] uppercase">Feature</span>
                         {% elif artifact.type.value == 'issue' %}
-                        <span class="text-xl">🐛</span>
+                        <span class="forge-artifact-icon forge-artifact-issue">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v5m0 4h.01M5.5 19h13L12 5 5.5 19Z"/></svg>
+                        </span>
                         <span class="text-sm font-medium text-red-400 uppercase">Issue</span>
                         {% elif artifact.type.value == 'task' %}
-                        <span class="text-xl">✅</span>
+                        <span class="forge-artifact-icon forge-artifact-task">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m5 12.5 4 4L19 6.5"/></svg>
+                        </span>
                         <span class="text-sm font-medium text-green-400 uppercase">Task</span>
                         {% endif %}
                     </div>
@@ -181,7 +189,7 @@
                         <button hx-post="/workspaces/{{ workspace_id }}/channels/{{ channel.id }}/artifacts/{{ artifact.id }}/push-to-labs"
                                 hx-target="#labs-sync-status"
                                 hx-swap="innerHTML"
-                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition-all">
+                                class="forge-primary-button inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg transition-all">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                             </svg>

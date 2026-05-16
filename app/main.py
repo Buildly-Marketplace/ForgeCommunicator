@@ -189,8 +189,8 @@ async def pwa_manifest():
         "scope": "/",
         "display": "standalone",
         "display_override": ["standalone", "minimal-ui"],
-        "background_color": "#0f172a",
-        "theme_color": brand.primary_color or "#3b82f6",
+        "background_color": "#0B0F17",
+        "theme_color": brand.primary_color or "#4DB6FF",
         "orientation": "any",
         "icons": [
             {"src": "/static/icons/icon-180x180.png", "sizes": "180x180", "type": "image/png", "purpose": "any"},

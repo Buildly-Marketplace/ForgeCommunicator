@@ -13,15 +13,15 @@
             <!-- Logo - Floating Communicator Badge -->
             <div class="flex items-center justify-between h-12 px-4 border-b border-white/10" style="background: linear-gradient(135deg, {{ brand.secondary_color }} 0%, rgba(15,23,42,0.9) 100%);">
                 <a href="/workspaces" class="flex items-center space-x-3 group">
-                    <!-- Communicator Badge Icon -->
-                    <div class="relative">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <span class="text-white font-bold text-sm glow-text">{{ brand.name|upper }}</span>
+                    <span class="forge-device-mark" style="width: 2rem; height: 2rem;">
+                        <span class="forge-signal-mark" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </span>
+                    </span>
+                    <span class="leading-none">
+                        <span class="forge-wordmark block text-[0.78rem]">FORGE</span>
+                        <span class="forge-submark block text-[0.46rem]">COMMUNICATOR</span>
+                    </span>
                 </a>
                 <button onclick="closeMobileSidebar()" class="p-2 text-gray-400 hover:text-white rounded-md">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,8 +58,8 @@
                         {% endif %}
                         <div class="ml-3">
                             <p class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">{{ user.display_name }}</p>
-                            <p class="text-xs text-gray-400">
-                                {{ user.effective_status_emoji }}
+                            <p class="text-xs text-gray-400 inline-flex items-center gap-1.5">
+                                <span class="forge-status-dot {% if user.effective_status_value == 'active' %}forge-status-online{% elif user.effective_status_value == 'away' %}forge-status-away{% elif user.effective_status_value == 'dnd' %}forge-status-dnd{% else %}forge-status-offline{% endif %}"></span>
                                 {{ user.effective_status_value|title }}
                             </p>
                         </div>
@@ -80,17 +80,15 @@
             <!-- Logo - Floating Communicator Badge -->
             <div class="flex items-center h-12 px-4 border-b border-white/10" style="background: linear-gradient(135deg, {{ brand.secondary_color }} 0%, rgba(15,23,42,0.9) 100%);">
                 <a href="/workspaces" class="flex items-center space-x-3 group">
-                    <!-- Communicator Badge Icon -->
-                    <div class="relative">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-shadow">
-                            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                            </svg>
-                        </div>
-                        <!-- Pulse ring animation -->
-                        <div class="absolute inset-0 rounded-full bg-blue-500/30 animate-ping"></div>
-                    </div>
-                    <span class="text-white font-bold text-sm glow-text group-hover:text-blue-300 transition-colors">{{ brand.name|upper }}</span>
+                    <span class="forge-device-mark" style="width: 2rem; height: 2rem;">
+                        <span class="forge-signal-mark" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </span>
+                    </span>
+                    <span class="leading-none">
+                        <span class="forge-wordmark block text-[0.78rem]">FORGE</span>
+                        <span class="forge-submark block text-[0.46rem]">COMMUNICATOR</span>
+                    </span>
                 </a>
             </div>
             
@@ -122,8 +120,8 @@
                         {% endif %}
                         <div class="ml-3">
                             <p class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">{{ user.display_name }}</p>
-                            <p class="text-xs text-gray-400">
-                                {{ user.effective_status_emoji }}
+                            <p class="text-xs text-gray-400 inline-flex items-center gap-1.5">
+                                <span class="forge-status-dot {% if user.effective_status_value == 'active' %}forge-status-online{% elif user.effective_status_value == 'away' %}forge-status-away{% elif user.effective_status_value == 'dnd' %}forge-status-dnd{% else %}forge-status-offline{% endif %}"></span>
                                 {{ user.effective_status_value|title }}
                                 {% if user.effective_status_message %}
                                 <span class="text-gray-500">- {{ user.effective_status_message }}</span>
@@ -253,7 +251,7 @@
                     <div class="flex items-center space-x-1 pb-2 border-b border-white/10">
                         <!-- Text formatting buttons -->
                         <button type="button" onclick="formatText('bold')" 
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Bold (Ctrl+B)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
@@ -261,7 +259,7 @@
                             </svg>
                         </button>
                         <button type="button" onclick="formatText('italic')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Italic (Ctrl+I)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <line x1="19" y1="4" x2="10" y2="4"/>
@@ -270,21 +268,21 @@
                             </svg>
                         </button>
                         <button type="button" onclick="formatText('strikethrough')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Strikethrough">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M17.5 12h-15m11.667-4c-.706-1.333-2.126-2-3.667-2-2.667 0-4 1.333-4 4 0 1.333.75 2.5 2 3m0 2c.25.333.667.667 1.333 1s1.417.5 2.167.5c2.444 0 3.5-1 3.5-3 0-1.333-.75-2.5-2-3"/>
                             </svg>
                         </button>
                         <button type="button" onclick="formatText('code')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Code">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                             </svg>
                         </button>
                         <button type="button" onclick="formatText('link')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Insert Link">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -292,14 +290,14 @@
                         </button>
                         <div class="w-px h-6 bg-white/20 mx-1"></div>
                         <button type="button" onclick="formatText('bullet')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Bullet List">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
                             </svg>
                         </button>
                         <button type="button" onclick="formatText('number')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Numbered List">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M4 14h2l-2 4h2"/>
@@ -308,38 +306,54 @@
                         <div class="w-px h-6 bg-white/20 mx-1"></div>
                         <!-- Artifact commands -->
                         <button type="button" onclick="insertCommand('/decision ')" 
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Create Decision">
-                            <span class="text-lg">⚖️</span>
+                            <span class="forge-artifact-icon forge-artifact-decision">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M8 7l-3 7h6L8 7zm8 0l-3 7h6l-3-7zM12 4v16m-4 0h8"/>
+                                </svg>
+                            </span>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/decision</span>
                         </button>
                         <button type="button" onclick="insertCommand('/feature ')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Create Feature">
-                            <span class="text-lg">✨</span>
+                            <span class="forge-artifact-icon forge-artifact-feature">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.4 4.2L18 9l-4.6 1.8L12 15l-1.4-4.2L6 9l4.6-1.8L12 3zM19 14l.7 2.1L22 17l-2.3.9L19 20l-.7-2.1L16 17l2.3-.9L19 14z"/>
+                                </svg>
+                            </span>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/feature</span>
                         </button>
                         <button type="button" onclick="insertCommand('/issue ')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Create Issue">
-                            <span class="text-lg">🐛</span>
+                            <span class="forge-artifact-icon forge-artifact-issue">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 4.6L2.7 18a1.6 1.6 0 001.4 2.4h15.8a1.6 1.6 0 001.4-2.4L13.7 4.6a1.9 1.9 0 00-3.4 0z"/>
+                                </svg>
+                            </span>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/issue</span>
                         </button>
                         <button type="button" onclick="insertCommand('/task ')"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Create Task">
-                            <span class="text-lg">✅</span>
+                            <span class="forge-artifact-icon forge-artifact-task">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-5M5 5h14v14H5z"/>
+                                </svg>
+                            </span>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">/task</span>
                         </button>
                         <div class="w-px h-6 bg-white/20 mx-1"></div>
                         <button type="button" onclick="insertAtMention()"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Mention someone">
                             <span class="text-lg font-bold">@</span>
                             <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-dark-900 text-white rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/20">@mention</span>
                         </button>
                         <button type="button" onclick="insertDM()"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Direct message">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -349,7 +363,7 @@
                         {% if settings.file_storage_enabled %}
                         <div class="w-px h-6 bg-white/20 mx-1"></div>
                         <button type="button" onclick="triggerFileUpload()"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Upload file">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
@@ -360,7 +374,7 @@
                         <!-- Save to Notebook button -->
                         <button type="button" onclick="toggleNoteSelection()"
                                 id="note-select-btn"
-                                class="p-2 rounded hover:bg-white/10 text-gray-300 group relative transition-colors"
+                                class="forge-icon-button p-2 rounded group relative"
                                 title="Save messages to notebook">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -371,7 +385,7 @@
                         </button>
                         <div class="flex-1"></div>
                         <button type="button" onclick="openCommandPalette()"
-                                class="p-2 rounded hover:bg-white/10 text-gray-400 text-xs transition-colors"
+                                class="forge-icon-button p-2 rounded text-xs"
                                 title="Command palette (Ctrl+K)">
                             <kbd class="px-1.5 py-0.5 glass rounded text-xs border border-white/20">⌘K</kbd>
                         </button>
@@ -387,7 +401,7 @@
                                autocomplete="off"
                                required></textarea>
                         <button type="submit"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/25 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all h-fit self-end">
+                                class="forge-primary-button inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all h-fit self-end">
                             <svg class="w-5 h-5 mr-1 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                             </svg>

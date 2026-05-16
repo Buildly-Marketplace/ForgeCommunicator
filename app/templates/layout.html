@@ -7,7 +7,7 @@
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Team communication and collaboration platform">
-    <meta name="theme-color" content="#3b82f6">
+    <meta name="theme-color" content="#4DB6FF">
     <meta name="mobile-web-app-capable" content="yes">
     
     <!-- iOS PWA Meta Tags -->
@@ -44,20 +44,22 @@
                             secondary: '{{ brand.secondary_color }}',
                             accent: '{{ brand.accent_color }}',
                         },
-                        // Futuristic theme colors
                         forge: {
-                            navy: '{{ brand.secondary_color }}',
-                            blue: '{{ brand.primary_color }}',
-                            purple: '{{ brand.accent_color }}',
+                            void: '#0B0F17',
+                            navy: '#111827',
+                            panel: '#1B2638',
+                            elevated: '#2D3A50',
+                            blue: '#4DB6FF',
+                            amber: '#FFC857',
+                            silver: '#E6EAF1',
                         },
-                        // Dark theme backgrounds
                         dark: {
-                            950: '#050d1a',
-                            900: '#0a1628',
-                            800: '#0f172a',
-                            700: '#1a2744',
-                            600: '#1e293b',
-                            500: '#334155',
+                            950: '#0B0F17',
+                            900: '#111827',
+                            800: '#1B2638',
+                            700: '#2D3A50',
+                            600: '#34445F',
+                            500: '#475569',
                         }
                     }
                 }
@@ -97,7 +99,7 @@
         })();
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;700;800&display=swap');
         
         html, body {
             overflow-x: hidden;
@@ -112,6 +114,17 @@
             --brand-primary: {{ brand.primary_color }};
             --brand-secondary: {{ brand.secondary_color }};
             --brand-accent: {{ brand.accent_color }};
+            --forge-void: #0b0f17;
+            --forge-navy: #111827;
+            --forge-panel: #1b2638;
+            --forge-elevated: #2d3a50;
+            --forge-blue: #4db6ff;
+            --forge-amber: #ffc857;
+            --forge-silver: #e6eaf1;
+            --forge-border: rgba(230, 234, 241, 0.12);
+            --forge-border-strong: rgba(77, 182, 255, 0.34);
+            --forge-glass: rgba(17, 24, 39, 0.72);
+            --forge-overlay: rgba(11, 15, 23, 0.72);
         }
         [x-cloak] { display: none !important; }
         .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
@@ -120,7 +133,7 @@
         
         /* Futuristic space background */
         .forge-bg {
-            background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0f172a 100%);
+            background: linear-gradient(135deg, var(--forge-void) 0%, var(--forge-navy) 45%, var(--forge-panel) 100%);
             position: relative;
         }
         
@@ -132,9 +145,9 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(ellipse at 20% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(14, 165, 233, 0.06) 0%, transparent 70%);
+                radial-gradient(ellipse at 20% 80%, rgba(77, 182, 255, 0.14) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 200, 87, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(77, 182, 255, 0.07) 0%, transparent 70%);
             pointer-events: none;
             z-index: 0;
         }
@@ -186,15 +199,15 @@
             position: absolute;
             width: 4px;
             height: 4px;
-            background: rgba(59, 130, 246, 0.5);
+            background: rgba(77, 182, 255, 0.5);
             border-radius: 50%;
             animation: float 8s infinite ease-in-out;
         }
         
         .particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
-        .particle:nth-child(2) { left: 20%; top: 60%; animation-delay: 1s; background: rgba(168, 85, 247, 0.5); }
+        .particle:nth-child(2) { left: 20%; top: 60%; animation-delay: 1s; background: rgba(255, 200, 87, 0.5); }
         .particle:nth-child(3) { left: 30%; top: 40%; animation-delay: 2s; }
-        .particle:nth-child(4) { left: 50%; top: 80%; animation-delay: 3s; background: rgba(168, 85, 247, 0.5); }
+        .particle:nth-child(4) { left: 50%; top: 80%; animation-delay: 3s; background: rgba(255, 200, 87, 0.5); }
         .particle:nth-child(5) { left: 70%; top: 30%; animation-delay: 4s; }
         .particle:nth-child(6) { left: 80%; top: 70%; animation-delay: 5s; background: rgba(14, 165, 233, 0.5); }
         .particle:nth-child(7) { left: 90%; top: 50%; animation-delay: 6s; }
@@ -225,22 +238,223 @@
         .hover\\:bg-brand-primary:hover { background-color: var(--brand-primary); }
         
         /* Futuristic glow effects */
-        .glow-text { text-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
-        .glow-border { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
-        .glow-accent { box-shadow: 0 0 25px rgba(168, 85, 247, 0.3); }
+        .glow-text { text-shadow: 0 0 30px rgba(77, 182, 255, 0.44); }
+        .glow-border { box-shadow: 0 0 20px rgba(77, 182, 255, 0.28); }
+        .glow-accent { box-shadow: 0 0 25px rgba(255, 200, 87, 0.24); }
         
         /* Glass morphism effect */
         .glass {
-            backdrop-filter: blur(20px);
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(1.15);
+            background: linear-gradient(145deg, rgba(45, 58, 80, 0.28), rgba(11, 15, 23, 0.42));
+            border: 1px solid var(--forge-border);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.06), 0 14px 34px rgba(0, 0, 0, 0.28);
         }
         
         .glass-dark {
-            backdrop-filter: blur(20px);
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(22px) saturate(1.18);
+            background: linear-gradient(145deg, rgba(27, 38, 56, 0.78), rgba(11, 15, 23, 0.82));
+            border: 1px solid var(--forge-border);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.06), 0 16px 42px rgba(0, 0, 0, 0.34);
         }
+
+        .forge-wordmark {
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--forge-silver);
+            text-shadow: 0 0 22px rgba(77, 182, 255, 0.32);
+        }
+
+        .forge-submark {
+            font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.42em;
+            text-transform: uppercase;
+            color: var(--forge-amber);
+        }
+
+        .forge-brand-lockup {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .forge-device-mark {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.72rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+            background:
+                linear-gradient(145deg, rgba(230, 234, 241, 0.16), rgba(11, 15, 23, 0.18)),
+                linear-gradient(155deg, #39342d 0%, #0b0f17 48%, #1b2638 100%);
+            border: 1px solid rgba(230, 234, 241, 0.22);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.18), 0 10px 26px rgba(0, 0, 0, 0.42), 0 0 20px rgba(77, 182, 255, 0.14);
+        }
+
+        .forge-device-mark::before {
+            content: '';
+            position: absolute;
+            inset: 0.42rem 0.48rem 0.74rem;
+            border-radius: 0.32rem;
+            background:
+                radial-gradient(circle at 50% 18%, rgba(230, 234, 241, 0.16), transparent 38%),
+                linear-gradient(180deg, #111827, #0b0f17);
+            border: 1px solid rgba(77, 182, 255, 0.18);
+        }
+
+        .forge-device-mark::after {
+            content: '';
+            position: absolute;
+            bottom: 0.35rem;
+            left: 50%;
+            width: 0.42rem;
+            height: 0.14rem;
+            border-radius: 999px;
+            transform: translateX(-50%);
+            background: var(--forge-amber);
+            box-shadow: -0.55rem 0 0 rgba(77, 182, 255, 0.86), 0.55rem 0 0 rgba(230, 234, 241, 0.42);
+        }
+
+        .forge-signal-mark {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            width: 1.22rem;
+            height: 1rem;
+        }
+
+        .forge-signal-mark span {
+            display: block;
+            width: 2px;
+            border-radius: 999px;
+            background: var(--forge-blue);
+            box-shadow: 0 0 8px rgba(77, 182, 255, 0.9);
+        }
+
+        .forge-signal-mark span:nth-child(1) { height: 0.36rem; opacity: 0.72; }
+        .forge-signal-mark span:nth-child(2) { height: 0.62rem; }
+        .forge-signal-mark span:nth-child(3) { height: 0.9rem; background: var(--forge-amber); box-shadow: 0 0 8px rgba(255, 200, 87, 0.72); }
+        .forge-signal-mark span:nth-child(4) { height: 0.58rem; }
+        .forge-signal-mark span:nth-child(5) { height: 0.42rem; opacity: 0.78; }
+
+        .forge-icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #cbd5e1;
+            border: 1px solid transparent;
+            background: transparent;
+            transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .forge-icon-button:hover,
+        .forge-icon-button:focus-visible {
+            color: var(--forge-blue);
+            background: rgba(77, 182, 255, 0.08);
+            border-color: rgba(77, 182, 255, 0.24);
+            box-shadow: 0 0 18px rgba(77, 182, 255, 0.10);
+        }
+
+        .forge-primary-button {
+            background: linear-gradient(180deg, #4d8eff 0%, #1957b8 100%);
+            border: 1px solid rgba(77, 182, 255, 0.52);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.18), 0 14px 30px rgba(36, 112, 255, 0.24);
+        }
+
+        .forge-primary-button:hover {
+            filter: brightness(1.08);
+            box-shadow: inset 0 1px 0 rgba(230, 234, 241, 0.22), 0 16px 34px rgba(77, 182, 255, 0.28);
+        }
+
+        .forge-secondary-button {
+            background: rgba(17, 24, 39, 0.76);
+            border: 1px solid var(--forge-border);
+            color: var(--forge-silver);
+        }
+
+        .forge-secondary-button:hover {
+            background: rgba(45, 58, 80, 0.72);
+            border-color: rgba(230, 234, 241, 0.22);
+        }
+
+        .forge-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            min-height: 1.7rem;
+            padding: 0.25rem 0.68rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            line-height: 1;
+            color: var(--forge-silver);
+            background: rgba(27, 38, 56, 0.76);
+            border: 1px solid var(--forge-border);
+        }
+
+        .forge-chip-new { color: #dbeafe; background: rgba(77, 135, 255, 0.24); border-color: rgba(77, 135, 255, 0.36); }
+        .forge-chip-mention { color: #ffe7ad; background: rgba(255, 200, 87, 0.18); border-color: rgba(255, 200, 87, 0.36); }
+        .forge-chip-alert { color: #fecaca; background: rgba(220, 38, 38, 0.22); border-color: rgba(248, 113, 113, 0.32); }
+
+        .forge-status-dot {
+            width: 0.55rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            background: #64748b;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .forge-status-online { color: #4ade80; background: #4ade80; }
+        .forge-status-meeting { color: var(--forge-amber); background: var(--forge-amber); }
+        .forge-status-focus { color: #a855f7; background: #a855f7; }
+        .forge-status-away { color: #94a3b8; background: #94a3b8; }
+        .forge-status-dnd { color: #ef4444; background: #ef4444; }
+        .forge-status-offline { color: #64748b; background: #64748b; }
+
+        .channel-link {
+            border: 1px solid transparent;
+            letter-spacing: 0;
+        }
+
+        .channel-link:hover {
+            border-color: rgba(77, 182, 255, 0.18);
+            background: rgba(77, 182, 255, 0.07);
+        }
+
+        .channel-link .unread-badge {
+            background: linear-gradient(180deg, var(--forge-blue), #2563eb);
+            border: 1px solid rgba(230, 234, 241, 0.18);
+            box-shadow: 0 0 12px rgba(77, 182, 255, 0.34);
+        }
+
+        .forge-artifact-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.48rem;
+            color: var(--forge-silver);
+            background: rgba(27, 38, 56, 0.72);
+            border: 1px solid var(--forge-border);
+        }
+
+        .forge-artifact-icon svg {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .forge-artifact-decision { color: var(--forge-amber); border-color: rgba(255, 200, 87, 0.32); }
+        .forge-artifact-feature { color: var(--forge-blue); border-color: rgba(77, 182, 255, 0.32); }
+        .forge-artifact-issue { color: #f87171; border-color: rgba(248, 113, 113, 0.32); }
+        .forge-artifact-task { color: #4ade80; border-color: rgba(74, 222, 128, 0.30); }
         
         /* Animations */
         @keyframes fade-in {
@@ -315,7 +529,7 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="window.cacheManager.clearCacheAndReload()" class="px-4 py-2 bg-white text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-50 shadow-sm transition-colors">
+                    <button onclick="window.cacheManager.clearCacheAndReload()" class="forge-primary-button px-4 py-2 text-white rounded-lg text-sm font-bold transition-colors">
                         Update Now
                     </button>
                     <button onclick="document.getElementById('app-update-banner').classList.add('hidden')" class="p-1 text-emerald-200 hover:text-white" aria-label="Dismiss">
@@ -328,11 +542,11 @@
 
     <!-- Push Notification Prompt Banner -->
     {% if user %}
-    <div id="push-notification-prompt" class="hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg">
+    <div id="push-notification-prompt" class="hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#123b66] via-[#0b0f17] to-[#3d3216] border-b border-white/10 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-3">
             <div class="flex items-center justify-between flex-wrap">
                 <div class="flex items-center flex-1 min-w-0">
-                    <span class="flex p-2 rounded-lg bg-blue-800">
+                    <span class="flex p-2 rounded-lg bg-[rgba(77,182,255,0.16)] border border-[rgba(77,182,255,0.28)]">
                         <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
@@ -344,13 +558,13 @@
                 </div>
                 <div class="flex-shrink-0 order-3 w-full sm:order-2 sm:w-auto mt-2 sm:mt-0 sm:ml-4">
                     <button id="enable-push-btn" type="button"
-                            class="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 transition-colors">
+                            class="forge-primary-button flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium text-white transition-colors">
                         Enable Notifications
                     </button>
                 </div>
                 <div class="order-2 flex-shrink-0 sm:order-3 sm:ml-2">
                     <button id="dismiss-push-prompt" type="button"
-                            class="-mr-1 flex p-2 rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-white transition-colors">
+                            class="-mr-1 flex p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] transition-colors">
                         <span class="sr-only">Dismiss</span>
                         <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -391,11 +605,11 @@
                     
                     <div class="flex flex-col sm:flex-row gap-3">
                         <button type="button" onclick="sessionMonitor.extendSession()" 
-                                class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                                class="forge-primary-button flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)] focus:ring-offset-2 focus:ring-offset-gray-800">
                             Stay Logged In
                         </button>
                         <button type="button" onclick="sessionMonitor.logout()"
-                                class="flex-1 px-4 py-2.5 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                                class="forge-secondary-button flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-gray-800">
                             Log Out Now
                         </button>
                     </div>
@@ -421,7 +635,7 @@
                     <p class="text-gray-300 mb-6">Your session has expired. Please log in again to continue.</p>
                     
                     <a href="/auth/login" 
-                       class="inline-block w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                       class="forge-primary-button inline-block w-full px-4 py-2.5 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)]">
                         Log In Again
                     </a>
                 </div>
@@ -432,16 +646,16 @@
     <!-- Command palette -->
     <div id="command-palette" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-start justify-center min-h-screen pt-20 px-4 text-center">
-            <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-80 transition-opacity" onclick="closeCommandPalette()"></div>
-            <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all w-full max-w-lg">
+            <div class="fixed inset-0 bg-black/75 transition-opacity" onclick="closeCommandPalette()"></div>
+            <div class="relative glass-dark rounded-lg shadow-xl transform transition-all w-full max-w-lg">
                 <div class="p-4">
                     <input type="text" 
                            id="command-input" 
-                           class="w-full px-4 py-3 text-lg border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 focus:outline-none"
+                           class="w-full px-4 py-3 text-lg border-0 bg-transparent text-white placeholder-gray-500 focus:ring-0 focus:outline-none"
                            placeholder="Type a command or search..."
                            autocomplete="off">
                 </div>
-                <div id="command-results" class="max-h-96 overflow-y-auto border-t dark:border-gray-700">
+                <div id="command-results" class="max-h-96 overflow-y-auto border-t border-white/10">
                     <!-- Results populated by JS -->
                 </div>
             </div>

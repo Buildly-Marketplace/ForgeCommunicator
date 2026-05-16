@@ -3,20 +3,20 @@
 {% block title %}{{ product.name }} Docs - Forge Communicator{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <nav class="bg-white shadow-sm">
+<div class="min-h-screen">
+    <nav class="glass-dark border-b border-white/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="/workspaces/{{ workspace_id }}" class="text-gray-400 hover:text-gray-600">
+                    <a href="/workspaces/{{ workspace_id }}" class="forge-icon-button p-2 rounded-lg">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </a>
                     <div class="flex items-center space-x-2">
-                        <div class="w-6 h-6 rounded {% if product.color %}{% else %}bg-indigo-500{% endif %}"
+                        <div class="w-6 h-6 rounded border border-white/20 {% if product.color %}{% else %}bg-[var(--forge-blue)]{% endif %}"
                              {% if product.color %}style="background-color: {{ product.color }}"{% endif %}></div>
-                        <span class="text-xl font-bold text-gray-900">{{ product.name }} - Docs</span>
+                        <span class="text-xl font-semibold text-white">{{ product.name }} - Docs</span>
                     </div>
                 </div>
                 
@@ -25,7 +25,7 @@
                     <!-- Sync with Labs button -->
                     <button onclick="syncWithLabs()"
                             id="sync-labs-btn"
-                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            class="forge-secondary-button inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)]"
                             title="Sync artifacts with Buildly Labs">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="sync-icon">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -36,7 +36,7 @@
                     <!-- Labs link -->
                     {% if labs_url %}
                     <a href="{{ labs_url }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center px-4 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                       class="forge-primary-button inline-flex items-center px-4 py-1.5 text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)]">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
@@ -44,7 +44,7 @@
                     </a>
                     {% else %}
                     <a href="https://labs.buildly.io" target="_blank" rel="noopener"
-                       class="inline-flex items-center px-4 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                       class="forge-primary-button inline-flex items-center px-4 py-1.5 text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)]">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
@@ -60,12 +60,12 @@
         <!-- Type filters -->
         <div class="mb-6 flex space-x-2">
             <a href="/workspaces/{{ workspace_id }}/products/{{ product.id }}/docs"
-               class="px-3 py-1.5 rounded-md text-sm font-medium {% if not filter_type %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium border {% if not filter_type %}bg-[rgba(77,182,255,0.18)] text-[var(--forge-blue)] border-[rgba(77,182,255,0.34)]{% else %}text-gray-400 border-transparent hover:bg-white/5 hover:text-white{% endif %}">
                 All
             </a>
             {% for atype in artifact_types %}
             <a href="/workspaces/{{ workspace_id }}/products/{{ product.id }}/docs?type={{ atype.value }}"
-               class="px-3 py-1.5 rounded-md text-sm font-medium {% if filter_type and filter_type.value == atype.value %}bg-indigo-100 text-indigo-700{% else %}text-gray-500 hover:bg-gray-100{% endif %}">
+               class="px-3 py-1.5 rounded-md text-sm font-medium border {% if filter_type and filter_type.value == atype.value %}bg-[rgba(77,182,255,0.18)] text-[var(--forge-blue)] border-[rgba(77,182,255,0.34)]{% else %}text-gray-400 border-transparent hover:bg-white/5 hover:text-white{% endif %}">
                 {{ atype.value|capitalize }}s
             </a>
             {% endfor %}
@@ -75,22 +75,22 @@
         {% if user_notes %}
         <div class="mb-8">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                <h2 class="text-lg font-semibold text-white flex items-center">
                     <svg class="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
                     My Notes
                 </h2>
-                <a href="/notes" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                <a href="/notes" class="text-sm text-[var(--forge-blue)] hover:text-white font-medium">
                     View All →
                 </a>
             </div>
-            <div class="bg-white rounded-lg shadow divide-y divide-gray-100">
+            <div class="glass-dark rounded-lg divide-y divide-white/10">
                 {% for note in user_notes[:5] %}
-                <a href="/notes/{{ note.id }}" class="block p-4 hover:bg-gray-50 transition-colors">
+                <a href="/notes/{{ note.id }}" class="block p-4 hover:bg-white/5 transition-colors">
                     <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
-                            <h3 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h3>
+                            <h3 class="text-sm font-medium text-white truncate">{{ note.title }}</h3>
                             <p class="text-sm text-gray-500 truncate mt-1">
                                 {{ (note.content or '')[:100] }}{% if (note.content or '')|length > 100 %}...{% endif %}
                             </p>
@@ -98,7 +98,7 @@
                         <div class="ml-4 flex-shrink-0 flex flex-col items-end">
                             {% set src_type = note.source_type.value|default(note.source_type, true)|default('manual', true) %}
                             {% if src_type not in ['manual', 'MANUAL'] %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[rgba(77,182,255,0.18)] text-[var(--forge-blue)] border border-[rgba(77,182,255,0.3)]">
                                 {% if src_type == 'message' %}From Message
                                 {% elif src_type == 'thread' %}From Thread
                                 {% elif src_type == 'channel' %}From Channel
@@ -106,7 +106,7 @@
                             </span>
                             {% if note.source_message_id %}
                             <a href="/notes/{{ note.id }}/source" 
-                               class="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
+                               class="mt-1 text-xs text-[var(--forge-blue)] hover:text-white"
                                onclick="event.stopPropagation()">
                                 View Original →
                             </a>
@@ -125,17 +125,20 @@
         {% if not filter_type %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Decisions -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                    <span class="mr-2">⚖️</span> Decisions
+            <div class="glass-dark rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white flex items-center mb-4">
+                    <span class="forge-artifact-icon forge-artifact-decision mr-2">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v18m-7-7 4-8 4 8m-8 0h8m-2 0a4 4 0 0 1-8 0m16 0-4-8-4 8m4 0h8m-2 0a4 4 0 0 1-8 0"/></svg>
+                    </span>
+                    Decisions
                 </h2>
                 <div class="space-y-3">
                     {% for artifact in grouped_artifacts[artifact_types.DECISION][:5] %}
                     <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
-                       class="block p-3 rounded border hover:border-indigo-300">
+                       class="block p-3 rounded border border-white/10 hover:border-[rgba(77,182,255,0.42)] hover:bg-white/5 transition-colors">
                         <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'accepted' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <span class="text-sm font-medium text-white">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full border {% if artifact.status == 'accepted' %}bg-green-500/20 text-green-300 border-green-500/30{% else %}bg-white/10 text-gray-300 border-white/20{% endif %}">
                                 {{ artifact.status }}
                             </span>
                         </div>
@@ -148,17 +151,20 @@
             </div>
             
             <!-- Features -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                    <span class="mr-2">✨</span> Features
+            <div class="glass-dark rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white flex items-center mb-4">
+                    <span class="forge-artifact-icon forge-artifact-feature mr-2">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m12 3 1.9 5.4L19 10.3l-5.1 1.9L12 18l-1.9-5.8L5 10.3l5.1-1.9L12 3Z"/></svg>
+                    </span>
+                    Features
                 </h2>
                 <div class="space-y-3">
                     {% for artifact in grouped_artifacts[artifact_types.FEATURE][:5] %}
                     <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
-                       class="block p-3 rounded border hover:border-indigo-300">
+                       class="block p-3 rounded border border-white/10 hover:border-[rgba(77,182,255,0.42)] hover:bg-white/5 transition-colors">
                         <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'shipped' %}bg-green-100 text-green-800{% elif artifact.status == 'in_progress' %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <span class="text-sm font-medium text-white">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full border {% if artifact.status == 'shipped' %}bg-green-500/20 text-green-300 border-green-500/30{% elif artifact.status == 'in_progress' %}bg-[rgba(77,182,255,0.18)] text-[var(--forge-blue)] border-[rgba(77,182,255,0.3)]{% else %}bg-white/10 text-gray-300 border-white/20{% endif %}">
                                 {{ artifact.status }}
                             </span>
                         </div>
@@ -171,17 +177,20 @@
             </div>
             
             <!-- Issues -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                    <span class="mr-2">🐛</span> Issues
+            <div class="glass-dark rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white flex items-center mb-4">
+                    <span class="forge-artifact-icon forge-artifact-issue mr-2">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v5m0 4h.01M5.5 19h13L12 5 5.5 19Z"/></svg>
+                    </span>
+                    Issues
                 </h2>
                 <div class="space-y-3">
                     {% for artifact in grouped_artifacts[artifact_types.ISSUE][:5] %}
                     <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
-                       class="block p-3 rounded border hover:border-indigo-300">
+                       class="block p-3 rounded border border-white/10 hover:border-[rgba(77,182,255,0.42)] hover:bg-white/5 transition-colors">
                         <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'closed' %}bg-green-100 text-green-800{% elif artifact.status == 'new' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <span class="text-sm font-medium text-white">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full border {% if artifact.status == 'closed' %}bg-green-500/20 text-green-300 border-green-500/30{% elif artifact.status == 'new' %}bg-red-500/20 text-red-300 border-red-500/30{% else %}bg-white/10 text-gray-300 border-white/20{% endif %}">
                                 {{ artifact.status }}
                             </span>
                         </div>
@@ -194,17 +203,20 @@
             </div>
             
             <!-- Tasks -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                    <span class="mr-2">✅</span> Tasks
+            <div class="glass-dark rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white flex items-center mb-4">
+                    <span class="forge-artifact-icon forge-artifact-task mr-2">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m5 12.5 4 4L19 6.5"/></svg>
+                    </span>
+                    Tasks
                 </h2>
                 <div class="space-y-3">
                     {% for artifact in grouped_artifacts[artifact_types.TASK][:5] %}
                     <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
-                       class="block p-3 rounded border hover:border-indigo-300">
+                       class="block p-3 rounded border border-white/10 hover:border-[rgba(77,182,255,0.42)] hover:bg-white/5 transition-colors">
                         <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-900">{{ artifact.title }}</span>
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if artifact.status == 'done' %}bg-green-100 text-green-800{% elif artifact.status == 'in_progress' %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <span class="text-sm font-medium text-white">{{ artifact.title }}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full border {% if artifact.status == 'done' %}bg-green-500/20 text-green-300 border-green-500/30{% elif artifact.status == 'in_progress' %}bg-[rgba(77,182,255,0.18)] text-[var(--forge-blue)] border-[rgba(77,182,255,0.3)]{% else %}bg-white/10 text-gray-300 border-white/20{% endif %}">
                                 {{ artifact.status }}
                             </span>
                         </div>
@@ -222,15 +234,15 @@
             {% set filtered_artifacts = grouped_artifacts[filter_type] %}
             {% for artifact in filtered_artifacts %}
             <a href="/workspaces/{{ workspace_id }}/channels/{{ artifact.channel_id }}/artifacts/{{ artifact.id }}"
-               class="block bg-white rounded-lg border p-4 hover:border-indigo-300">
+               class="block glass-dark rounded-lg border border-white/10 p-4 hover:border-[rgba(77,182,255,0.42)] hover:bg-white/5 transition-colors">
                 <div class="flex justify-between items-start">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-900">{{ artifact.title }}</h3>
+                        <h3 class="text-sm font-medium text-white">{{ artifact.title }}</h3>
                         <p class="text-xs text-gray-500 mt-1">
                             Created by {{ artifact.author.display_name }} on {{ artifact.created_at.strftime('%b %d, %Y') }}
                         </p>
                     </div>
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-white/10 text-gray-300 border border-white/20">
                         {{ artifact.status }}
                     </span>
                 </div>

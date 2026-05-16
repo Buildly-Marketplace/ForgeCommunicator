@@ -5,15 +5,22 @@
        class="block p-3 rounded-lg border border-white/10 hover:border-blue-400/50 hover:bg-white/5 transition-all glass-dark">
         <div class="flex items-start justify-between">
             <div class="flex items-center space-x-2">
-                <!-- Type icon -->
                 {% if artifact.type.value == 'decision' %}
-                <span class="text-purple-500" title="Decision">⚖️</span>
+                <span class="forge-artifact-icon forge-artifact-decision" title="Decision">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v18m-7-7 4-8 4 8m-8 0h8m-2 0a4 4 0 0 1-8 0m16 0-4-8-4 8m4 0h8m-2 0a4 4 0 0 1-8 0"/></svg>
+                </span>
                 {% elif artifact.type.value == 'feature' %}
-                <span class="text-blue-500" title="Feature">✨</span>
+                <span class="forge-artifact-icon forge-artifact-feature" title="Feature">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m12 3 1.9 5.4L19 10.3l-5.1 1.9L12 18l-1.9-5.8L5 10.3l5.1-1.9L12 3Z"/></svg>
+                </span>
                 {% elif artifact.type.value == 'issue' %}
-                <span class="text-red-500" title="Issue">🐛</span>
+                <span class="forge-artifact-icon forge-artifact-issue" title="Issue">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v5m0 4h.01M5.5 19h13L12 5 5.5 19Z"/></svg>
+                </span>
                 {% elif artifact.type.value == 'task' %}
-                <span class="text-green-500" title="Task">✅</span>
+                <span class="forge-artifact-icon forge-artifact-task" title="Task">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m5 12.5 4 4L19 6.5"/></svg>
+                </span>
                 {% endif %}
                 
                 <span class="text-xs font-medium uppercase text-gray-400">{{ artifact.type.value }}</span>

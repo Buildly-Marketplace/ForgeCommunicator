@@ -1,0 +1,268 @@
+import Foundation
+
+@MainActor
+final class NativeCommunicatorStore: ObservableObject {
+    private struct ConversationSnapshot {
+        let unreadCount: Int
+        let lastMessageID: Int?
+    }
+
+    @Published var serverURL: String
+    @Published var email: String
+    @Published var password: String = ""
+    @Published var token: String?
+    @Published var currentUserDisplayName: String?
+
+    @Published private(set) var conversations: [CommunicatorConversation] = []
+    @Published private(set) var groupedConversationKinds: [CommunicatorConversationGroupKind] = []
+    @Published var selectedConversationID: Int?
+    @Published private(set) var messages: [CommunicatorMessage] = []
+
+    @Published var draft: String = ""
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+
+    private let source: Source
+    private let onProviderConfigUpdate: ((Data?) -> Void)?
+    private var pollingTask: Task<Void, Never>?
+    private var conversationSnapshotByChannelID: [Int: ConversationSnapshot] = [:]
+    private var hasPrimedNotificationSnapshot = false
+
+    init(source: Source, onProviderConfigUpdate: ((Data?) -> Void)? = nil) {
+        self.source = source
+        self.onProviderConfigUpdate = onProviderConfigUpdate
+
+        let config = source.communicatorConfig()
+        self.serverURL = config.serverURL
+        self.token = config.mobileAccessToken
+        self.currentUserDisplayName = config.currentUserDisplayName
+        self.email = config.currentUserEmail ?? ""
+    }
+
+    deinit {
+        pollingTask?.cancel()
+    }
+
+    func updateServerURL(_ value: String) {
+        serverURL = value
+        persistConfig()
+    }
+
+    func signIn() async {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedEmail.isEmpty, !normalizedPassword.isEmpty else {
+            errorMessage = "Email and password are required."
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let client = try CommunicatorAPIClient(serverURL: serverURL)
+            let auth = try await client.login(email: normalizedEmail, password: normalizedPassword)
+            token = auth.token
+            currentUserDisplayName = auth.user.displayName
+            email = auth.user.email
+            password = ""
+            persistConfig()
+            try await refreshAll()
+            startPolling()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func signOut() {
+        token = nil
+        conversations = []
+        selectedConversationID = nil
+        messages = []
+        currentUserDisplayName = nil
+        draft = ""
+        pollingTask?.cancel()
+        pollingTask = nil
+        conversationSnapshotByChannelID = [:]
+        hasPrimedNotificationSnapshot = false
+        persistConfig()
+    }
+
+    func onAppear() {
+        guard token != nil else { return }
+        Task {
+            try? await refreshAll()
+            startPolling()
+        }
+    }
+
+    func refreshAll() async throws {
+        guard let token else { return }
+
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        let nextConversations = try await client.listConversations(token: token, includeChannels: true)
+        notifyOnConversationDeltas(nextConversations)
+        conversations = nextConversations
+        groupedConversationKinds = Self.computeGroupKinds(from: nextConversations)
+
+        if selectedConversationID == nil {
+            selectedConversationID = nextConversations.first?.channelID
+        }
+
+        if let conversation = selectedConversation {
+            try await loadMessages(for: conversation)
+        }
+    }
+
+    func selectConversation(_ conversation: CommunicatorConversation) {
+        selectedConversationID = conversation.channelID
+        Task {
+            do {
+                try await loadMessages(for: conversation)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func sendDraftMessage() async {
+        guard let token, let conversation = selectedConversation else { return }
+
+        let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else { return }
+
+        do {
+            let client = try CommunicatorAPIClient(serverURL: serverURL)
+            let sent = try await client.sendMessage(
+                token: token,
+                workspaceID: conversation.workspaceID,
+                channelID: conversation.channelID,
+                body: body
+            )
+            draft = ""
+            messages.append(sent)
+            try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    var selectedConversation: CommunicatorConversation? {
+        guard let selectedConversationID else { return nil }
+        return conversations.first(where: { $0.channelID == selectedConversationID })
+    }
+
+    private func loadMessages(for conversation: CommunicatorConversation) async throws {
+        guard let token else { return }
+
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        let nextMessages = try await client.listMessages(
+            token: token,
+            workspaceID: conversation.workspaceID,
+            channelID: conversation.channelID
+        )
+        messages = nextMessages
+        try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
+    }
+
+    private func startPolling() {
+        pollingTask?.cancel()
+        guard token != nil else { return }
+
+        pollingTask = Task {
+            while !Task.isCancelled {
+                do {
+                    try await refreshAll()
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
+        }
+    }
+
+    private func notifyOnConversationDeltas(_ nextConversations: [CommunicatorConversation]) {
+        let nextSnapshot: [Int: ConversationSnapshot] = Dictionary(
+            uniqueKeysWithValues: nextConversations.map {
+                ($0.channelID, ConversationSnapshot(unreadCount: $0.unreadCount, lastMessageID: $0.lastMessage?.id))
+            }
+        )
+
+        defer {
+            conversationSnapshotByChannelID = nextSnapshot
+            hasPrimedNotificationSnapshot = true
+        }
+
+        guard hasPrimedNotificationSnapshot else { return }
+
+        for conversation in nextConversations {
+            let previous = conversationSnapshotByChannelID[conversation.channelID]
+
+            let didUnreadIncrease = conversation.unreadCount > (previous?.unreadCount ?? 0)
+            let previousMessageID = previous?.lastMessageID ?? 0
+            let currentMessageID = conversation.lastMessage?.id ?? 0
+            let hasNewLastMessage = currentMessageID > previousMessageID
+            let isCurrentlyOpen = selectedConversationID == conversation.channelID
+
+            guard didUnreadIncrease || (hasNewLastMessage && !isCurrentlyOpen) else {
+                continue
+            }
+
+            let preview = conversation.lastMessage?.body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = (preview?.isEmpty == false)
+                ? preview!
+                : "New activity in \(conversation.name)."
+
+            NotificationService.postSourceActivity(
+                sourceID: source.id,
+                sourceName: source.displayName,
+                providerName: "Communicator",
+                body: body,
+                dedupeHint: "native:\(conversation.channelID):\(currentMessageID):\(conversation.unreadCount)"
+            )
+        }
+    }
+
+    private func persistConfig() {
+        let config = CommunicatorSourceConfig(
+            serverURL: serverURL,
+            mobileAccessToken: token,
+            currentUserEmail: email.isEmpty ? nil : email,
+            currentUserDisplayName: currentUserDisplayName
+        )
+        let encoded = try? JSONEncoder().encode(config)
+        onProviderConfigUpdate?(encoded)
+    }
+
+    static func computeGroupKinds(from conversations: [CommunicatorConversation]) -> [CommunicatorConversationGroupKind] {
+        var kinds: [CommunicatorConversationGroupKind] = []
+
+        func appendUnique(_ kind: CommunicatorConversationGroupKind) {
+            if !kinds.contains(kind) {
+                kinds.append(kind)
+            }
+        }
+
+        conversations.forEach { conversation in
+            appendUnique(conversation.groupKind)
+        }
+
+        let priority: [CommunicatorConversationGroupKind] = [
+            .directMessages,
+            .channels,
+        ]
+
+        kinds.sort { left, right in
+            let leftIndex = priority.firstIndex(of: left) ?? Int.max
+            let rightIndex = priority.firstIndex(of: right) ?? Int.max
+
+            if leftIndex != rightIndex {
+                return leftIndex < rightIndex
+            }
+
+            return left.title < right.title
+        }
+
+        return kinds
+    }
+}

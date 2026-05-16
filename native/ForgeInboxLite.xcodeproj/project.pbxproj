@@ -1,0 +1,401 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* ForgeInboxLiteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* ForgeInboxLiteApp.swift */; };
+		A10000000000000000000002 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* Account.swift */; };
+		A10000000000000000000003 /* EncryptedConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* EncryptedConfigStore.swift */; };
+		A10000000000000000000004 /* AccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* AccountStore.swift */; };
+		A10000000000000000000005 /* SignalLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* SignalLauncher.swift */; };
+		A10000000000000000000006 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* NotificationService.swift */; };
+		A10000000000000000000007 /* AccountWebContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* AccountWebContainerView.swift */; };
+		A10000000000000000000008 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* ContentView.swift */; };
+		A10000000000000000000009 /* AddAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* AddAccountSheet.swift */; };
+		A1000000000000000000000A /* ForgeCommunicatorShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* ForgeCommunicatorShellView.swift */; };
+		A1000000000000000000000B /* SourceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001B /* SourceProvider.swift */; };
+		A1000000000000000000000C /* CommunicatorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* CommunicatorProvider.swift */; };
+		A1000000000000000000000D /* WhatsAppProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001D /* WhatsAppProvider.swift */; };
+		A1000000000000000000000E /* SignalProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001E /* SignalProvider.swift */; };
+		A1000000000000000000000F /* ForgeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001F /* ForgeTheme.swift */; };
+		A100000000000000000000A1 /* ForgeGlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* ForgeGlassSurface.swift */; };
+		A100000000000000000000A3 /* ForgeBackgroundLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A4 /* ForgeBackgroundLayer.swift */; };
+		A100000000000000000000A5 /* ForgeBadgeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A6 /* ForgeBadgeIcon.swift */; };
+		A100000000000000000000A7 /* ForgeHeaderBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A8 /* ForgeHeaderBar.swift */; };
+		A100000000000000000000A9 /* SourceConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AA /* SourceConfig.swift */; };
+		A100000000000000000000B1 /* ForgeLogoIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B2 /* ForgeLogoIcon.swift */; };
+		A100000000000000000000B3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B4 /* Assets.xcassets */; };
+		A100000000000000000000C1 /* CommunicatorNativeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C2 /* CommunicatorNativeModels.swift */; };
+		A100000000000000000000C3 /* CommunicatorAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C4 /* CommunicatorAPIClient.swift */; };
+		A100000000000000000000C5 /* NativeCommunicatorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C6 /* NativeCommunicatorStore.swift */; };
+		A100000000000000000000C7 /* NativeCommunicatorHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C8 /* NativeCommunicatorHomeView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10000000000000000000020 /* ForgeCommunicator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ForgeCommunicator.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000011 /* ForgeInboxLiteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/App/ForgeInboxLiteApp.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000012 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Models/Account.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000013 /* EncryptedConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/EncryptedConfigStore.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000014 /* AccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/AccountStore.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000015 /* SignalLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/SignalLauncher.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000016 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/NotificationService.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000017 /* AccountWebContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Web/AccountWebContainerView.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000018 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/ContentView.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000019 /* AddAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/AddAccountSheet.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001A /* ForgeCommunicatorShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/Shell/ForgeCommunicatorShellView.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001B /* SourceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/SourceProvider.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001C /* CommunicatorProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/CommunicatorProvider.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001D /* WhatsAppProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/WhatsAppProvider.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001E /* SignalProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/SignalProvider.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000001F /* ForgeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeTheme.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000A2 /* ForgeGlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeGlassSurface.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000A4 /* ForgeBackgroundLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeBackgroundLayer.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000A6 /* ForgeBadgeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeBadgeIcon.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000A8 /* ForgeHeaderBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeHeaderBar.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000AA /* SourceConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Models/SourceConfig.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000B2 /* ForgeLogoIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeLogoIcon.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000B4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Sources/ForgeInboxLite/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000C2 /* CommunicatorNativeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Models/CommunicatorNativeModels.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000C4 /* CommunicatorAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/CommunicatorAPIClient.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000C6 /* NativeCommunicatorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Services/NativeCommunicatorStore.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000C8 /* NativeCommunicatorHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/Native/NativeCommunicatorHomeView.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10000000000000000000030 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10000000000000000000040 = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000041 /* Sources */,
+				A10000000000000000000042 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000041 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A100000000000000000000B4 /* Assets.xcassets */,
+				A10000000000000000000043 /* App */,
+				A10000000000000000000044 /* Models */,
+				A10000000000000000000045 /* Services */,
+				A100000000000000000000AB /* Providers */,
+				A10000000000000000000046 /* Views */,
+				A100000000000000000000AC /* UI */,
+				A10000000000000000000047 /* Web */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000042 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000020 /* ForgeCommunicator.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000043 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000011 /* ForgeInboxLiteApp.swift */,
+			);
+			path = ForgeInboxLite/App;
+			sourceTree = SOURCE_ROOT;
+		};
+		A10000000000000000000044 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000012 /* Account.swift */,
+				A100000000000000000000AA /* SourceConfig.swift */,
+				A100000000000000000000C2 /* CommunicatorNativeModels.swift */,
+			);
+			path = ForgeInboxLite/Models;
+			sourceTree = SOURCE_ROOT;
+		};
+		A10000000000000000000045 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000013 /* EncryptedConfigStore.swift */,
+				A10000000000000000000014 /* AccountStore.swift */,
+				A100000000000000000000C4 /* CommunicatorAPIClient.swift */,
+				A100000000000000000000C6 /* NativeCommunicatorStore.swift */,
+				A10000000000000000000015 /* SignalLauncher.swift */,
+				A10000000000000000000016 /* NotificationService.swift */,
+			);
+			path = ForgeInboxLite/Services;
+			sourceTree = SOURCE_ROOT;
+		};
+		A100000000000000000000AB /* Providers */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000001B /* SourceProvider.swift */,
+				A1000000000000000000001C /* CommunicatorProvider.swift */,
+				A1000000000000000000001D /* WhatsAppProvider.swift */,
+				A1000000000000000000001E /* SignalProvider.swift */,
+			);
+			path = ForgeInboxLite/Providers;
+			sourceTree = SOURCE_ROOT;
+		};
+		A10000000000000000000046 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000018 /* ContentView.swift */,
+				A10000000000000000000019 /* AddAccountSheet.swift */,
+				A100000000000000000000C8 /* NativeCommunicatorHomeView.swift */,
+				A1000000000000000000001A /* ForgeCommunicatorShellView.swift */,
+			);
+			path = ForgeInboxLite/Views;
+			sourceTree = SOURCE_ROOT;
+		};
+		A100000000000000000000AC /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000001F /* ForgeTheme.swift */,
+				A100000000000000000000A2 /* ForgeGlassSurface.swift */,
+				A100000000000000000000A4 /* ForgeBackgroundLayer.swift */,
+				A100000000000000000000A6 /* ForgeBadgeIcon.swift */,
+				A100000000000000000000B2 /* ForgeLogoIcon.swift */,
+				A100000000000000000000A8 /* ForgeHeaderBar.swift */,
+			);
+			path = ForgeInboxLite/UI;
+			sourceTree = SOURCE_ROOT;
+		};
+		A10000000000000000000047 /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000017 /* AccountWebContainerView.swift */,
+			);
+			path = ForgeInboxLite/Web;
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10000000000000000000050 /* ForgeInboxLite */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000060 /* Build configuration list for PBXNativeTarget \"ForgeInboxLite\" */;
+			buildPhases = (
+				A10000000000000000000031 /* Sources */,
+				A10000000000000000000030 /* Frameworks */,
+				A10000000000000000000032 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ForgeInboxLite;
+			productName = ForgeInboxLite;
+			productReference = A10000000000000000000020 /* ForgeCommunicator.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10000000000000000000070 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A10000000000000000000050 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A10000000000000000000061 /* Build configuration list for PBXProject \"ForgeInboxLite\" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A10000000000000000000040;
+			productRefGroup = A10000000000000000000042 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10000000000000000000050 /* ForgeInboxLite */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100000000000000000000B3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10000000000000000000031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* ForgeInboxLiteApp.swift in Sources */,
+				A10000000000000000000002 /* Account.swift in Sources */,
+				A100000000000000000000C1 /* CommunicatorNativeModels.swift in Sources */,
+				A100000000000000000000A9 /* SourceConfig.swift in Sources */,
+				A10000000000000000000003 /* EncryptedConfigStore.swift in Sources */,
+				A10000000000000000000004 /* AccountStore.swift in Sources */,
+				A100000000000000000000C3 /* CommunicatorAPIClient.swift in Sources */,
+				A100000000000000000000C5 /* NativeCommunicatorStore.swift in Sources */,
+				A10000000000000000000005 /* SignalLauncher.swift in Sources */,
+				A10000000000000000000006 /* NotificationService.swift in Sources */,
+				A10000000000000000000007 /* AccountWebContainerView.swift in Sources */,
+				A10000000000000000000008 /* ContentView.swift in Sources */,
+				A10000000000000000000009 /* AddAccountSheet.swift in Sources */,
+				A100000000000000000000C7 /* NativeCommunicatorHomeView.swift in Sources */,
+				A1000000000000000000000A /* ForgeCommunicatorShellView.swift in Sources */,
+				A1000000000000000000000B /* SourceProvider.swift in Sources */,
+				A1000000000000000000000C /* CommunicatorProvider.swift in Sources */,
+				A1000000000000000000000D /* WhatsAppProvider.swift in Sources */,
+				A1000000000000000000000E /* SignalProvider.swift in Sources */,
+				A1000000000000000000000F /* ForgeTheme.swift in Sources */,
+				A100000000000000000000A1 /* ForgeGlassSurface.swift in Sources */,
+				A100000000000000000000A3 /* ForgeBackgroundLayer.swift in Sources */,
+				A100000000000000000000A5 /* ForgeBadgeIcon.swift in Sources */,
+				A100000000000000000000B1 /* ForgeLogoIcon.swift in Sources */,
+				A100000000000000000000A7 /* ForgeHeaderBar.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A10000000000000000000080 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A10000000000000000000081 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		A10000000000000000000082 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ForgeCommunicator;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.buildly.forgecommunicator;
+				PRODUCT_NAME = ForgeCommunicator;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000000083 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ForgeCommunicator;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.buildly.forgecommunicator;
+				PRODUCT_NAME = ForgeCommunicator;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A10000000000000000000060 /* Build configuration list for PBXNativeTarget "ForgeInboxLite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000082 /* Debug */,
+				A10000000000000000000083 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000061 /* Build configuration list for PBXProject "ForgeInboxLite" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000080 /* Debug */,
+				A10000000000000000000081 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A10000000000000000000070 /* Project object */;
+}

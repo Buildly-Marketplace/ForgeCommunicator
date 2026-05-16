@@ -60,9 +60,9 @@ DATABASE_URL=postgresql://user:pass@host.db.ondigitalocean.com:25060/forge?sslmo
 | `BRAND_LOGO_URL` | string | *(null)* | Logo URL |
 | `BRAND_FAVICON_URL` | string | *(null)* | Favicon URL |
 | `BRAND_SUPPORT_EMAIL` | string | `support@buildly.io` | Support email |
-| `BRAND_PRIMARY_COLOR` | string | `#3b82f6` | Primary theme color |
-| `BRAND_SECONDARY_COLOR` | string | `#0f172a` | Secondary color |
-| `BRAND_ACCENT_COLOR` | string | `#a855f7` | Accent color |
+| `BRAND_PRIMARY_COLOR` | string | `#4DB6FF` | Primary theme color |
+| `BRAND_SECONDARY_COLOR` | string | `#0B0F17` | Secondary color |
+| `BRAND_ACCENT_COLOR` | string | `#FFC857` | Accent color |
 
 ### OAuth Providers
 

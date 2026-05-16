@@ -125,9 +125,9 @@ ForgeCommunicator uses environment variables to designate platform administrator
 | `BRAND_NAME` | Product name | `Communicator` |
 | `BRAND_COMPANY` | Company name | `Buildly` |
 | `BRAND_LOGO_URL` | Logo URL | `/static/forge-logo.png` |
-| `BRAND_PRIMARY_COLOR` | Primary theme color | `#3b82f6` |
-| `BRAND_SECONDARY_COLOR` | Secondary color | `#0f172a` |
-| `BRAND_ACCENT_COLOR` | Accent color | `#a855f7` |
+| `BRAND_PRIMARY_COLOR` | Primary theme color | `#4DB6FF` |
+| `BRAND_SECONDARY_COLOR` | Secondary color | `#0B0F17` |
+| `BRAND_ACCENT_COLOR` | Accent color | `#FFC857` |
 
 ### OAuth Providers
 
@@ -145,18 +145,18 @@ ForgeCommunicator uses environment variables to designate platform administrator
 
 ### Native App
 
-Forge includes a native Apple app in [native/ForgeApp](native/ForgeApp) with separate schemes for macOS and iOS.
+Forge includes a combined native macOS app in [native](native) using the `ForgeInboxLite` Xcode project and a `ForgeCommunicator.app` product.
 
 #### Build locally on macOS
 
-1. Open [native/ForgeApp/ForgeApp.xcodeproj](native/ForgeApp/ForgeApp.xcodeproj) in Xcode.
-2. Select the `Forge_macOS` scheme and run it on `My Mac`.
+1. Open [native/ForgeInboxLite.xcodeproj](native/ForgeInboxLite.xcodeproj) in Xcode.
+2. Select the `ForgeInboxLite` scheme and run it on `My Mac`.
 3. Or build from the command line:
 
     ```bash
     xcodebuild \
-       -project native/ForgeApp/ForgeApp.xcodeproj \
-       -scheme Forge_macOS \
+       -project native/ForgeInboxLite.xcodeproj \
+       -scheme ForgeInboxLite \
        -destination 'platform=macOS' \
        CODE_SIGNING_ALLOWED=NO \
        build
@@ -170,16 +170,7 @@ Use the bundled script to build a distributable DMG:
 ./scripts/build_macos_dmg.sh
 ```
 
-The script builds the `Forge_macOS` target, stages the `.app` bundle, and creates `dist/Forge-macOS.dmg`. Open the DMG and drag Forge into `Applications` to install it.
-
-#### Prepare for iPhone and iPad later
-
-The same Xcode project also contains the `Forge_iOS` scheme. When you are ready to distribute on the App Store:
-
-1. Configure your Apple Developer Team and bundle identifiers in Xcode.
-2. Set up signing, provisioning, and App Store metadata for the iOS target.
-3. Archive the iOS app from Xcode or with `xcodebuild archive`.
-4. Upload the archive to App Store Connect for TestFlight and App Store review.
+The script builds the `ForgeInboxLite` target, stages the `ForgeCommunicator.app` bundle, and creates `dist/Forge-macOS.dmg`. Open the DMG and drag ForgeCommunicator into `Applications` to install it.
 
 ### Seed Demo Data
 

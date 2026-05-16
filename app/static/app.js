@@ -843,21 +843,34 @@
         }
     };
 
+    const commandIcons = {
+        decision: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v18m-7-7 4-8 4 8m-8 0h8m-2 0a4 4 0 0 1-8 0m16 0-4-8-4 8m4 0h8m-2 0a4 4 0 0 1-8 0"/></svg>',
+        feature: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m12 3 1.9 5.4L19 10.3l-5.1 1.9L12 18l-1.9-5.8L5 10.3l5.1-1.9L12 3Z"/></svg>',
+        issue: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v5m0 4h.01M5.5 19h13L12 5 5.5 19Z"/></svg>',
+        task: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m5 12.5 4 4L19 6.5"/></svg>',
+        user: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"/></svg>',
+        message: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 6.5h14v9H9l-4 3v-12Z"/></svg>',
+        channel: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 4 7 20m10-16-2 16M4 9h16M3 15h16"/></svg>',
+        leave: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 5h5v14h-5M8 8l-4 4 4 4m-4-4h11"/></svg>',
+        topic: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 5h12M6 10h12M6 15h7M6 19h4"/></svg>',
+        theme: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg>',
+    };
+
     // Update palette results based on query
     function updatePaletteResults(query) {
         if (!paletteResults) return;
 
         const commands = [
-            { name: 'Create Decision', shortcut: '/decision', icon: '⚖️', desc: 'Record an architectural decision' },
-            { name: 'Create Feature', shortcut: '/feature', icon: '✨', desc: 'Track a feature request' },
-            { name: 'Create Issue', shortcut: '/issue', icon: '🐛', desc: 'Report a bug or issue' },
-            { name: 'Create Task', shortcut: '/task', icon: '✅', desc: 'Create a todo task' },
-            { name: 'Mention User', shortcut: '@', icon: '👤', desc: 'Mention someone in the channel' },
-            { name: 'Direct Message', shortcut: '/dm @', icon: '✉️', desc: 'Send a direct message' },
-            { name: 'Join Channel', shortcut: '/join #', icon: '#️⃣', desc: 'Join another channel' },
-            { name: 'Leave Channel', shortcut: '/leave', icon: '👋', desc: 'Leave current channel' },
-            { name: 'Set Topic', shortcut: '/topic', icon: '📝', desc: 'Set the channel topic' },
-            { name: 'Toggle Theme', shortcut: '', icon: '🌓', desc: 'Switch light/dark mode', action: 'toggleTheme' },
+            { name: 'Create Decision', shortcut: '/decision', icon: commandIcons.decision, desc: 'Record an architectural decision' },
+            { name: 'Create Feature', shortcut: '/feature', icon: commandIcons.feature, desc: 'Track a feature request' },
+            { name: 'Create Issue', shortcut: '/issue', icon: commandIcons.issue, desc: 'Report a bug or issue' },
+            { name: 'Create Task', shortcut: '/task', icon: commandIcons.task, desc: 'Create a todo task' },
+            { name: 'Mention User', shortcut: '@', icon: commandIcons.user, desc: 'Mention someone in the channel' },
+            { name: 'Direct Message', shortcut: '/dm @', icon: commandIcons.message, desc: 'Send a direct message' },
+            { name: 'Join Channel', shortcut: '/join #', icon: commandIcons.channel, desc: 'Join another channel' },
+            { name: 'Leave Channel', shortcut: '/leave', icon: commandIcons.leave, desc: 'Leave current channel' },
+            { name: 'Set Topic', shortcut: '/topic', icon: commandIcons.topic, desc: 'Set the channel topic' },
+            { name: 'Toggle Theme', shortcut: '', icon: commandIcons.theme, desc: 'Switch light/dark mode', action: 'toggleTheme' },
         ];
 
         const filtered = query 
@@ -868,18 +881,16 @@
             )
             : commands;
 
-        const isDark = document.documentElement.classList.contains('dark');
-        
         paletteResults.innerHTML = filtered.map(cmd => `
             <button type="button" 
                     onclick="${cmd.action ? cmd.action + '(); closeCommandPalette();' : "insertCommand('" + cmd.shortcut + " ')"}"
-                    class="w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none">
-                <span class="text-xl mr-3">${cmd.icon}</span>
+                    class="w-full flex items-center px-4 py-3 text-left hover:bg-white/5 focus:bg-white/5 focus:outline-none">
+                <span class="forge-artifact-icon mr-3">${cmd.icon}</span>
                 <div class="flex-1">
                     <div class="text-sm font-medium text-gray-900 dark:text-white">${cmd.name}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">${cmd.desc}</div>
                 </div>
-                ${cmd.shortcut ? `<kbd class="ml-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-300 rounded">${cmd.shortcut}</kbd>` : ''}
+                ${cmd.shortcut ? `<kbd class="ml-2 px-2 py-1 text-xs bg-white/10 text-gray-300 border border-white/10 rounded">${cmd.shortcut}</kbd>` : ''}
             </button>
         `).join('');
     }
@@ -968,10 +979,10 @@
                   hx-swap="outerHTML"
                   class="flex space-x-2">
                 <input type="text" name="body" value="${currentText.replace(/"/g, '&quot;')}" 
-                       class="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       class="flex-1 px-2 py-1 text-sm border border-white/10 rounded bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-[var(--forge-blue)]"
                        autofocus>
-                <button type="submit" class="px-2 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Save</button>
-                <button type="button" onclick="location.reload()" class="px-2 py-1 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                <button type="submit" class="forge-primary-button px-2 py-1 text-sm text-white rounded">Save</button>
+                <button type="button" onclick="location.reload()" class="forge-secondary-button px-2 py-1 text-sm rounded">Cancel</button>
             </form>
         `;
 
@@ -985,14 +996,14 @@
         if (!container) return;
 
         const colors = {
-            info: 'bg-blue-500',
-            success: 'bg-green-500',
-            error: 'bg-red-500',
-            warning: 'bg-yellow-500',
+            info: 'bg-[var(--forge-blue)] text-white',
+            success: 'bg-green-500 text-white',
+            error: 'bg-red-500 text-white',
+            warning: 'bg-[var(--forge-amber)] text-gray-950',
         };
 
         const toast = document.createElement('div');
-        toast.className = `${colors[type]} text-white px-4 py-2 rounded-lg shadow-lg transform transition-all duration-300 translate-y-2 opacity-0`;
+        toast.className = `${colors[type]} px-4 py-2 rounded-lg shadow-lg transform transition-all duration-300 translate-y-2 opacity-0`;
         
         // Support both plain text and HTML content
         if (isHtml) {
