@@ -29,6 +29,16 @@ struct CommunicatorAuthResponse: Codable, Equatable {
     let user: CommunicatorAuthUser
 }
 
+struct CommunicatorOAuthStartResponse: Codable {
+    let authURL: String
+    let state: String
+
+    private enum CodingKeys: String, CodingKey {
+        case authURL = "auth_url"
+        case state
+    }
+}
+
 struct CommunicatorConversationAuthor: Codable, Equatable {
     let id: Int
     let displayName: String

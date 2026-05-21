@@ -1,5 +1,14 @@
 import Foundation
 import UserNotifications
+import AuthenticationServices
+import AppKit
+
+// Provides the NSWindow anchor required by ASWebAuthenticationSession on macOS.
+private final class OAuthWindowAnchor: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first ?? NSWindow()
+    }
+}
 
 @MainActor
 final class NativeCommunicatorStore: ObservableObject {
@@ -22,6 +31,9 @@ final class NativeCommunicatorStore: ObservableObject {
     @Published var draft: String = ""
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+
+    private let oauthAnchor = OAuthWindowAnchor()
+    private var activeOAuthSession: ASWebAuthenticationSession?
 
     private let source: Source
     private let onProviderConfigUpdate: ((Data?) -> Void)?
@@ -86,7 +98,63 @@ final class NativeCommunicatorStore: ObservableObject {
         pollingTask = nil
         conversationSnapshotByChannelID = [:]
         hasPrimedNotificationSnapshot = false
+        activeOAuthSession?.cancel()
+        activeOAuthSession = nil
         persistConfig()
+    }
+
+    func signInWithGoogle() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let client = try CommunicatorAPIClient(serverURL: serverURL)
+            let start = try await client.oauthStart(provider: "google")
+            guard let authURL = URL(string: start.authURL) else {
+                errorMessage = "Invalid OAuth URL from server."
+                return
+            }
+
+            let oauthToken = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
+                let session = ASWebAuthenticationSession(
+                    url: authURL,
+                    callbackURLScheme: "forge"
+                ) { callbackURL, error in
+                    if let error {
+                        cont.resume(throwing: error)
+                        return
+                    }
+                    guard let callbackURL,
+                          let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+                          let t = components.queryItems?.first(where: { $0.name == "token" })?.value
+                    else {
+                        cont.resume(throwing: CommunicatorAPIClient.APIError.invalidResponse)
+                        return
+                    }
+                    cont.resume(returning: t)
+                }
+                session.presentationContextProvider = self.oauthAnchor
+                session.prefersEphemeralWebBrowserSession = false
+                self.activeOAuthSession = session
+                session.start()
+            }
+            activeOAuthSession = nil
+
+            let profile = try await client.fetchMyProfile(token: oauthToken)
+            token = oauthToken
+            currentUserDisplayName = profile.displayName
+            email = profile.email
+            password = ""
+            persistConfig()
+            try await refreshAll()
+            startPolling()
+        } catch {
+            activeOAuthSession = nil
+            let authError = error as? ASWebAuthenticationSessionError
+            if authError?.code != .canceledLogin {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     func onAppear() {

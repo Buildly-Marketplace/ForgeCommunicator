@@ -123,6 +123,23 @@ struct NativeCommunicatorHomeView: View {
                 .buttonStyle(.borderedProminent)
             }
 
+            Divider()
+                .overlay(Color.white.opacity(0.15))
+
+            Button {
+                Task { await store.signInWithGoogle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Sign in with Google")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(store.isLoading)
+
             Spacer(minLength: 0)
         }
         .padding(20)

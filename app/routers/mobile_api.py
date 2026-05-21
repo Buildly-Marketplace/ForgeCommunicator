@@ -232,7 +232,15 @@ async def mobile_login(request: Request, body: LoginRequest, db: DBSession):
     )
     user = result.scalar_one_or_none()
 
-    if not user or not user.hashed_password or not verify_password(body.password, user.hashed_password):
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.hashed_password:
+        # Account was created via Google (or another SSO) — no password is set.
+        raise HTTPException(
+            status_code=401,
+            detail="This account uses Google sign-in. Please use the 'Sign in with Google' button."
+        )
+    if not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_active:
@@ -328,6 +336,7 @@ class OAuthTokenRequest(BaseModel):
 async def mobile_oauth_start(request: Request, provider: str):
     """Return the OAuth authorization URL for the native app to open in a browser."""
     from app.services.auth_providers import get_oauth_provider
+    from urllib.parse import urlencode
     import secrets
 
     oauth_provider = get_oauth_provider(provider)
@@ -335,15 +344,15 @@ async def mobile_oauth_start(request: Request, provider: str):
         raise HTTPException(status_code=400, detail=f"OAuth provider '{provider}' not available")
 
     state = secrets.token_urlsafe(32)
-    # For native apps, use a custom redirect URI that the app can intercept
-    redirect_uri = str(request.base_url).rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
+    # Use settings.base_url so the URI is correct even behind a reverse proxy.
+    # request.base_url would return http://localhost:8000 in that case.
+    redirect_uri = settings.base_url.rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
 
     params = oauth_provider.get_authorization_params(state)
     # Override the redirect_uri to point to our mobile callback
     params["redirect_uri"] = redirect_uri
-    auth_url = f"{oauth_provider.authorization_url}?" + "&".join(
-        f"{k}={v}" for k, v in params.items()
-    )
+    # urlencode is required — scope has spaces and redirect_uri has special chars
+    auth_url = f"{oauth_provider.authorization_url}?{urlencode(params)}"
 
     return OAuthStartResponse(auth_url=auth_url, state=state)
 
@@ -370,7 +379,7 @@ async def mobile_oauth_callback(
         raise HTTPException(status_code=400, detail=f"OAuth provider '{provider}' not available")
 
     # Override redirect_uri to match what we sent during authorization
-    redirect_uri = str(request.base_url).rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
+    redirect_uri = settings.base_url.rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
 
     try:
         tokens = await oauth_provider.exchange_code(code, redirect_uri=redirect_uri)
