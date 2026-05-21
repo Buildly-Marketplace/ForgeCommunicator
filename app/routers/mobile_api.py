@@ -558,14 +558,16 @@ async def list_channels(workspace_id: int, user: MobileUser, db: DBSession):
         )
         cm = cm_result.scalar_one_or_none()
         unread = 0
-        if cm and cm.last_read_message_id:
+        if cm is not None:
+            unread_filters = [
+                Message.channel_id == ch.id,
+                Message.user_id != user.id,
+                Message.deleted_at == None,
+            ]
+            if cm.last_read_message_id is not None:
+                unread_filters.append(Message.id > cm.last_read_message_id)
             unread_result = await db.execute(
-                select(func.count()).select_from(Message).where(
-                    Message.channel_id == ch.id,
-                    Message.id > cm.last_read_message_id,
-                    Message.user_id != user.id,
-                    Message.deleted_at == None,
-                )
+                select(func.count()).select_from(Message).where(*unread_filters)
             )
             unread = unread_result.scalar() or 0
 
@@ -669,14 +671,16 @@ async def list_conversations(
         )
         cm = cm_result.scalar_one_or_none()
         unread = 0
-        if cm and cm.last_read_message_id:
+        if cm is not None:
+            unread_filters = [
+                Message.channel_id == ch.id,
+                Message.user_id != user.id,
+                Message.deleted_at == None,
+            ]
+            if cm.last_read_message_id is not None:
+                unread_filters.append(Message.id > cm.last_read_message_id)
             unread_result = await db.execute(
-                select(func.count()).select_from(Message).where(
-                    Message.channel_id == ch.id,
-                    Message.id > cm.last_read_message_id,
-                    Message.user_id != user.id,
-                    Message.deleted_at == None,
-                )
+                select(func.count()).select_from(Message).where(*unread_filters)
             )
             unread = unread_result.scalar() or 0
 
