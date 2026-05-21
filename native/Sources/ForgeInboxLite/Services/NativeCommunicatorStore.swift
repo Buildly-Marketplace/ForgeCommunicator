@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 
 @MainActor
 final class NativeCommunicatorStore: ObservableObject {
@@ -104,6 +105,9 @@ final class NativeCommunicatorStore: ObservableObject {
         notifyOnConversationDeltas(nextConversations)
         conversations = nextConversations
         groupedConversationKinds = Self.computeGroupKinds(from: nextConversations)
+
+        let totalUnread = nextConversations.reduce(0) { $0 + $1.unreadCount }
+        try? await UNUserNotificationCenter.current().setBadgeCount(totalUnread)
 
         if selectedConversationID == nil {
             selectedConversationID = nextConversations.first?.channelID
