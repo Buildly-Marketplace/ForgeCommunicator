@@ -48,8 +48,8 @@ final class NativeCommunicatorStore: ObservableObject {
         let config = source.communicatorConfig()
         self.serverURL = config.serverURL
         self.token = config.mobileAccessToken
-        self.currentUserDisplayName = config.currentUserDisplayName
-        self.email = config.currentUserEmail ?? ""
+        self.currentUserDisplayName = nil
+        self.email = ""
     }
 
     deinit {
@@ -160,7 +160,11 @@ final class NativeCommunicatorStore: ObservableObject {
     func onAppear() {
         guard token != nil else { return }
         Task {
-            try? await refreshAll()
+            do {
+                try await refreshAll()
+            } catch {
+                handlePollingOrRefreshError(error)
+            }
             startPolling()
         }
     }
@@ -215,7 +219,7 @@ final class NativeCommunicatorStore: ObservableObject {
             messages.append(sent)
             try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
         } catch {
-            errorMessage = error.localizedDescription
+            handlePollingOrRefreshError(error)
         }
     }
 
@@ -246,11 +250,51 @@ final class NativeCommunicatorStore: ObservableObject {
                 do {
                     try await refreshAll()
                 } catch {
-                    errorMessage = error.localizedDescription
+                    handlePollingOrRefreshError(error)
                 }
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
+    }
+
+    private func handlePollingOrRefreshError(_ error: Error) {
+        if isExpiredTokenError(error) {
+            resetExpiredSession()
+            return
+        }
+        errorMessage = error.localizedDescription
+    }
+
+    private func isExpiredTokenError(_ error: Error) -> Bool {
+        if case CommunicatorAPIClient.APIError.unauthorized = error {
+            return true
+        }
+
+        if case let CommunicatorAPIClient.APIError.serverError(status, message) = error {
+            if status != 401 {
+                return false
+            }
+
+            let normalized = message.lowercased()
+            return normalized.contains("invalid or expired token")
+        }
+
+        return false
+    }
+
+    private func resetExpiredSession() {
+        pollingTask?.cancel()
+        pollingTask = nil
+        token = nil
+        conversations = []
+        groupedConversationKinds = []
+        selectedConversationID = nil
+        messages = []
+        draft = ""
+        conversationSnapshotByChannelID = [:]
+        hasPrimedNotificationSnapshot = false
+        persistConfig()
+        errorMessage = "Session expired. Please sign in again."
     }
 
     private func notifyOnConversationDeltas(_ nextConversations: [CommunicatorConversation]) {
@@ -298,9 +342,7 @@ final class NativeCommunicatorStore: ObservableObject {
     private func persistConfig() {
         let config = CommunicatorSourceConfig(
             serverURL: serverURL,
-            mobileAccessToken: token,
-            currentUserEmail: email.isEmpty ? nil : email,
-            currentUserDisplayName: currentUserDisplayName
+            mobileAccessToken: token
         )
         let encoded = try? JSONEncoder().encode(config)
         onProviderConfigUpdate?(encoded)

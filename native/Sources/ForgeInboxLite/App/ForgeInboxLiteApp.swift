@@ -35,9 +35,11 @@ struct ForgeInboxLiteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
-        if Bundle.main.bundleIdentifier != nil {
-            NotificationService.configure()
-            NotificationService.requestAuthorization()
+        NotificationService.configure()
+        NotificationService.requestAuthorization()
+
+        if Bundle.main.bundleIdentifier == nil {
+            print("[ForgeInboxLite] Running outside an app bundle; macOS notifications may be limited.")
         }
     }
 

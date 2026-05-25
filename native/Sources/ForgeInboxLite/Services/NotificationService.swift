@@ -41,6 +41,7 @@ enum NotificationService {
         content.title = title
         content.body = body
         content.sound = sound
+        content.threadIdentifier = "forge-activity"
 
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
@@ -80,6 +81,7 @@ enum NotificationService {
             guard await deduper.shouldDeliver(key: key, crossEmitterKey: crossEmitterKey, minimumInterval: minimumInterval) else { return }
 
             await MainActor.run {
+                checkAndLogAuthorizationStatus()
                 post(
                     title: "\(sourceName) • \(providerName)",
                     body: normalizedBody,

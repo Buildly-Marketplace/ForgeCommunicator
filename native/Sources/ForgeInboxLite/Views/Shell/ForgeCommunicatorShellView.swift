@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct ForgeCommunicatorShellView: View {
     private enum TopLevelDestination {
@@ -39,6 +40,11 @@ struct ForgeCommunicatorShellView: View {
                                         Button("Rename") {
                                             // Rename flow lands in next pass.
                                         }
+                                        if source.type == .telegram {
+                                            Button("Reset Telegram Session", role: .destructive) {
+                                                resetWebSession(for: source)
+                                            }
+                                        }
                                         Button("Remove", role: .destructive) {
                                             store.removeAccount(id: source.id)
                                         }
@@ -59,12 +65,14 @@ struct ForgeCommunicatorShellView: View {
                     .fill(Color.white.opacity(0.10))
                     .frame(width: 1)
 
-                Group {
-                    if destination == .nativeCommunicator {
-                        communicatorWorkspacePane
-                    } else {
-                        sourcesWorkspacePane
-                    }
+                ZStack {
+                    communicatorWorkspacePane
+                        .opacity(destination == .nativeCommunicator ? 1 : 0)
+                        .allowsHitTesting(destination == .nativeCommunicator)
+
+                    sourcesWorkspacePane
+                        .opacity(destination == .sources ? 1 : 0)
+                        .allowsHitTesting(destination == .sources)
                 }
                 .padding(10)
                 .foregroundStyle(.white)
@@ -184,6 +192,7 @@ struct ForgeCommunicatorShellView: View {
                 ForgeHeaderBar(title: source.displayName, subtitle: "\(source.type.displayLabel) • Source")
                 providerView(for: source)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .id("sources-workspace-\(source.id.uuidString)")
             .onAppear {
                 if store.selectedSourceID != source.id {
@@ -212,12 +221,19 @@ struct ForgeCommunicatorShellView: View {
                     store.updateSourceProviderConfig(id: source.id, providerConfig: encoded)
                 }
             )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .forgeGlassSurface()
         case .whatsapp:
             WhatsAppProvider(sessionManager: webSessionManager).makeMainView(for: source, onProviderConfigUpdate: nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .forgeGlassSurface()
         case .signal:
             SignalProvider(sessionManager: webSessionManager).makeMainView(for: source, onProviderConfigUpdate: nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .forgeGlassSurface()
+        case .telegram:
+            TelegramProviderView(source: source, sessionManager: webSessionManager)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .forgeGlassSurface()
         }
     }
@@ -263,6 +279,8 @@ struct ForgeCommunicatorShellView: View {
             return "bubble.left"
         case .signal:
             return "dot.radiowaves.left.and.right"
+        case .telegram:
+            return "paperplane"
         }
     }
 
@@ -274,6 +292,8 @@ struct ForgeCommunicatorShellView: View {
             return .green
         case .signal:
             return ForgeTheme.amber
+        case .telegram:
+            return .cyan
         }
     }
 
@@ -361,6 +381,47 @@ struct ForgeCommunicatorShellView: View {
         .buttonStyle(.plain)
     }
 
+    private func resetWebSession(for source: Source) {
+        webSessionManager.removeWebsiteData(for: source) {
+            if store.selectedSourceID == source.id {
+                store.selectAccount(id: source.id)
+            }
+        }
+    }
+
+}
+
+private struct TelegramProviderView: View {
+    let source: Source
+    let sessionManager: WebSessionManager
+
+    private let telegramDesktopURL = URL(string: "https://web.telegram.org/k/")!
+    private let telegramDesktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+    var body: some View {
+        let webView = sessionManager.webView(for: source)
+
+        AccountWebContainerView(webView: webView)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                if webView.customUserAgent != telegramDesktopUserAgent {
+                    webView.customUserAgent = telegramDesktopUserAgent
+                }
+
+                if shouldForceTelegramDesktopLoad(webView.url) {
+                    webView.load(URLRequest(url: telegramDesktopURL))
+                }
+            }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func shouldForceTelegramDesktopLoad(_ currentURL: URL?) -> Bool {
+        guard let currentURL else { return true }
+        guard let host = currentURL.host?.lowercased(), host.contains("telegram.org") else {
+            return true
+        }
+        return !currentURL.path.hasPrefix("/k/")
+    }
 }
 
 private struct SidebarStarfieldBackground: View {

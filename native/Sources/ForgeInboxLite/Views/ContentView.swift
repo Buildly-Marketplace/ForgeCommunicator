@@ -89,6 +89,8 @@ struct ContentView: View {
                         .id("\(selected.id.uuidString)-\(whatsappSessionResetNonce)")
                     case .signal:
                         SignalWorkspaceView(account: selected, statusMessage: $signalStatusMessage)
+                    case .telegram:
+                        TelegramWorkspaceView(account: selected, manager: webSessionManager)
                     }
                 } else {
                     VStack(spacing: 8) {
@@ -133,6 +135,8 @@ struct ContentView: View {
             return "bubble.left"
         case .signal:
             return "dot.radiowaves.left.and.right"
+        case .telegram:
+            return "paperplane"
         }
     }
 
@@ -144,6 +148,8 @@ struct ContentView: View {
             return .green
         case .signal:
             return ForgeTheme.amber
+        case .telegram:
+            return .cyan
         }
     }
 
@@ -265,5 +271,38 @@ private struct SignalWorkspaceView: View {
             Spacer()
         }
         .padding(20)
+    }
+}
+
+private struct TelegramWorkspaceView: View {
+    let account: Account
+    let manager: WebSessionManager
+
+    private let telegramDesktopURL = URL(string: "https://web.telegram.org/k/")!
+
+    var body: some View {
+        let webView = manager.webView(for: account)
+
+        VStack(spacing: 0) {
+            HStack {
+                Text(account.displayName)
+                    .font(.headline)
+                Spacer()
+                Text("Telegram Web")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            AccountWebContainerView(webView: webView)
+                .onAppear {
+                    if webView.url == nil {
+                        webView.load(URLRequest(url: telegramDesktopURL))
+                    }
+                }
+        }
     }
 }

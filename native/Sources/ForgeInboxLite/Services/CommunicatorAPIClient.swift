@@ -11,14 +11,36 @@ private final class RedirectPreservingDelegate: NSObject, URLSessionTaskDelegate
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
+        guard let original = task.originalRequest else {
+            completionHandler(request)
+            return
+        }
+
+        // Preserve POST/PUT/PATCH bodies only for redirects that keep the same endpoint
+        // semantics (e.g., http -> https on the same path) or explicit 307/308 redirects.
+        let statusCode = response.statusCode
+        let shouldPreserve: Bool
+        if statusCode == 307 || statusCode == 308 {
+            shouldPreserve = true
+        } else if statusCode == 301 || statusCode == 302 {
+            let originalPath = original.url?.path ?? ""
+            let redirectedPath = request.url?.path ?? ""
+            shouldPreserve = !originalPath.isEmpty && originalPath == redirectedPath
+        } else {
+            shouldPreserve = false
+        }
+
+        guard shouldPreserve else {
+            completionHandler(request)
+            return
+        }
+
         var preserved = request
-        if let original = task.originalRequest {
-            preserved.httpMethod = original.httpMethod
-            if original.httpMethod != "GET", original.httpMethod != "HEAD" {
-                preserved.httpBody = original.httpBody
-                if let ct = original.value(forHTTPHeaderField: "Content-Type") {
-                    preserved.setValue(ct, forHTTPHeaderField: "Content-Type")
-                }
+        preserved.httpMethod = original.httpMethod
+        if original.httpMethod != "GET", original.httpMethod != "HEAD" {
+            preserved.httpBody = original.httpBody
+            if let ct = original.value(forHTTPHeaderField: "Content-Type") {
+                preserved.setValue(ct, forHTTPHeaderField: "Content-Type")
             }
         }
         completionHandler(preserved)
@@ -56,7 +78,22 @@ struct CommunicatorAPIClient {
         if !value.hasPrefix("http://") && !value.hasPrefix("https://") {
             value = "https://\(value)"
         }
-        guard let url = URL(string: value) else {
+
+        guard var components = URLComponents(string: value),
+              let scheme = components.scheme,
+              let host = components.host
+        else {
+            throw APIError.invalidServerURL
+        }
+
+        // Normalize to origin only so API paths are always rooted correctly.
+        components.scheme = scheme
+        components.host = host
+        components.path = ""
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
             throw APIError.invalidServerURL
         }
 
@@ -142,10 +179,8 @@ struct CommunicatorAPIClient {
     }
 
     private func endpoint(_ path: String) -> URL {
-        if path.hasPrefix("/") {
-            return baseURL.appending(path: String(path.dropFirst()))
-        }
-        return baseURL.appending(path: path)
+        let cleaned = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return baseURL.appending(path: cleaned)
     }
 
     private func performRaw(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
