@@ -1,71 +1,98 @@
 import SwiftUI
-import WebKit
 
+// Signal's web app (app.signal.org) requires WebRTC, SharedArrayBuffer, and
+// Cross-Origin-Opener-Policy — browser APIs that WKWebView does not support.
+// The only reliable options are Signal Desktop (if installed) or the system browser.
 struct SignalProvider: SourceProvider {
     let type: SourceType = .signal
     let displayName: String = "Signal"
 
-    private let sessionManager: SignalWebSessionManager
-
-    init(sessionManager: WebSessionManager) {
-        // Signal needs its own session manager that sets the Chrome UA at
-        // WKWebViewConfiguration time — setting customUserAgent after creation
-        // is too late when a cached webview already has the wrong UA.
-        self.sessionManager = SignalWebSessionManager.shared
-    }
+    init(sessionManager: WebSessionManager) {}
 
     func makeMainView(for source: Source, onProviderConfigUpdate: ((Data?) -> Void)? = nil) -> AnyView {
-        AnyView(SignalProviderView(source: source, sessionManager: sessionManager))
+        AnyView(SignalLaunchView(source: source))
     }
 }
 
-// Dedicated session manager for Signal that builds WKWebViews with a Chrome UA
-// baked into the configuration before first load.
-private final class SignalWebSessionManager {
-    static let shared = SignalWebSessionManager()
-
-    private static let signalURL = URL(string: "https://app.signal.org")!
-    // Signal's web app blocks Safari/WebKit UA — requires Chrome UA to load.
-    private static let chromeUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-
-    private var webViews: [UUID: WKWebView] = [:]
-
-    func webView(for source: Source) -> WKWebView {
-        if let existing = webViews[source.id] {
-            return existing
-        }
-
-        let config = WKWebViewConfiguration()
-        if #available(macOS 14.0, *) {
-            config.websiteDataStore = WKWebsiteDataStore(forIdentifier: source.id)
-        } else {
-            config.websiteDataStore = .nonPersistent()
-        }
-        config.defaultWebpagePreferences.preferredContentMode = .desktop
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-        config.preferences.javaScriptCanOpenWindowsAutomatically = true
-        config.preferences.isTextInteractionEnabled = true
-
-        let view = WKWebView(frame: .zero, configuration: config)
-        view.allowsBackForwardNavigationGestures = true
-        view.allowsMagnification = true
-        // Set Chrome UA on the configuration level before any load.
-        view.customUserAgent = Self.chromeUA
-
-        view.load(URLRequest(url: Self.signalURL))
-
-        webViews[source.id] = view
-        return view
-    }
-}
-
-private struct SignalProviderView: View {
+private struct SignalLaunchView: View {
     let source: Source
-    let sessionManager: SignalWebSessionManager
+
+    private let signalDesktopPath = "/Applications/Signal.app"
+    private let signalWebURL = URL(string: "https://app.signal.org")!
+
+    private var signalDesktopInstalled: Bool {
+        FileManager.default.fileExists(atPath: signalDesktopPath)
+    }
 
     var body: some View {
-        let webView = sessionManager.webView(for: source)
-        AccountWebContainerView(webView: webView)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 28) {
+            // Icon
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(.white.opacity(0.85))
+
+            VStack(spacing: 8) {
+                Text("Signal")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+
+                Text("Signal's web app requires browser APIs (WebRTC, SharedArrayBuffer) that aren't available inside an embedded web view. Use Signal Desktop or open it in your browser.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 380)
+            }
+
+            VStack(spacing: 12) {
+                if signalDesktopInstalled {
+                    Button {
+                        launchSignalDesktop()
+                    } label: {
+                        Label("Open Signal Desktop", systemImage: "arrow.up.forward.app.fill")
+                            .frame(maxWidth: 260)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+
+                if signalDesktopInstalled {
+                    Button {
+                        NSWorkspace.shared.open(signalWebURL)
+                    } label: {
+                        Label("Open in Browser", systemImage: "safari")
+                            .frame(maxWidth: 260)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                } else {
+                    Button {
+                        NSWorkspace.shared.open(signalWebURL)
+                    } label: {
+                        Label("Open in Browser", systemImage: "safari")
+                            .frame(maxWidth: 260)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+
+                if !signalDesktopInstalled {
+                    Link("Download Signal Desktop", destination: URL(string: "https://signal.org/download/")!)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func launchSignalDesktop() {
+        switch SignalLauncher.launch(account: source) {
+        case .launched: break
+        case .signalNotInstalled:
+            NSWorkspace.shared.open(URL(string: "https://signal.org/download/")!)
+        case .failed(let error):
+            print("[SignalProvider] Failed to launch Signal Desktop: \(error)")
+        }
     }
 }
