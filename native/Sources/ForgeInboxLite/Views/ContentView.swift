@@ -34,10 +34,17 @@ struct ContentView: View {
             )) {
                 ForEach(store.accounts) { account in
                     HStack(spacing: 10) {
-                        Image(systemName: symbolName(for: account.type))
-                            .foregroundStyle(symbolColor(for: account.type))
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(iconBackground(for: account.type))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: symbolName(for: account.type))
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(symbolColor(for: account.type))
+                        }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(account.displayName)
+                                .font(.system(size: 13, weight: .medium, design: .default))
                             Text(account.type.displayLabel)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -93,12 +100,16 @@ struct ContentView: View {
                         TelegramWorkspaceView(account: selected, manager: webSessionManager)
                     }
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.secondary)
-                        Text("No Account Selected")
-                            .foregroundStyle(.secondary)
+                    VStack(spacing: 12) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 40))
+                            .foregroundStyle(ForgeTheme.primary.opacity(0.5))
+                        Text("Select a source")
+                            .font(.title3)
+                            .foregroundStyle(ForgeTheme.silver)
+                        Text("Choose a messaging source from the sidebar")
+                            .font(.subheadline)
+                            .foregroundStyle(ForgeTheme.silver.opacity(0.5))
                     }
                 }
             }
@@ -137,6 +148,19 @@ struct ContentView: View {
             return "dot.radiowaves.left.and.right"
         case .telegram:
             return "paperplane"
+        }
+    }
+
+    private func iconBackground(for type: AccountType) -> Color {
+        switch type {
+        case .communicator:
+            return ForgeTheme.primary.opacity(0.15)
+        case .whatsapp:
+            return Color.green.opacity(0.15)
+        case .signal:
+            return ForgeTheme.amber.opacity(0.15)
+        case .telegram:
+            return Color.cyan.opacity(0.15)
         }
     }
 
