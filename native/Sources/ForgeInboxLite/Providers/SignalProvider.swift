@@ -53,13 +53,11 @@ private struct SignalLaunchView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                }
 
-                if signalDesktopInstalled {
                     Button {
                         NSWorkspace.shared.open(signalWebURL)
                     } label: {
-                        Label("Open in Browser", systemImage: "safari")
+                        Label("Open in Safari", systemImage: "safari")
                             .frame(maxWidth: 260)
                     }
                     .buttonStyle(.bordered)
@@ -68,14 +66,12 @@ private struct SignalLaunchView: View {
                     Button {
                         NSWorkspace.shared.open(signalWebURL)
                     } label: {
-                        Label("Open in Browser", systemImage: "safari")
+                        Label("Open in Safari", systemImage: "safari")
                             .frame(maxWidth: 260)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                }
 
-                if !signalDesktopInstalled {
                     Link("Download Signal Desktop", destination: URL(string: "https://signal.org/download/")!)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
