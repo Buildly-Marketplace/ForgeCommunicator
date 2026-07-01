@@ -89,10 +89,15 @@ async def list_channels(
     workspace_id: int,
     user: CurrentUser,
     db: DBSession,
+    current_channel_id: int | None = None,
 ):
-    """List channels in workspace."""
+    """List channels in workspace.
+
+    When called as an HTMX request (sidebar refresh), returns just the sidebar
+    partial with accurate unread counts and the active channel highlighted.
+    """
     workspace, membership = await get_workspace_and_membership(workspace_id, user.id, db)
-    
+
     # Get public channels and private channels user is a member of
     result = await db.execute(
         select(Channel)
@@ -114,14 +119,65 @@ async def list_channels(
     )
     channels = result.scalars().all()
     sidebar_bridge_metadata = await get_sidebar_bridge_metadata(channels, db)
-    
+
     # Get products for grouping
     result = await db.execute(
         select(Product).where(Product.workspace_id == workspace_id, Product.is_active == True)
     )
     products = result.scalars().all()
-    
+
     if request.headers.get("HX-Request"):
+        # Compute real unread counts for the sidebar refresh
+        from sqlalchemy import func as sqlfunc
+
+        ch_ids = [ch.id for ch in channels]
+        unread_channels: dict[int, int] = {}
+
+        if ch_ids:
+            result = await db.execute(
+                select(ChannelMembership)
+                .where(ChannelMembership.user_id == user.id, ChannelMembership.channel_id.in_(ch_ids))
+            )
+            visited: dict[int, int | None] = {}
+            visited_set: set[int] = set()
+            for cm in result.scalars().all():
+                visited[cm.channel_id] = cm.last_read_message_id
+                visited_set.add(cm.channel_id)
+
+            for ch_id in ch_ids:
+                # Current channel: always 0 (user is actively viewing it)
+                if ch_id == current_channel_id:
+                    unread_channels[ch_id] = 0
+                    continue
+
+                if ch_id not in visited_set:
+                    count_result = await db.execute(
+                        select(sqlfunc.count(Message.id))
+                        .where(
+                            Message.channel_id == ch_id,
+                            Message.deleted_at == None,
+                            Message.parent_id == None,
+                            Message.user_id != user.id,
+                        )
+                    )
+                    unread_channels[ch_id] = count_result.scalar() or 0
+                else:
+                    last_read_id = visited[ch_id]
+                    if last_read_id is None:
+                        unread_channels[ch_id] = 0
+                    else:
+                        count_result = await db.execute(
+                            select(sqlfunc.count(Message.id))
+                            .where(
+                                Message.channel_id == ch_id,
+                                Message.deleted_at == None,
+                                Message.parent_id == None,
+                                Message.id > last_read_id,
+                                Message.user_id != user.id,
+                            )
+                        )
+                        unread_channels[ch_id] = count_result.scalar() or 0
+
         return templates.TemplateResponse(
             "partials/channel_sidebar.html",
             {
@@ -130,12 +186,12 @@ async def list_channels(
                 "workspace": workspace,
                 "channels": channels,
                 "products": products,
-                "current_channel_id": None,
-                "unread_channels": {},
+                "current_channel_id": current_channel_id,
+                "unread_channels": unread_channels,
                 **sidebar_bridge_metadata,
             },
         )
-    
+
     return templates.TemplateResponse(
         "channels/list.html",
         {

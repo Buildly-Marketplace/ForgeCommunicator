@@ -752,15 +752,50 @@
     // Called whenever the user sees new messages so the sidebar badge clears.
     // ============================================
     (function() {
+        const CHANNEL_ID = {{ channel.id }};
+        const WORKSPACE_ID = {{ workspace.id }};
         let _readTimer = null;
+        let _sidebarRefreshTimer = null;
+
+        // Immediately remove the unread badge from the current channel in the
+        // sidebar DOM without waiting for a server round-trip.
+        function clearSidebarBadgeNow() {
+            document.querySelectorAll('[data-channel-id="' + CHANNEL_ID + '"] .unread-badge').forEach(function(el) {
+                el.remove();
+            });
+            // Strip the bold/white unread style from the channel link itself
+            document.querySelectorAll('[data-channel-id="' + CHANNEL_ID + '"]').forEach(function(el) {
+                el.classList.remove('text-white', 'font-bold');
+                el.classList.add('text-gray-300');
+            });
+        }
+
+        // Re-fetch the sidebar partial so all other channels' badges are accurate.
+        function refreshSidebar() {
+            clearTimeout(_sidebarRefreshTimer);
+            _sidebarRefreshTimer = setTimeout(function() {
+                htmx.ajax('GET', '/workspaces/' + WORKSPACE_ID + '/channels?current_channel_id=' + CHANNEL_ID, {
+                    target: '#channel-sidebar-content',
+                    swap: 'innerHTML',
+                    headers: { 'HX-Request': 'true' }
+                });
+            }, 1200);
+        }
+
         window.markChannelRead = function() {
             clearTimeout(_readTimer);
             _readTimer = setTimeout(function() {
-                fetch('/workspaces/{{ workspace.id }}/channels/{{ channel.id }}/messages/read', {
+                clearSidebarBadgeNow();
+                fetch('/workspaces/' + WORKSPACE_ID + '/channels/' + CHANNEL_ID + '/messages/read', {
                     method: 'POST',
+                }).then(function() {
+                    refreshSidebar();
                 }).catch(function() {});
             }, 800);
         };
+
+        // Mark as read on page load (channel is being actively viewed)
+        markChannelRead();
 
         // Mark as read when the user switches back to this tab
         document.addEventListener('visibilitychange', function() {
