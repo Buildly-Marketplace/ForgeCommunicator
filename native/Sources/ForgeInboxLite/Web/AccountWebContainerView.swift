@@ -21,6 +21,15 @@ final class WebSessionManager {
         config.allowsAirPlayForMediaPlayback = false
         config.mediaTypesRequiringUserActionForPlayback = []
 
+        if account.type == .telegram {
+            let telegramDesktopLayoutScript = WKUserScript(
+                source: Self.telegramDesktopLayoutScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            )
+            config.userContentController.addUserScript(telegramDesktopLayoutScript)
+        }
+
         let view = WKWebView(frame: .zero, configuration: config)
         view.allowsBackForwardNavigationGestures = true
         view.allowsMagnification = true
@@ -42,6 +51,48 @@ final class WebSessionManager {
         webViews[account.id] = view
         return view
     }
+
+        private static let telegramDesktopLayoutScript = """
+        (function() {
+            function enforceDesktopWidth() {
+                try {
+                    var root = document.documentElement;
+                    var body = document.body;
+                    if (root) {
+                        root.style.maxWidth = 'none';
+                        root.style.width = '100%';
+                    }
+                    if (body) {
+                        body.style.maxWidth = 'none';
+                        body.style.width = '100%';
+                        body.style.minWidth = '0';
+                    }
+
+                    var selectors = [
+                        '#auth-pages',
+                        '.auth-pages',
+                        '.auth-pages__container',
+                        '.page_wrap',
+                        '.page-main',
+                        '.page-content'
+                    ];
+
+                    selectors.forEach(function(sel) {
+                        document.querySelectorAll(sel).forEach(function(el) {
+                            el.style.maxWidth = 'none';
+                            el.style.width = '100%';
+                            el.style.minWidth = '0';
+                        });
+                    });
+                } catch (_) {}
+            }
+
+            enforceDesktopWidth();
+            setTimeout(enforceDesktopWidth, 150);
+            setTimeout(enforceDesktopWidth, 500);
+            setTimeout(enforceDesktopWidth, 1200);
+        })();
+        """
 
     func removeWebsiteData(for account: Account, completion: (() -> Void)? = nil) {
         webViews.removeValue(forKey: account.id)

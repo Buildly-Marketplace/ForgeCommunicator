@@ -79,36 +79,44 @@ async def list_workspaces(
                 ChannelMembership.channel_id.in_(channel_ids),
             )
         )
-        user_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
-        
-        # Count unread messages across all channels in this workspace
+        user_memberships: dict[int, int | None] = {}
+        visited_ids: set[int] = set()
+        for cm in result.scalars().all():
+            user_memberships[cm.channel_id] = cm.last_read_message_id
+            visited_ids.add(cm.channel_id)
+
+        # Count unread messages across all channels in this workspace.
+        # Never-visited channels count all messages from others as unread.
+        # Visited-but-empty channels (last_read_message_id is None) count as 0.
         total_unread = 0
         for ch_id in channel_ids:
-            last_read_id = user_memberships.get(ch_id)
-            if last_read_id is not None:
+            if ch_id not in visited_ids:
                 count_result = await db.execute(
                     select(sqlfunc.count(Message.id))
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
-                        Message.parent_id == None,  # Only top-level messages, not thread replies
-                        Message.id > last_read_id,
+                        Message.parent_id == None,
                         Message.user_id != user.id,
                     )
                 )
+                total_unread += count_result.scalar() or 0
             else:
-                # No membership - count all messages except own (and thread replies)
-                count_result = await db.execute(
-                    select(sqlfunc.count(Message.id))
-                    .where(
-                        Message.channel_id == ch_id,
-                        Message.deleted_at == None,
-                        Message.parent_id == None,  # Only top-level messages, not thread replies
-                        Message.user_id != user.id,
+                last_read_id = user_memberships[ch_id]
+                if last_read_id is not None:
+                    count_result = await db.execute(
+                        select(sqlfunc.count(Message.id))
+                        .where(
+                            Message.channel_id == ch_id,
+                            Message.deleted_at == None,
+                            Message.parent_id == None,
+                            Message.id > last_read_id,
+                            Message.user_id != user.id,
+                        )
                     )
-                )
-            total_unread += count_result.scalar() or 0
-        
+                    total_unread += count_result.scalar() or 0
+                # else: visited empty channel → 0 unread
+
         workspace_unread_counts[ws.id] = total_unread
     
     # Check if user is admin (either flagged or in admin emails)
@@ -183,35 +191,42 @@ async def get_total_unread_count(
             ChannelMembership.channel_id.in_(channel_ids),
         )
     )
-    user_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
-    
+    user_memberships: dict[int, int | None] = {}
+    visited_ids: set[int] = set()
+    for cm in result.scalars().all():
+        user_memberships[cm.channel_id] = cm.last_read_message_id
+        visited_ids.add(cm.channel_id)
+
     # Count unread across all channels
     total_unread = 0
     for ch_id in channel_ids:
-        last_read_id = user_memberships.get(ch_id)
-        if last_read_id is not None:
+        if ch_id not in visited_ids:
             count_result = await db.execute(
                 select(sqlfunc.count(Message.id))
                 .where(
                     Message.channel_id == ch_id,
                     Message.deleted_at == None,
                     Message.parent_id == None,
-                    Message.id > last_read_id,
                     Message.user_id != user.id,
                 )
             )
+            total_unread += count_result.scalar() or 0
         else:
-            count_result = await db.execute(
-                select(sqlfunc.count(Message.id))
-                .where(
-                    Message.channel_id == ch_id,
-                    Message.deleted_at == None,
-                    Message.parent_id == None,
-                    Message.user_id != user.id,
+            last_read_id = user_memberships[ch_id]
+            if last_read_id is not None:
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id))
+                    .where(
+                        Message.channel_id == ch_id,
+                        Message.deleted_at == None,
+                        Message.parent_id == None,
+                        Message.id > last_read_id,
+                        Message.user_id != user.id,
+                    )
                 )
-            )
-        total_unread += count_result.scalar() or 0
-    
+                total_unread += count_result.scalar() or 0
+            # else: visited empty channel → 0 unread
+
     return JSONResponse({"unread_count": total_unread})
 
 

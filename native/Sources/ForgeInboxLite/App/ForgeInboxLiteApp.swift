@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,6 +14,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { _ in
             self.applyWindowStyle()
         }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Clear the dock badge whenever the user brings the app to front.
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
     }
 
     private func applyWindowStyle() {

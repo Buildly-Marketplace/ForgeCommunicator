@@ -344,28 +344,31 @@ async def channel_view(
     )
     messages = list(reversed(result.scalars().all()))
     
-    # Update last read message for this channel
-    if messages:
-        last_message_id = messages[-1].id
-        # Get or create channel membership for tracking reads
-        result = await db.execute(
-            select(ChannelMembership).where(
-                ChannelMembership.channel_id == channel_id,
-                ChannelMembership.user_id == user.id,
-            )
+    # Update last read message for this channel.
+    # Always upsert the membership read-pointer so even an empty-channel visit
+    # establishes a baseline and future messages don't pile up as unread.
+    last_message_id = messages[-1].id if messages else None
+    result = await db.execute(
+        select(ChannelMembership).where(
+            ChannelMembership.channel_id == channel_id,
+            ChannelMembership.user_id == user.id,
         )
-        channel_membership = result.scalar_one_or_none()
-        if channel_membership:
+    )
+    channel_membership = result.scalar_one_or_none()
+    if channel_membership:
+        if last_message_id is not None:
             channel_membership.last_read_message_id = last_message_id
-        elif not channel.is_private:
-            # For public channels, create membership record for read tracking
-            channel_membership = ChannelMembership(
-                channel_id=channel_id,
-                user_id=user.id,
-                last_read_message_id=last_message_id,
-            )
-            db.add(channel_membership)
-        await db.commit()
+    elif not channel.is_private:
+        # For public channels, create membership record for read tracking.
+        # last_read_message_id=None is valid: it means "user has visited but
+        # there are no messages yet; don't count pre-existing messages as unread."
+        channel_membership = ChannelMembership(
+            channel_id=channel_id,
+            user_id=user.id,
+            last_read_message_id=last_message_id,
+        )
+        db.add(channel_membership)
+    await db.commit()
     
     # Get unread counts for all channels
     # First get user's channel memberships with last_read_message_id
@@ -373,47 +376,55 @@ async def channel_view(
         select(ChannelMembership)
         .where(ChannelMembership.user_id == user.id)
     )
-    user_channel_memberships = {cm.channel_id: cm.last_read_message_id for cm in result.scalars().all()}
-    
+    user_channel_memberships = {}
+    visited_channel_ids: set[int] = set()
+    for cm in result.scalars().all():
+        user_channel_memberships[cm.channel_id] = cm.last_read_message_id
+        visited_channel_ids.add(cm.channel_id)
+
     # Get unread message counts for each channel
     from sqlalchemy import func as sqlfunc
-    
-    # Build unread counts - count messages newer than last_read_message_id
+
+    # Build unread counts - count messages newer than last_read_message_id.
+    # Three cases:
+    #   1. last_read_message_id set → count messages after that ID
+    #   2. Membership row exists but last_read_message_id is None (visited empty channel) → 0 unread
+    #   3. No membership row (never visited) → count all messages from others
     unread_channels = {}
     channel_ids = [ch.id for ch in channels]
-    
+
     if channel_ids:
-        # For channels with a last_read_message_id, count messages after that ID
-        # For channels without, count all messages
         for ch_id in channel_ids:
-            last_read_id = user_channel_memberships.get(ch_id)
-            
-            if last_read_id is not None:
-                # Count messages after last read (exclude thread replies)
+            if ch_id not in visited_channel_ids:
+                # Never visited — count all messages from others
                 count_result = await db.execute(
                     select(sqlfunc.count(Message.id))
                     .where(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
-                        Message.parent_id == None,  # Only top-level messages
-                        Message.id > last_read_id,
-                        Message.user_id != user.id,  # Don't count own messages
+                        Message.parent_id == None,
+                        Message.user_id != user.id,
                     )
                 )
+                unread_channels[ch_id] = count_result.scalar() or 0
             else:
-                # No membership record - count all messages (except own, exclude thread replies)
-                count_result = await db.execute(
-                    select(sqlfunc.count(Message.id))
-                    .where(
-                        Message.channel_id == ch_id,
-                        Message.deleted_at == None,
-                        Message.parent_id == None,  # Only top-level messages
-                        Message.user_id != user.id,  # Don't count own messages
+                last_read_id = user_channel_memberships[ch_id]
+                if last_read_id is None:
+                    # Visited but was empty — nothing is unread
+                    unread_channels[ch_id] = 0
+                else:
+                    # Count messages after the last read pointer
+                    count_result = await db.execute(
+                        select(sqlfunc.count(Message.id))
+                        .where(
+                            Message.channel_id == ch_id,
+                            Message.deleted_at == None,
+                            Message.parent_id == None,
+                            Message.id > last_read_id,
+                            Message.user_id != user.id,
+                        )
                     )
-                )
-            
-            count = count_result.scalar() or 0
-            unread_channels[ch_id] = count
+                    unread_channels[ch_id] = count_result.scalar() or 0
     
     # Calculate unread thread reply counts for messages in this channel
     unread_thread_counts = {}

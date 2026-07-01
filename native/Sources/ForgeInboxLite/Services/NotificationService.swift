@@ -120,6 +120,18 @@ private final class NotificationCenterDelegate: NSObject, UNUserNotificationCent
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .list, .sound, .badge])
+        // Show banner + sound while the app is in the foreground; skip badge increment
+        // since the dock badge is managed by applicationDidBecomeActive.
+        completionHandler([.banner, .list, .sound])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Clear the dock badge when the user taps a notification.
+        center.setBadgeCount(0) { _ in }
+        completionHandler()
     }
 }
