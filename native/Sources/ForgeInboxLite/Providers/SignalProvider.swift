@@ -6,8 +6,8 @@ struct SignalProvider: SourceProvider {
     let displayName: String = "Signal"
 
     // Signal's web client requires a Chrome user-agent; Safari/WebKit UA gets blocked.
-    private static let signalURL = URL(string: "https://app.signal.org")!
-    private static let chromeUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    static let signalURL = URL(string: "https://app.signal.org")!
+    static let chromeUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
     private let sessionManager: WebSessionManager
 
