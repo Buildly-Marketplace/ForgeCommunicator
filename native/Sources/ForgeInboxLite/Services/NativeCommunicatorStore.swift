@@ -223,6 +223,21 @@ final class NativeCommunicatorStore: ObservableObject {
         }
     }
 
+    func loadMessages() async {
+        guard let conversation = selectedConversation else { return }
+        do {
+            try await loadMessages(for: conversation)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func markRead() async throws {
+        guard let token, let conversation = selectedConversation else { return }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
+    }
+
     var selectedConversation: CommunicatorConversation? {
         guard let selectedConversationID else { return nil }
         return conversations.first(where: { $0.channelID == selectedConversationID })

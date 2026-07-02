@@ -25,35 +25,29 @@ struct ForgeCommunicatorShellView: View {
                         topLevelNav
 
                         if destination == .sources {
-                            List {
-                                ForEach(store.sources) { source in
-                                    Button {
-                                        store.selectAccount(id: source.id)
-                                    } label: {
+                            ScrollView {
+                                VStack(spacing: 4) {
+                                    ForEach(store.sources) { source in
                                         sourceRow(source)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                                    .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
-                                    .contextMenu {
-                                        Button("Rename") {
-                                            // Rename flow lands in next pass.
-                                        }
-                                        if source.type == .telegram {
-                                            Button("Reset Telegram Session", role: .destructive) {
-                                                resetWebSession(for: source)
+                                            .onTapGesture {
+                                                store.selectAccount(id: source.id)
                                             }
-                                        }
-                                        Button("Remove", role: .destructive) {
-                                            store.removeAccount(id: source.id)
-                                        }
+                                            .contextMenu {
+                                                Button("Rename") {}
+                                                if source.type == .telegram {
+                                                    Button("Reset Telegram Session", role: .destructive) {
+                                                        resetWebSession(for: source)
+                                                    }
+                                                }
+                                                Button("Remove", role: .destructive) {
+                                                    store.removeAccount(id: source.id)
+                                                }
+                                            }
                                     }
                                 }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
                             }
-                            .scrollContentBackground(.hidden)
-                            .listStyle(.plain)
-                            .foregroundStyle(.white)
                         }
 
                         Spacer(minLength: 0)
@@ -241,34 +235,45 @@ struct ForgeCommunicatorShellView: View {
     @ViewBuilder
     private func sourceRow(_ source: Source) -> some View {
         let selected = store.selectedSourceID == source.id
+        let color = iconColor(for: source.type)
 
-        HStack(spacing: 10) {
-            Image(systemName: iconName(for: source.type))
-                .foregroundStyle(iconColor(for: source.type))
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 22)
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(color.opacity(0.16))
+                    .frame(width: 34, height: 34)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(color.opacity(0.28), lineWidth: 1)
+                    .frame(width: 34, height: 34)
+                Image(systemName: iconName(for: source.type))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(color)
+            }
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(source.displayName)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ForgeTheme.white)
                     .lineLimit(1)
-                    .truncationMode(.tail)
+                Text(source.type.displayLabel)
+                    .font(.system(size: 11))
+                    .foregroundStyle(ForgeTheme.silver.opacity(0.5))
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(selected ? ForgeTheme.primary.opacity(0.14) : ForgeTheme.overlayFill)
+                .fill(selected ? ForgeTheme.primary.opacity(0.14) : ForgeTheme.dark800.opacity(0.60))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 11, style: .continuous)
                 .stroke(selected ? ForgeTheme.glassBorderActive : ForgeTheme.glassBorder, lineWidth: 1)
         )
-        .shadow(color: selected ? ForgeTheme.primary.opacity(0.20) : .clear, radius: 8, x: 0, y: 3)
+        .shadow(color: selected ? ForgeTheme.primary.opacity(0.18) : .clear, radius: 6, x: 0, y: 2)
     }
 
     private func iconName(for type: SourceType) -> String {
