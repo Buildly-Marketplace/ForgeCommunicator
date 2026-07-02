@@ -57,7 +57,16 @@
             {% else %}
             <a href="/profile/user/{{ message.user.id }}" class="text-forge-white font-semibold hover:text-blue-400 transition-colors" style="font-family:'Space Grotesk',sans-serif">{{ message.user.display_name }}</a>
             {% endif %}
-            <span class="text-xs text-forge-silver/45">{{ message.created_at.strftime('%H:%M') }}</span>
+            {% set msg_date = message.created_at.date() %}
+            {% set today = now().date() %}
+            {% set yesterday = (now() - timedelta(days=1)).date() %}
+            {% if msg_date == today %}
+                <span class="text-xs text-forge-silver/45">{{ message.created_at.strftime('%H:%M') }}</span>
+            {% elif msg_date == yesterday %}
+                <span class="text-xs text-forge-silver/45">Yesterday {{ message.created_at.strftime('%H:%M') }}</span>
+            {% else %}
+                <span class="text-xs text-forge-silver/45">{{ message.created_at.strftime('%b %-d, %H:%M') }}</span>
+            {% endif %}
             {% if message.is_edited %}
             <span class="text-xs text-forge-silver/45">(edited)</span>
             {% endif %}
