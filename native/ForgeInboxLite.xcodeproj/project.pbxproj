@@ -39,6 +39,8 @@
 		A100000000000000000000D7 /* FloatingChatWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000D8 /* FloatingChatWindowView.swift */; };
 		A100000000000000000000D9 /* MenuBarIMController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000DA /* MenuBarIMController.swift */; };
 		A100000000000000000000DB /* chirp.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000DC /* chirp.mp3 */; };
+		A100000000000000000000DD /* RailLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000DE /* RailLoginView.swift */; };
+		A100000000000000000000DF /* CallPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000E0 /* CallPickerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -74,6 +76,8 @@
 		A100000000000000000000D6 /* ConversationRailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/IM/ConversationRailView.swift; sourceTree = SOURCE_ROOT; };
 		A100000000000000000000D8 /* FloatingChatWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/IM/FloatingChatWindowView.swift; sourceTree = SOURCE_ROOT; };
 		A100000000000000000000DA /* MenuBarIMController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/IM/MenuBarIMController.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000DE /* RailLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/IM/RailLoginView.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000E0 /* CallPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Views/IM/CallPickerView.swift; sourceTree = SOURCE_ROOT; };
 		A100000000000000000000DC /* chirp.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Sources/ForgeInboxLite/chirp.mp3; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -293,6 +297,8 @@
 				A100000000000000000000D5 /* ConversationRailView.swift in Sources */,
 				A100000000000000000000D7 /* FloatingChatWindowView.swift in Sources */,
 				A100000000000000000000D9 /* MenuBarIMController.swift in Sources */,
+				A100000000000000000000DD /* RailLoginView.swift in Sources */,
+				A100000000000000000000DF /* CallPickerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -234,7 +234,40 @@ final class NativeCommunicatorStore: ObservableObject {
 
     func markRead() async throws {
         guard let token, let conversation = selectedConversation else { return }
+        try await markRead(for: conversation.channelID)
+    }
+
+    func markRead(for channelID: Int) async throws {
+        guard let token,
+              let conversation = conversations.first(where: { $0.channelID == channelID })
+        else { return }
         let client = try CommunicatorAPIClient(serverURL: serverURL)
+        try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
+        // Immediately zero the unread count locally so the rail/badge update without waiting for the next poll.
+        conversations = conversations.map { c in
+            guard c.channelID == channelID else { return c }
+            var updated = c
+            updated.unreadCount = 0
+            return updated
+        }
+        let totalUnread = conversations.reduce(0) { $0 + $1.unreadCount }
+        try? await UNUserNotificationCenter.current().setBadgeCount(totalUnread)
+    }
+
+    // MARK: - Per-window message loading (Bug 4: isolated per FloatingChatWindowView)
+
+    func loadMessages(for conversationID: Int) async throws -> [CommunicatorMessage] {
+        guard let token else { return [] }
+        guard let conversation = conversations.first(where: { $0.channelID == conversationID }) else { return [] }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        return try await client.listMessages(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
+    }
+
+    func sendMessage(to conversationID: Int, body: String) async throws {
+        guard let token else { return }
+        guard let conversation = conversations.first(where: { $0.channelID == conversationID }) else { return }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        _ = try await client.sendMessage(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID, body: body)
         try await client.markRead(token: token, workspaceID: conversation.workspaceID, channelID: conversation.channelID)
     }
 
@@ -351,6 +384,7 @@ final class NativeCommunicatorStore: ObservableObject {
                 body: body,
                 dedupeHint: "native:\(conversation.channelID):\(currentMessageID):\(conversation.unreadCount)"
             )
+            MessageSoundPlayer.shared.play()
         }
     }
 

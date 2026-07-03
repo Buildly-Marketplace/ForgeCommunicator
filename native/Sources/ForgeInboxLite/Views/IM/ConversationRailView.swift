@@ -8,8 +8,16 @@ struct ConversationRailView: View {
     @Binding var selectedSourceID: UUID?
     var onOpenConversation: (CommunicatorConversation) -> Void
     var onOpenSettings: () -> Void
+    var onCompose: (() -> Void)? = nil
 
     @State private var searchText: String = ""
+    @State private var shimmerPhase = false
+    @State private var collapsedGroups: Set<String> = []
+
+    // Web source (WA/Telegram) unread tracking
+    @State private var webUnreadBySourceID: [UUID: Int] = [:]
+    @State private var toastMessage: String? = nil
+    @State private var toastTask: Task<Void, Never>? = nil
 
     // MARK: Filtered conversations
 
@@ -26,22 +34,94 @@ struct ConversationRailView: View {
         filteredConversations.filter { $0.unreadCount > 0 }
     }
 
-    private var readConversations: [CommunicatorConversation] {
-        filteredConversations.filter { $0.unreadCount == 0 }
+    private var channelConversations: [CommunicatorConversation] {
+        filteredConversations.filter { !$0.isDM && $0.unreadCount == 0 }
+    }
+
+    private var dmConversations: [CommunicatorConversation] {
+        filteredConversations.filter { $0.isDM && $0.unreadCount == 0 }
+    }
+
+    private func groupedByWorkspace(_ convos: [CommunicatorConversation]) -> [(String, [CommunicatorConversation])] {
+        var result: [(String, [CommunicatorConversation])] = []
+        var seen: [String: Int] = [:]
+        for c in convos {
+            let key = c.workspaceName.isEmpty ? "Unknown" : c.workspaceName
+            if let idx = seen[key] {
+                result[idx].1.append(c)
+            } else {
+                seen[key] = result.count
+                result.append((key, [c]))
+            }
+        }
+        return result
     }
 
     // MARK: Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerBar
-            sourceSwitcher
-            searchBar
-            conversationList
-            userFooter
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                headerBar
+                sourceSwitcher
+                searchBar
+                conversationList
+                userFooter
+            }
+
+            // Toast banner for WA/Telegram new messages
+            if let msg = toastMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(ForgeTheme.amber)
+                    Text(msg)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(ForgeTheme.white)
+                        .lineLimit(2)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(ForgeTheme.dark800.opacity(0.97))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(ForgeTheme.amber.opacity(0.4), lineWidth: 1)
+                )
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
         .background(ForgeTheme.dark900)
+        .onReceive(NotificationCenter.default.publisher(for: .forgeWebSourceUnread)) { note in
+            guard
+                let sourceID = note.userInfo?["sourceID"] as? UUID,
+                let count = note.userInfo?["unreadCount"] as? Int,
+                let sourceName = note.userInfo?["sourceName"] as? String,
+                let body = note.userInfo?["body"] as? String
+            else { return }
+
+            webUnreadBySourceID[sourceID] = count
+
+            let preview = body.count > 60 ? String(body.prefix(60)) + "…" : body
+            showToast("\(sourceName): \(preview)")
+        }
+    }
+
+    private func showToast(_ message: String) {
+        toastTask?.cancel()
+        withAnimation(.spring(response: 0.3)) {
+            toastMessage = message
+        }
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                toastMessage = nil
+            }
+        }
     }
 
     // MARK: - Header
@@ -60,6 +140,14 @@ struct ConversationRailView: View {
                 Circle()
                     .fill(ForgeTheme.statusOnline)
                     .frame(width: 8, height: 8)
+
+                Button(action: { onCompose?() ?? onOpenSettings() }) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(ForgeTheme.silver.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+                .help("New conversation")
 
                 Button(action: onOpenSettings) {
                     Image(systemName: "gearshape")
@@ -88,7 +176,17 @@ struct ConversationRailView: View {
                         SourcePillButton(
                             source: source,
                             isSelected: selectedSourceID == source.id,
-                            onTap: { selectedSourceID = source.id }
+                            webUnreadCount: webUnreadBySourceID[source.id],
+                            onTap: {
+                                selectedSourceID = source.id
+                                if source.type != .communicator {
+                                    NotificationCenter.default.post(
+                                        name: .forgeOpenWorkspaceSource,
+                                        object: nil,
+                                        userInfo: ["sourceID": source.id]
+                                    )
+                                }
+                            }
                         )
                     }
 
@@ -141,54 +239,154 @@ struct ConversationRailView: View {
 
     // MARK: - Conversation List
 
-    private var conversationList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                if !unreadConversations.isEmpty {
-                    Section {
-                        ForEach(unreadConversations) { conversation in
-                            RailConversationRow(
-                                conversation: conversation,
-                                isSelected: store.selectedConversationID == conversation.channelID,
-                                onTap: { onOpenConversation(conversation) }
-                            )
-                        }
-                    } header: {
-                        railSectionHeader("Unread")
-                    }
-                }
-
-                if !readConversations.isEmpty {
-                    Section {
-                        ForEach(readConversations) { conversation in
-                            RailConversationRow(
-                                conversation: conversation,
-                                isSelected: store.selectedConversationID == conversation.channelID,
-                                onTap: { onOpenConversation(conversation) }
-                            )
-                        }
-                    } header: {
-                        if !unreadConversations.isEmpty {
-                            railSectionHeader("All")
-                        }
-                    }
-                }
-
-                if filteredConversations.isEmpty {
-                    Text(searchText.isEmpty ? "No conversations" : "No results")
-                        .font(.system(size: 11))
-                        .foregroundColor(ForgeTheme.silver.opacity(0.4))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                }
-            }
-        }
-        .frame(maxHeight: .infinity)
-        .background(ForgeTheme.dark900)
+    private var selectedSourceIsNonCommunicator: Bool {
+        guard let id = selectedSourceID else { return false }
+        return accountStore.accounts.first(where: { $0.id == id })?.type != .communicator
     }
 
-    private func railSectionHeader(_ title: String) -> some View {
-        HStack {
+    private var conversationList: some View {
+        Group {
+            // Bug 6: non-communicator sources don't have a conversation API
+            if selectedSourceIsNonCommunicator {
+                VStack(spacing: 16) {
+                    Image(systemName: "safari")
+                        .font(.system(size: 32))
+                        .foregroundColor(ForgeTheme.silver.opacity(0.4))
+                    Text("This app opens in the full workspace")
+                        .font(.system(size: 12))
+                        .foregroundColor(ForgeTheme.silver.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                    Button("Open in Workspace") {
+                        if let id = selectedSourceID {
+                            NotificationCenter.default.post(
+                                name: .forgeOpenWorkspaceSource,
+                                object: nil,
+                                userInfo: ["sourceID": id]
+                            )
+                        } else {
+                            onOpenSettings()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(ForgeTheme.primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(20)
+            } else if store.isLoading && store.conversations.isEmpty {
+                // Bug 2: shimmer loading state
+                VStack(spacing: 0) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(ForgeTheme.dark700)
+                                .opacity(shimmerPhase ? 0.6 : 0.3)
+                                .frame(width: 34, height: 34)
+                            VStack(alignment: .leading, spacing: 6) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(ForgeTheme.dark700)
+                                    .opacity(shimmerPhase ? 0.6 : 0.3)
+                                    .frame(width: 90, height: 10)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(ForgeTheme.dark700)
+                                    .opacity(shimmerPhase ? 0.6 : 0.3)
+                                    .frame(width: 140, height: 8)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                    }
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 1.2).repeatForever()) {
+                        shimmerPhase = true
+                    }
+                }
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        // Bug 3: grouped structure
+                        // 1. Unread (non-collapsible)
+                        if !unreadConversations.isEmpty {
+                            Section {
+                                ForEach(unreadConversations) { conversation in
+                                    RailConversationRow(
+                                        conversation: conversation,
+                                        isSelected: store.selectedConversationID == conversation.channelID,
+                                        onTap: { onOpenConversation(conversation) }
+                                    )
+                                }
+                            } header: {
+                                railSectionHeader("Unread", collapsible: false, groupKey: "unread")
+                            }
+                        }
+
+                        // 2. Channels grouped by workspace
+                        let channelGroups = groupedByWorkspace(channelConversations)
+                        ForEach(channelGroups, id: \.0) { (workspace, convos) in
+                            let key = "channel-\(workspace)"
+                            let collapsed = collapsedGroups.contains(key)
+                            Section {
+                                if !collapsed {
+                                    ForEach(convos) { conversation in
+                                        RailConversationRow(
+                                            conversation: conversation,
+                                            isSelected: store.selectedConversationID == conversation.channelID,
+                                            onTap: { onOpenConversation(conversation) }
+                                        )
+                                    }
+                                }
+                            } header: {
+                                railSectionHeader("# \(workspace)", collapsible: true, groupKey: key)
+                            }
+                        }
+
+                        // 3. Direct Messages grouped by workspace
+                        let dmGroups = groupedByWorkspace(dmConversations)
+                        ForEach(dmGroups, id: \.0) { (workspace, convos) in
+                            let key = "dm-\(workspace)"
+                            let collapsed = collapsedGroups.contains(key)
+                            Section {
+                                if !collapsed {
+                                    ForEach(convos) { conversation in
+                                        RailConversationRow(
+                                            conversation: conversation,
+                                            isSelected: store.selectedConversationID == conversation.channelID,
+                                            onTap: { onOpenConversation(conversation) }
+                                        )
+                                    }
+                                }
+                            } header: {
+                                railSectionHeader("@ \(workspace)", collapsible: true, groupKey: key)
+                            }
+                        }
+
+                        if filteredConversations.isEmpty {
+                            Text(searchText.isEmpty ? "No conversations" : "No results")
+                                .font(.system(size: 11))
+                                .foregroundColor(ForgeTheme.silver.opacity(0.4))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                        }
+                    }
+                }
+                .frame(maxHeight: .infinity)
+                .background(ForgeTheme.dark900)
+            }
+        }
+    }
+
+    private func railSectionHeader(_ title: String, collapsible: Bool, groupKey: String) -> some View {
+        let collapsed = collapsedGroups.contains(groupKey)
+        return HStack(spacing: 4) {
+            if collapsible {
+                Image(systemName: collapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundColor(ForgeTheme.silver.opacity(0.45))
+            }
             Text(title.uppercased())
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundColor(ForgeTheme.silver.opacity(0.45))
@@ -198,6 +396,16 @@ struct ConversationRailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(ForgeTheme.dark900)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if collapsible {
+                if collapsedGroups.contains(groupKey) {
+                    collapsedGroups.remove(groupKey)
+                } else {
+                    collapsedGroups.insert(groupKey)
+                }
+            }
+        }
     }
 
     // MARK: - User Footer
@@ -250,30 +458,50 @@ struct ConversationRailView: View {
 private struct SourcePillButton: View {
     let source: Source
     let isSelected: Bool
+    var webUnreadCount: Int? = nil
     let onTap: () -> Void
+
+    private var accentColor: Color {
+        switch source.type {
+        case .communicator: return ForgeTheme.primary
+        case .whatsapp:     return ForgeTheme.green
+        case .signal:       return ForgeTheme.primary
+        case .telegram:     return Color(hex: "#29B6F6")
+        }
+    }
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 4) {
-                Image(systemName: iconName(for: source.type))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? ForgeTheme.dark950 : ForgeTheme.silver.opacity(0.7))
+            ZStack(alignment: .topTrailing) {
+                HStack(spacing: 4) {
+                    Image(systemName: iconName(for: source.type))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(isSelected ? .white : ForgeTheme.silver.opacity(0.7))
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(isSelected ? accentColor : ForgeTheme.dark700.opacity(0.5))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
+                            isSelected ? accentColor.opacity(0.4) : ForgeTheme.glassBorder,
+                            lineWidth: 1
+                        )
+                )
+
+                // Unread badge for web sources (WA/Telegram)
+                if let count = webUnreadCount, count > 0 {
+                    Text(count > 99 ? "99+" : "\(count)")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 14, minHeight: 14)
+                        .background(ForgeTheme.coral)
+                        .clipShape(Capsule())
+                        .offset(x: 4, y: -4)
+                }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 28)
-            .background(
-                isSelected
-                    ? ForgeTheme.primary
-                    : ForgeTheme.dark700.opacity(0.5)
-            )
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .strokeBorder(
-                        isSelected ? ForgeTheme.primary.opacity(0.4) : ForgeTheme.glassBorder,
-                        lineWidth: 1
-                    )
-            )
         }
         .buttonStyle(.plain)
         .help(source.displayName)

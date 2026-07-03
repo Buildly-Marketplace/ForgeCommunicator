@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - FloatingChatWindowView
 
@@ -8,6 +9,8 @@ struct FloatingChatWindowView: View {
 
     @State private var draft = ""
     @State private var isLoadingMessages = false
+    @State private var localMessages: [CommunicatorMessage] = []
+    @State private var showCallPicker = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,10 +21,10 @@ struct FloatingChatWindowView: View {
         .background(ForgeTheme.dark900)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            if store.messages.isEmpty {
-                Task { await loadMessages() }
+            Task {
+                localMessages = (try? await store.loadMessages(for: conversation.channelID)) ?? []
+                try? await store.markRead(for: conversation.channelID)
             }
-            Task { try? await markRead() }
         }
     }
 
@@ -30,7 +33,14 @@ struct FloatingChatWindowView: View {
     private var titleBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                conversationAvatar(size: 28)
+                ZStack(alignment: .topTrailing) {
+                    conversationAvatar(size: 28)
+
+                    if liveUnreadCount > 0 {
+                        unreadBadge(count: liveUnreadCount)
+                            .offset(x: 6, y: -6)
+                    }
+                }
 
                 Text(conversation.name)
                     .font(.system(size: 13, weight: .semibold))
@@ -43,10 +53,7 @@ struct FloatingChatWindowView: View {
 
                 Spacer()
 
-                if conversation.unreadCount > 0 {
-                    unreadBadge(count: conversation.unreadCount)
-                }
-
+                videoCallButton
                 markReadButton
             }
             .padding(.horizontal, 12)
@@ -70,22 +77,82 @@ struct FloatingChatWindowView: View {
     }
 
     private func unreadBadge(count: Int) -> some View {
-        Text("\(min(count, 99))")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(ForgeTheme.dark950)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(ForgeTheme.primary)
+        Text(count > 99 ? "99+" : "\(count)")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .frame(minWidth: 16, minHeight: 16)
+            .background(ForgeTheme.coral)
             .clipShape(Capsule())
+    }
+
+    // MARK: - Video call
+
+    private var videoCallButton: some View {
+        Button {
+            showCallPicker = true
+        } label: {
+            Image(systemName: "video")
+                .font(.system(size: 14))
+                .foregroundStyle(ForgeTheme.silver.opacity(0.6))
+        }
+        .buttonStyle(.plain)
+        .help("Start video call")
+        .popover(isPresented: $showCallPicker, arrowEdge: .bottom) {
+            CallPickerView(
+                conversation: conversation,
+                onStartJitsi: { startJitsiCall() },
+                onStartFaceTime: conversation.isDM ? { startFaceTimeCall() } : nil
+            )
+        }
+    }
+
+    private func jitsiRoomName() -> String {
+        // Stable, collision-resistant room name tied to this specific channel.
+        // Prefix with "Forge" so it's recognisable in the Jitsi UI.
+        "Forge-\(conversation.workspaceID)-\(conversation.channelID)"
+    }
+
+    private func jitsiURL() -> URL {
+        URL(string: "https://meet.jit.si/\(jitsiRoomName())")!
+    }
+
+    private func startJitsiCall() {
+        showCallPicker = false
+        let url = jitsiURL()
+        let linkText = "📹 Join video call: \(url.absoluteString)"
+        // Send the link as a message so the other person can join.
+        Task {
+            try? await store.sendMessage(to: conversation.channelID, body: linkText)
+            localMessages = (try? await store.loadMessages(for: conversation.channelID)) ?? localMessages
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func startFaceTimeCall() {
+        showCallPicker = false
+        // Use conversation.name as the FaceTime address — works when it's an email.
+        // For display-name DMs the user will see FaceTime's own contact lookup.
+        let address = conversation.name
+            .trimmingCharacters(in: .whitespaces)
+            .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        if let url = URL(string: "facetime://\(address)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    // Live unread count from the store (updates as polling runs)
+    private var liveUnreadCount: Int {
+        store.conversations.first(where: { $0.channelID == conversation.channelID })?.unreadCount ?? 0
     }
 
     private var markReadButton: some View {
         Button {
-            Task { try? await markRead() }
+            Task { try? await store.markRead(for: conversation.channelID) }
         } label: {
-            Image(systemName: "checkmark.circle")
+            Image(systemName: liveUnreadCount > 0 ? "checkmark.circle.fill" : "checkmark.circle")
                 .font(.system(size: 14))
-                .foregroundStyle(ForgeTheme.silver.opacity(0.5))
+                .foregroundStyle(liveUnreadCount > 0 ? ForgeTheme.primary : ForgeTheme.silver.opacity(0.4))
         }
         .buttonStyle(.plain)
         .help("Mark as read")
@@ -96,11 +163,11 @@ struct FloatingChatWindowView: View {
     private var messagesArea: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if store.messages.isEmpty {
+                if localMessages.isEmpty {
                     emptyState
                 } else {
                     LazyVStack(spacing: 2) {
-                        ForEach(store.messages) { message in
+                        ForEach(localMessages) { message in
                             IMMessageRow(
                                 message: message,
                                 currentUserDisplayName: store.currentUserDisplayName
@@ -120,7 +187,7 @@ struct FloatingChatWindowView: View {
             .onAppear {
                 scrollToBottom(proxy: proxy, animated: false)
             }
-            .onChange(of: store.messages.count) { _ in
+            .onChange(of: localMessages.count) { _ in
                 scrollToBottom(proxy: proxy, animated: true)
             }
         }
@@ -207,21 +274,10 @@ struct FloatingChatWindowView: View {
         guard !body.isEmpty else { return }
 
         draft = ""
-        store.draft = body
-
         Task {
-            await store.sendDraftMessage()
+            try? await store.sendMessage(to: conversation.channelID, body: body)
+            localMessages = (try? await store.loadMessages(for: conversation.channelID)) ?? localMessages
         }
-    }
-
-    private func loadMessages() async {
-        isLoadingMessages = true
-        defer { isLoadingMessages = false }
-        await store.loadMessages()
-    }
-
-    private func markRead() async throws {
-        try await store.markRead()
     }
 
     // MARK: - Helpers

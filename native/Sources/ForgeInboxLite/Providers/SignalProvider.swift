@@ -18,7 +18,7 @@ private struct SignalLaunchView: View {
     let source: Source
 
     private let signalDesktopPath = "/Applications/Signal.app"
-    private let signalWebURL = URL(string: "https://app.signal.org")!
+    private let signalWebURL = URL(string: "https://www.signal.org")!
 
     private var signalDesktopInstalled: Bool {
         FileManager.default.fileExists(atPath: signalDesktopPath)
@@ -36,7 +36,7 @@ private struct SignalLaunchView: View {
                     .font(.title2.bold())
                     .foregroundStyle(.white)
 
-                Text("Signal's web app requires browser APIs (WebRTC, SharedArrayBuffer) that aren't available inside an embedded web view. Use Signal Desktop or open it in your browser.")
+                Text("Signal requires a native desktop app — there's no usable web client. Launch Signal Desktop if installed, or download it from signal.org.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -55,24 +55,24 @@ private struct SignalLaunchView: View {
                     .controlSize(.large)
 
                     Button {
-                        NSWorkspace.shared.open(signalWebURL)
+                        NSWorkspace.shared.open(URL(string: "https://signal.org/download/")!)
                     } label: {
-                        Label("Open in Safari", systemImage: "safari")
+                        Label("signal.org", systemImage: "safari")
                             .frame(maxWidth: 260)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                 } else {
                     Button {
-                        NSWorkspace.shared.open(signalWebURL)
+                        NSWorkspace.shared.open(URL(string: "https://signal.org/download/")!)
                     } label: {
-                        Label("Open in Safari", systemImage: "safari")
+                        Label("Download Signal Desktop", systemImage: "arrow.down.circle")
                             .frame(maxWidth: 260)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
 
-                    Link("Download Signal Desktop", destination: URL(string: "https://signal.org/download/")!)
+                    Link("Learn more at signal.org", destination: URL(string: "https://www.signal.org")!)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

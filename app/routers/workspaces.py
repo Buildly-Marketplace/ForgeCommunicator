@@ -86,8 +86,8 @@ async def list_workspaces(
             visited_ids.add(cm.channel_id)
 
         # Count unread messages across all channels in this workspace.
-        # Never-visited channels count all messages from others as unread.
-        # Visited-but-empty channels (last_read_message_id is None) count as 0.
+        # Channels with no read cursor (never visited, or membership with
+        # last_read_message_id=None) count all messages from others as unread.
         total_unread = 0
         for ch_id in channel_ids:
             if ch_id not in visited_ids:
@@ -97,25 +97,25 @@ async def list_workspaces(
                         Message.channel_id == ch_id,
                         Message.deleted_at == None,
                         Message.parent_id == None,
-                        Message.user_id != user.id,
+                        Message.user_id.is_distinct_from(user.id),
                     )
                 )
                 total_unread += count_result.scalar() or 0
             else:
                 last_read_id = user_memberships[ch_id]
+                # last_read_id None = never read anything → count all from others
+                unread_filters = [
+                    Message.channel_id == ch_id,
+                    Message.deleted_at == None,
+                    Message.parent_id == None,
+                    Message.user_id.is_distinct_from(user.id),
+                ]
                 if last_read_id is not None:
-                    count_result = await db.execute(
-                        select(sqlfunc.count(Message.id))
-                        .where(
-                            Message.channel_id == ch_id,
-                            Message.deleted_at == None,
-                            Message.parent_id == None,
-                            Message.id > last_read_id,
-                            Message.user_id != user.id,
-                        )
-                    )
-                    total_unread += count_result.scalar() or 0
-                # else: visited empty channel → 0 unread
+                    unread_filters.append(Message.id > last_read_id)
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id)).where(*unread_filters)
+                )
+                total_unread += count_result.scalar() or 0
 
         workspace_unread_counts[ws.id] = total_unread
     
@@ -207,25 +207,25 @@ async def get_total_unread_count(
                     Message.channel_id == ch_id,
                     Message.deleted_at == None,
                     Message.parent_id == None,
-                    Message.user_id != user.id,
+                    Message.user_id.is_distinct_from(user.id),
                 )
             )
             total_unread += count_result.scalar() or 0
         else:
             last_read_id = user_memberships[ch_id]
+            # last_read_id None = never read anything → count all from others
+            unread_filters = [
+                Message.channel_id == ch_id,
+                Message.deleted_at == None,
+                Message.parent_id == None,
+                Message.user_id.is_distinct_from(user.id),
+            ]
             if last_read_id is not None:
-                count_result = await db.execute(
-                    select(sqlfunc.count(Message.id))
-                    .where(
-                        Message.channel_id == ch_id,
-                        Message.deleted_at == None,
-                        Message.parent_id == None,
-                        Message.id > last_read_id,
-                        Message.user_id != user.id,
-                    )
-                )
-                total_unread += count_result.scalar() or 0
-            # else: visited empty channel → 0 unread
+                unread_filters.append(Message.id > last_read_id)
+            count_result = await db.execute(
+                select(sqlfunc.count(Message.id)).where(*unread_filters)
+            )
+            total_unread += count_result.scalar() or 0
 
     return JSONResponse({"unread_count": total_unread})
 

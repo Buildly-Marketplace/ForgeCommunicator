@@ -1,6 +1,12 @@
 import SwiftUI
 import WebKit
 
+extension Notification.Name {
+    /// Posted by WebTitleNotificationTracker when a WKWebView source gains unread messages.
+    /// userInfo keys: "sourceID" (UUID), "sourceName" (String), "unreadCount" (Int), "body" (String)
+    static let forgeWebSourceUnread = Notification.Name("forge.webSourceUnread")
+}
+
 final class WebSessionManager {
     private var webViews: [UUID: WKWebView] = [:]
     private var delegates: [UUID: SessionNavigationDelegate] = [:]
@@ -267,7 +273,22 @@ private final class WebTitleNotificationTracker {
         let unread = unreadCount(from: title)
 
         if unread == 0 {
-            lastUnreadCount = 0
+            // If we previously had unread messages, post a clear so the rail badge resets.
+            if lastUnreadCount > 0 {
+                lastUnreadCount = 0
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: .forgeWebSourceUnread,
+                        object: nil,
+                        userInfo: [
+                            "sourceID": self.source.id,
+                            "sourceName": self.source.displayName,
+                            "unreadCount": 0,
+                            "body": ""
+                        ]
+                    )
+                }
+            }
             return
         }
 
@@ -296,6 +317,20 @@ private final class WebTitleNotificationTracker {
             body: body,
             dedupeHint: "title:\(unread):\(body)"
         )
+
+        DispatchQueue.main.async {
+            MessageSoundPlayer.shared.play()
+            NotificationCenter.default.post(
+                name: .forgeWebSourceUnread,
+                object: nil,
+                userInfo: [
+                    "sourceID": self.source.id,
+                    "sourceName": sourceLabel,
+                    "unreadCount": unread,
+                    "body": body
+                ]
+            )
+        }
     }
 
     private func unreadCount(from title: String) -> Int {

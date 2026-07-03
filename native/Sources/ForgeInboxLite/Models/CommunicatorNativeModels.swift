@@ -71,7 +71,7 @@ struct CommunicatorConversation: Codable, Identifiable, Equatable {
     let workspaceName: String
     let name: String
     let isDM: Bool
-    let unreadCount: Int
+    var unreadCount: Int
     let bridgedPlatform: String?
     let lastMessage: CommunicatorConversationMessage?
     let members: [CommunicatorUserProfile]

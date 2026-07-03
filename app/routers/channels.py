@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import and_, or_, select
+from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUser, DBSession
@@ -150,33 +151,22 @@ async def list_channels(
                     unread_channels[ch_id] = 0
                     continue
 
-                if ch_id not in visited_set:
-                    count_result = await db.execute(
-                        select(sqlfunc.count(Message.id))
-                        .where(
-                            Message.channel_id == ch_id,
-                            Message.deleted_at == None,
-                            Message.parent_id == None,
-                            Message.user_id != user.id,
-                        )
-                    )
-                    unread_channels[ch_id] = count_result.scalar() or 0
-                else:
-                    last_read_id = visited[ch_id]
-                    if last_read_id is None:
-                        unread_channels[ch_id] = 0
-                    else:
-                        count_result = await db.execute(
-                            select(sqlfunc.count(Message.id))
-                            .where(
-                                Message.channel_id == ch_id,
-                                Message.deleted_at == None,
-                                Message.parent_id == None,
-                                Message.id > last_read_id,
-                                Message.user_id != user.id,
-                            )
-                        )
-                        unread_channels[ch_id] = count_result.scalar() or 0
+                # A membership with last_read_message_id=None means "never read
+                # anything here" — same as no membership: count all messages
+                # from others. This matches the mobile API semantics.
+                last_read_id = visited.get(ch_id)
+                unread_filters = [
+                    Message.channel_id == ch_id,
+                    Message.deleted_at == None,
+                    Message.parent_id == None,
+                    Message.user_id.is_distinct_from(user.id),
+                ]
+                if last_read_id is not None:
+                    unread_filters.append(Message.id > last_read_id)
+                count_result = await db.execute(
+                    select(sqlfunc.count(Message.id)).where(*unread_filters)
+                )
+                unread_channels[ch_id] = count_result.scalar() or 0
 
         return templates.TemplateResponse(
             "partials/channel_sidebar.html",
@@ -403,7 +393,16 @@ async def channel_view(
     # Update last read message for this channel.
     # Always upsert the membership read-pointer so even an empty-channel visit
     # establishes a baseline and future messages don't pile up as unread.
-    last_message_id = messages[-1].id if messages else None
+    # Use the channel-wide max message id (including thread replies) so clients
+    # that count replies toward unread (mobile) also see the channel as read.
+    from sqlalchemy import func as sqlfunc
+    last_id_result = await db.execute(
+        select(sqlfunc.max(Message.id)).where(
+            Message.channel_id == channel_id,
+            Message.deleted_at == None,
+        )
+    )
+    last_message_id = last_id_result.scalar_one_or_none()
     result = await db.execute(
         select(ChannelMembership).where(
             ChannelMembership.channel_id == channel_id,
@@ -442,45 +441,26 @@ async def channel_view(
     from sqlalchemy import func as sqlfunc
 
     # Build unread counts - count messages newer than last_read_message_id.
-    # Three cases:
-    #   1. last_read_message_id set → count messages after that ID
-    #   2. Membership row exists but last_read_message_id is None (visited empty channel) → 0 unread
-    #   3. No membership row (never visited) → count all messages from others
+    # last_read_message_id=None (or no membership row) means "never read
+    # anything here": count all messages from others. Matches mobile API.
     unread_channels = {}
     channel_ids = [ch.id for ch in channels]
 
     if channel_ids:
         for ch_id in channel_ids:
-            if ch_id not in visited_channel_ids:
-                # Never visited — count all messages from others
-                count_result = await db.execute(
-                    select(sqlfunc.count(Message.id))
-                    .where(
-                        Message.channel_id == ch_id,
-                        Message.deleted_at == None,
-                        Message.parent_id == None,
-                        Message.user_id != user.id,
-                    )
-                )
-                unread_channels[ch_id] = count_result.scalar() or 0
-            else:
-                last_read_id = user_channel_memberships[ch_id]
-                if last_read_id is None:
-                    # Visited but was empty — nothing is unread
-                    unread_channels[ch_id] = 0
-                else:
-                    # Count messages after the last read pointer
-                    count_result = await db.execute(
-                        select(sqlfunc.count(Message.id))
-                        .where(
-                            Message.channel_id == ch_id,
-                            Message.deleted_at == None,
-                            Message.parent_id == None,
-                            Message.id > last_read_id,
-                            Message.user_id != user.id,
-                        )
-                    )
-                    unread_channels[ch_id] = count_result.scalar() or 0
+            last_read_id = user_channel_memberships.get(ch_id)
+            unread_filters = [
+                Message.channel_id == ch_id,
+                Message.deleted_at == None,
+                Message.parent_id == None,
+                Message.user_id.is_distinct_from(user.id),
+            ]
+            if last_read_id is not None:
+                unread_filters.append(Message.id > last_read_id)
+            count_result = await db.execute(
+                select(sqlfunc.count(Message.id)).where(*unread_filters)
+            )
+            unread_channels[ch_id] = count_result.scalar() or 0
     
     # Calculate unread thread reply counts for messages in this channel
     unread_thread_counts = {}
@@ -507,7 +487,7 @@ async def channel_view(
                     .where(
                         Message.parent_id == msg.id,
                         Message.deleted_at == None,
-                        Message.user_id != user.id,  # Don't count own replies as unread
+                        Message.user_id.is_distinct_from(user.id),  # Don't count own replies as unread
                     )
                 )
                 unread_thread_counts[msg.id] = count_result.scalar() or 0
@@ -519,7 +499,7 @@ async def channel_view(
                         Message.parent_id == msg.id,
                         Message.deleted_at == None,
                         Message.id > last_read_id,
-                        Message.user_id != user.id,  # Don't count own replies as unread
+                        Message.user_id.is_distinct_from(user.id),  # Don't count own replies as unread
                     )
                 )
                 unread_thread_counts[msg.id] = count_result.scalar() or 0
@@ -666,9 +646,18 @@ async def join_channel(
         )
     )
     if not result.scalar_one_or_none():
+        # Initialize the read cursor to the latest message so pre-join
+        # history doesn't show up as unread.
+        latest_result = await db.execute(
+            select(sqlfunc.max(Message.id)).where(
+                Message.channel_id == channel_id,
+                Message.deleted_at == None,
+            )
+        )
         channel_membership = ChannelMembership(
             channel_id=channel_id,
             user_id=user.id,
+            last_read_message_id=latest_result.scalar_one_or_none(),
         )
         db.add(channel_membership)
         await db.commit()

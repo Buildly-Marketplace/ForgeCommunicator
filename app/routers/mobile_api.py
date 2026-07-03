@@ -570,8 +570,9 @@ async def list_channels(workspace_id: int, user: MobileUser, db: DBSession):
         if cm is not None:
             unread_filters = [
                 Message.channel_id == ch.id,
-                Message.user_id != user.id,
+                Message.user_id.is_distinct_from(user.id),
                 Message.deleted_at == None,
+                Message.parent_id == None,  # top-level only, matches web sidebar
             ]
             if cm.last_read_message_id is not None:
                 unread_filters.append(Message.id > cm.last_read_message_id)
@@ -683,8 +684,9 @@ async def list_conversations(
         if cm is not None:
             unread_filters = [
                 Message.channel_id == ch.id,
-                Message.user_id != user.id,
+                Message.user_id.is_distinct_from(user.id),
                 Message.deleted_at == None,
+                Message.parent_id == None,  # top-level only, matches web sidebar
             ]
             if cm.last_read_message_id is not None:
                 unread_filters.append(Message.id > cm.last_read_message_id)
@@ -1023,18 +1025,29 @@ async def mark_channel_read(
         )
     )
     cm = result.scalar_one_or_none()
+    # Get latest message ID (including thread replies)
+    latest = await db.execute(
+        select(Message.id)
+        .where(Message.channel_id == channel_id, Message.deleted_at == None)
+        .order_by(Message.id.desc())
+        .limit(1)
+    )
+    latest_id = latest.scalar_one_or_none()
+    if latest_id is None:
+        return
     if cm:
-        # Get latest message ID
-        latest = await db.execute(
-            select(Message.id)
-            .where(Message.channel_id == channel_id, Message.deleted_at == None)
-            .order_by(Message.id.desc())
-            .limit(1)
-        )
-        latest_id = latest.scalar_one_or_none()
-        if latest_id:
+        if (cm.last_read_message_id or 0) < latest_id:
             cm.last_read_message_id = latest_id
             await db.commit()
+    else:
+        # No membership row yet (e.g. public channel the user only reads) —
+        # create one so the read cursor persists and badges actually clear.
+        db.add(ChannelMembership(
+            channel_id=channel_id,
+            user_id=user.id,
+            last_read_message_id=latest_id,
+        ))
+        await db.commit()
 
 
 # ---------------------------------------------------------------------------

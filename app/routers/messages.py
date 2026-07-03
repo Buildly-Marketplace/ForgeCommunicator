@@ -828,7 +828,7 @@ async def get_single_message(
                         Message.parent_id == message_id,
                         Message.deleted_at == None,
                         Message.id > thread_read.last_read_reply_id,
-                        Message.user_id != user.id,
+                        Message.user_id.is_distinct_from(user.id),
                     )
                 )
                 unread_count = count_result.scalar() or 0
@@ -840,7 +840,7 @@ async def get_single_message(
                     .where(
                         Message.parent_id == message_id,
                         Message.deleted_at == None,
-                        Message.user_id != user.id,
+                        Message.user_id.is_distinct_from(user.id),
                     )
                 )
                 unread_count = count_result.scalar() or 0
