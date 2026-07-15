@@ -98,6 +98,8 @@ struct ContentView: View {
                         SignalWorkspaceView(account: selected, statusMessage: $signalStatusMessage)
                     case .telegram:
                         TelegramWorkspaceView(account: selected, manager: webSessionManager)
+                    case .irc:
+                        IRCProvider(sessionManager: webSessionManager).makeMainView(for: selected)
                     }
                 } else {
                     VStack(spacing: 12) {
@@ -148,6 +150,8 @@ struct ContentView: View {
             return "dot.radiowaves.left.and.right"
         case .telegram:
             return "paperplane"
+        case .irc:
+            return "number"
         }
     }
 
@@ -161,6 +165,8 @@ struct ContentView: View {
             return ForgeTheme.amber.opacity(0.15)
         case .telegram:
             return Color.cyan.opacity(0.15)
+        case .irc:
+            return ForgeTheme.violet.opacity(0.15)
         }
     }
 
@@ -174,6 +180,8 @@ struct ContentView: View {
             return ForgeTheme.amber
         case .telegram:
             return .cyan
+        case .irc:
+            return ForgeTheme.violet
         }
     }
 

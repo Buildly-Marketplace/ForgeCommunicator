@@ -705,6 +705,15 @@ async def list_conversations(
 
         display_name = ch.display_name if hasattr(ch, "display_name") else ch.name
 
+        # Legacy Slack-synced channels are named "SLACK:<name>" without a
+        # BridgedChannel row — treat them as bridged so clients can group
+        # them into a Slack folder, and strip the prefix for display.
+        bridged_platform = bridge_map.get(ch.id)
+        if bridged_platform is None and ch.name.upper().startswith("SLACK:"):
+            bridged_platform = "slack"
+        if display_name.upper().startswith("SLACK:"):
+            display_name = display_name[6:].strip() or display_name
+
         previews.append(ConversationPreview(
             channel_id=ch.id,
             workspace_id=ch.workspace_id,
@@ -714,7 +723,7 @@ async def list_conversations(
             last_message=last_msg_resp,
             unread_count=unread,
             members=members,
-            bridged_platform=bridge_map.get(ch.id),
+            bridged_platform=bridged_platform,
         ))
 
     # Sort by last message time (most recent first)

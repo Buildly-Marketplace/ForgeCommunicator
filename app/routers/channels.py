@@ -48,9 +48,9 @@ async def get_sidebar_bridge_metadata(channels: list[Channel], db) -> dict:
 
     # Backwards-compatible fallback for older synced channel names.
     for ch in channels:
-        if ch.name.startswith("SLACK:"):
+        if ch.name.upper().startswith("SLACK:"):
             slack_channel_ids.add(ch.id)
-            slack_channel_names.setdefault(ch.id, ch.name[6:])
+            slack_channel_names.setdefault(ch.id, ch.name[6:].strip())
 
     return {
         "slack_channel_ids": slack_channel_ids,

@@ -35,11 +35,31 @@ struct ConversationRailView: View {
     }
 
     private var channelConversations: [CommunicatorConversation] {
-        filteredConversations.filter { !$0.isDM && $0.unreadCount == 0 }
+        filteredConversations.filter { !$0.isDM && $0.unreadCount == 0 && $0.bridgedPlatform == nil }
     }
 
     private var dmConversations: [CommunicatorConversation] {
-        filteredConversations.filter { $0.isDM && $0.unreadCount == 0 }
+        filteredConversations.filter { $0.isDM && $0.unreadCount == 0 && $0.bridgedPlatform == nil }
+    }
+
+    /// Bridged (Slack/Discord) conversations get their own folder, like the web sidebar.
+    private var bridgedConversations: [CommunicatorConversation] {
+        filteredConversations.filter { $0.unreadCount == 0 && $0.bridgedPlatform != nil }
+    }
+
+    private func groupedByPlatform(_ convos: [CommunicatorConversation]) -> [(String, [CommunicatorConversation])] {
+        var result: [(String, [CommunicatorConversation])] = []
+        var seen: [String: Int] = [:]
+        for c in convos {
+            let key = (c.bridgedPlatform ?? "bridged").capitalized
+            if let idx = seen[key] {
+                result[idx].1.append(c)
+            } else {
+                seen[key] = result.count
+                result.append((key, [c]))
+            }
+        }
+        return result
     }
 
     private func groupedByWorkspace(_ convos: [CommunicatorConversation]) -> [(String, [CommunicatorConversation])] {
@@ -364,6 +384,26 @@ struct ConversationRailView: View {
                             }
                         }
 
+                        // 4. Bridged sources (Slack/Discord) each get their own folder
+                        let bridgeGroups = groupedByPlatform(bridgedConversations)
+                        ForEach(bridgeGroups, id: \.0) { (platform, convos) in
+                            let key = "bridge-\(platform)"
+                            let collapsed = collapsedGroups.contains(key)
+                            Section {
+                                if !collapsed {
+                                    ForEach(convos) { conversation in
+                                        RailConversationRow(
+                                            conversation: conversation,
+                                            isSelected: store.selectedConversationID == conversation.channelID,
+                                            onTap: { onOpenConversation(conversation) }
+                                        )
+                                    }
+                                }
+                            } header: {
+                                railSectionHeader("⇄ \(platform)", collapsible: true, groupKey: key)
+                            }
+                        }
+
                         if filteredConversations.isEmpty {
                             Text(searchText.isEmpty ? "No conversations" : "No results")
                                 .font(.system(size: 11))
@@ -467,6 +507,7 @@ private struct SourcePillButton: View {
         case .whatsapp:     return ForgeTheme.green
         case .signal:       return ForgeTheme.primary
         case .telegram:     return Color(hex: "#29B6F6")
+        case .irc:          return ForgeTheme.violet
         }
     }
 
@@ -513,6 +554,7 @@ private struct SourcePillButton: View {
         case .whatsapp:     return "phone.bubble.left.fill"
         case .signal:       return "lock.shield.fill"
         case .telegram:     return "paperplane.fill"
+        case .irc:          return "number"
         }
     }
 }

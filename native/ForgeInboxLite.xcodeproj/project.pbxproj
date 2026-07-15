@@ -21,6 +21,7 @@
 		A1000000000000000000000C /* CommunicatorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* CommunicatorProvider.swift */; };
 		A1000000000000000000000D /* WhatsAppProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001D /* WhatsAppProvider.swift */; };
 		A1000000000000000000000E /* SignalProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001E /* SignalProvider.swift */; };
+		A100000000000000000000E1 /* IRCProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000E2 /* IRCProvider.swift */; };
 		A1000000000000000000000F /* ForgeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001F /* ForgeTheme.swift */; };
 		A100000000000000000000A1 /* ForgeGlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* ForgeGlassSurface.swift */; };
 		A100000000000000000000A3 /* ForgeBackgroundLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A4 /* ForgeBackgroundLayer.swift */; };
@@ -59,6 +60,7 @@
 		A1000000000000000000001C /* CommunicatorProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/CommunicatorProvider.swift; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000001D /* WhatsAppProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/WhatsAppProvider.swift; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000001E /* SignalProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/SignalProvider.swift; sourceTree = SOURCE_ROOT; };
+		A100000000000000000000E2 /* IRCProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/Providers/IRCProvider.swift; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000001F /* ForgeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeTheme.swift; sourceTree = SOURCE_ROOT; };
 		A100000000000000000000A2 /* ForgeGlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeGlassSurface.swift; sourceTree = SOURCE_ROOT; };
 		A100000000000000000000A4 /* ForgeBackgroundLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ForgeInboxLite/UI/ForgeBackgroundLayer.swift; sourceTree = SOURCE_ROOT; };
@@ -161,6 +163,7 @@
 				A1000000000000000000001C /* CommunicatorProvider.swift */,
 				A1000000000000000000001D /* WhatsAppProvider.swift */,
 				A1000000000000000000001E /* SignalProvider.swift */,
+				A100000000000000000000E2 /* IRCProvider.swift */,
 			);
 			path = ForgeInboxLite/Providers;
 			sourceTree = SOURCE_ROOT;
@@ -286,6 +289,7 @@
 				A1000000000000000000000C /* CommunicatorProvider.swift in Sources */,
 				A1000000000000000000000D /* WhatsAppProvider.swift in Sources */,
 				A1000000000000000000000E /* SignalProvider.swift in Sources */,
+				A100000000000000000000E1 /* IRCProvider.swift in Sources */,
 				A1000000000000000000000F /* ForgeTheme.swift in Sources */,
 				A100000000000000000000A1 /* ForgeGlassSurface.swift in Sources */,
 				A100000000000000000000A3 /* ForgeBackgroundLayer.swift in Sources */,

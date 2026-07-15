@@ -112,6 +112,10 @@ struct ForgeCommunicatorShellView: View {
         case .telegram:
             TelegramProviderView(source: source, sessionManager: webSessionManager)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .irc:
+            IRCProvider(sessionManager: webSessionManager)
+                .makeMainView(for: source, onProviderConfigUpdate: nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -214,6 +218,7 @@ struct ForgeCommunicatorShellView: View {
         case .whatsapp:     return "bubble.left"
         case .signal:       return "dot.radiowaves.left.and.right"
         case .telegram:     return "paperplane"
+        case .irc:          return "number"
         }
     }
 
@@ -223,6 +228,7 @@ struct ForgeCommunicatorShellView: View {
         case .whatsapp:     return ForgeTheme.green
         case .signal:       return ForgeTheme.amber
         case .telegram:     return Color(hex: "#29B6F6")
+        case .irc:          return ForgeTheme.violet
         }
     }
 
