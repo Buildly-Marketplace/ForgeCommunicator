@@ -11,6 +11,13 @@ struct FloatingChatWindowView: View {
     @State private var isLoadingMessages = false
     @State private var localMessages: [CommunicatorMessage] = []
     @State private var showCallPicker = false
+    @State private var showProfile = false
+
+    /// For DMs, the other participant (whose profile the avatar opens).
+    private var profilePartner: CommunicatorUserProfile? {
+        guard conversation.isDM else { return nil }
+        return conversation.members.first(where: { $0.id != store.currentUserID })
+    }
 
     // Latest message id for this channel as seen by the 5s poll — used to
     // refresh this window when new messages arrive.
@@ -48,12 +55,27 @@ struct FloatingChatWindowView: View {
     private var titleBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                ZStack(alignment: .topTrailing) {
-                    conversationAvatar(size: 28)
+                Button {
+                    if profilePartner != nil { showProfile = true }
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        conversationAvatar(size: 28)
 
-                    if liveUnreadCount > 0 {
-                        unreadBadge(count: liveUnreadCount)
-                            .offset(x: 6, y: -6)
+                        if liveUnreadCount > 0 {
+                            unreadBadge(count: liveUnreadCount)
+                                .offset(x: 6, y: -6)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(profilePartner != nil ? "View profile" : conversation.name)
+                .popover(isPresented: $showProfile, arrowEdge: .bottom) {
+                    if let partner = profilePartner {
+                        UserProfileView(
+                            store: store,
+                            userID: partner.id,
+                            fallbackName: partner.displayName
+                        )
                     }
                 }
 

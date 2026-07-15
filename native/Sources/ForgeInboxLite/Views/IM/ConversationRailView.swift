@@ -13,6 +13,7 @@ struct ConversationRailView: View {
     @State private var searchText: String = ""
     @State private var shimmerPhase = false
     @State private var collapsedGroups: Set<String> = []
+    @State private var showNewDM = false
 
     // Web source (WA/Telegram) unread tracking
     @State private var webUnreadBySourceID: [UUID: Int] = [:]
@@ -161,13 +162,16 @@ struct ConversationRailView: View {
                     .fill(ForgeTheme.statusOnline)
                     .frame(width: 8, height: 8)
 
-                Button(action: { onCompose?() ?? onOpenSettings() }) {
+                Button(action: { showNewDM = true }) {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 13, weight: .regular))
                         .foregroundColor(ForgeTheme.silver.opacity(0.7))
                 }
                 .buttonStyle(.plain)
-                .help("New conversation")
+                .help("New message")
+                .popover(isPresented: $showNewDM, arrowEdge: .bottom) {
+                    NewDMSheet(store: store, onOpenConversation: onOpenConversation)
+                }
 
                 Button(action: onOpenSettings) {
                     Image(systemName: "gearshape")

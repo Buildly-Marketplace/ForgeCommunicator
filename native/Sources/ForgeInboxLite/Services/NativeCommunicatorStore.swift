@@ -22,6 +22,7 @@ final class NativeCommunicatorStore: ObservableObject {
     @Published var password: String = ""
     @Published var token: String?
     @Published var currentUserDisplayName: String?
+    @Published var currentUserID: Int?
 
     @Published private(set) var conversations: [CommunicatorConversation] = []
     @Published private(set) var groupedConversationKinds: [CommunicatorConversationGroupKind] = []
@@ -77,6 +78,7 @@ final class NativeCommunicatorStore: ObservableObject {
             let auth = try await client.login(email: normalizedEmail, password: normalizedPassword)
             token = auth.token
             currentUserDisplayName = auth.user.displayName
+            currentUserID = auth.user.id
             email = auth.user.email
             password = ""
             persistConfig()
@@ -93,6 +95,7 @@ final class NativeCommunicatorStore: ObservableObject {
         selectedConversationID = nil
         messages = []
         currentUserDisplayName = nil
+        currentUserID = nil
         draft = ""
         pollingTask?.cancel()
         pollingTask = nil
@@ -143,6 +146,7 @@ final class NativeCommunicatorStore: ObservableObject {
             let profile = try await client.fetchMyProfile(token: oauthToken)
             token = oauthToken
             currentUserDisplayName = profile.displayName
+            currentUserID = profile.id
             email = profile.email
             password = ""
             persistConfig()
@@ -158,8 +162,15 @@ final class NativeCommunicatorStore: ObservableObject {
     }
 
     func onAppear() {
-        guard token != nil else { return }
+        guard let token else { return }
         Task {
+            if currentUserID == nil {
+                if let client = try? CommunicatorAPIClient(serverURL: serverURL),
+                   let profile = try? await client.fetchMyProfile(token: token) {
+                    currentUserID = profile.id
+                    currentUserDisplayName = profile.displayName
+                }
+            }
             do {
                 try await refreshAll()
             } catch {
@@ -249,6 +260,42 @@ final class NativeCommunicatorStore: ObservableObject {
         }
         let totalUnread = conversations.reduce(0) { $0 + $1.unreadCount }
         try? await UNUserNotificationCenter.current().setBadgeCount(totalUnread)
+    }
+
+    // MARK: - Members & new DMs
+
+    /// Unique workspaces derived from the conversation list, for the new-DM picker.
+    var knownWorkspaces: [(id: Int, name: String)] {
+        var seen = Set<Int>()
+        var result: [(Int, String)] = []
+        for c in conversations where !seen.contains(c.workspaceID) {
+            seen.insert(c.workspaceID)
+            result.append((c.workspaceID, c.workspaceName.isEmpty ? "Workspace \(c.workspaceID)" : c.workspaceName))
+        }
+        return result.sorted { $0.1.localizedCaseInsensitiveCompare($1.1) == .orderedAscending }
+    }
+
+    func loadMembers(workspaceID: Int) async throws -> [CommunicatorMemberProfile] {
+        guard let token else { return [] }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        let members = try await client.listMembers(token: token, workspaceID: workspaceID)
+        // Exclude self from the pick list.
+        return members.filter { $0.id != currentUserID }
+    }
+
+    /// Create (or find) a DM with the given user and return the conversation for it.
+    func openDM(workspaceID: Int, userID: Int) async throws -> CommunicatorConversation? {
+        guard let token else { return nil }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        let channel = try await client.createDM(token: token, workspaceID: workspaceID, userIDs: [userID])
+        try await refreshAll()
+        return conversations.first(where: { $0.channelID == channel.id })
+    }
+
+    func fetchUserProfile(userID: Int) async throws -> CommunicatorMemberProfile? {
+        guard let token else { return nil }
+        let client = try CommunicatorAPIClient(serverURL: serverURL)
+        return try await client.fetchUser(token: token, userID: userID)
     }
 
     // MARK: - Per-window message loading (Bug 4: isolated per FloatingChatWindowView)

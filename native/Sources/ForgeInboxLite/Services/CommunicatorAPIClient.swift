@@ -165,6 +165,33 @@ struct CommunicatorAPIClient {
         _ = try await performRaw(request)
     }
 
+    func listMembers(token: String, workspaceID: Int) async throws -> [CommunicatorMemberProfile] {
+        var request = URLRequest(url: endpoint("/mobile/v1/workspaces/\(workspaceID)/members"))
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        return try await perform(request, as: [CommunicatorMemberProfile].self)
+    }
+
+    func createDM(token: String, workspaceID: Int, userIDs: [Int]) async throws -> CommunicatorChannelSummary {
+        var components = URLComponents(url: endpoint("/mobile/v1/workspaces/\(workspaceID)/dm"), resolvingAgainstBaseURL: false)
+        components?.queryItems = userIDs.map { URLQueryItem(name: "user_ids", value: String($0)) }
+
+        var request = URLRequest(url: components?.url ?? endpoint("/mobile/v1/workspaces/\(workspaceID)/dm"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        return try await perform(request, as: CommunicatorChannelSummary.self)
+    }
+
+    func fetchUser(token: String, userID: Int) async throws -> CommunicatorMemberProfile {
+        var request = URLRequest(url: endpoint("/mobile/v1/users/\(userID)"))
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        return try await perform(request, as: CommunicatorMemberProfile.self)
+    }
+
     func oauthStart(provider: String) async throws -> CommunicatorOAuthStartResponse {
         var request = URLRequest(url: endpoint("/mobile/v1/auth/oauth/\(provider)/start"))
         request.httpMethod = "GET"
