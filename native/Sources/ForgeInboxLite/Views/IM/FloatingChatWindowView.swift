@@ -12,6 +12,12 @@ struct FloatingChatWindowView: View {
     @State private var localMessages: [CommunicatorMessage] = []
     @State private var showCallPicker = false
 
+    // Latest message id for this channel as seen by the 5s poll — used to
+    // refresh this window when new messages arrive.
+    private var liveLastMessageID: Int {
+        store.conversations.first(where: { $0.channelID == conversation.channelID })?.lastMessage?.id ?? 0
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             titleBar
@@ -23,6 +29,15 @@ struct FloatingChatWindowView: View {
         .onAppear {
             Task {
                 localMessages = (try? await store.loadMessages(for: conversation.channelID)) ?? []
+                try? await store.markRead(for: conversation.channelID)
+            }
+        }
+        .onChange(of: liveLastMessageID) { newID in
+            // A new message arrived for this conversation — pull it into this
+            // window and mark read since the window is open.
+            guard newID > (localMessages.last?.id ?? 0) else { return }
+            Task {
+                localMessages = (try? await store.loadMessages(for: conversation.channelID)) ?? localMessages
                 try? await store.markRead(for: conversation.channelID)
             }
         }
@@ -235,15 +250,7 @@ struct FloatingChatWindowView: View {
                             .allowsHitTesting(false)
                     }
 
-                    TextEditor(text: $draft)
-                        .font(.system(size: 13))
-                        .foregroundStyle(ForgeTheme.silver)
-                        .scrollContentBackground(.hidden)
-                        .background(.clear)
-                        .frame(minHeight: 20, maxHeight: 88)
-                        .onSubmit {
-                            sendMessage()
-                        }
+                    composerEditor
                 }
 
                 Button(action: sendMessage) {
@@ -263,8 +270,37 @@ struct FloatingChatWindowView: View {
                 .keyboardShortcut(.return, modifiers: .command)
             }
             .padding(10)
+
+            Text("Return to send  ·  ⇧ Return for a new line")
+                .font(.system(size: 9))
+                .foregroundStyle(ForgeTheme.silver.opacity(0.35))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 6)
         }
         .background(ForgeTheme.dark950)
+    }
+
+    @ViewBuilder
+    private var composerEditor: some View {
+        let editor = TextEditor(text: $draft)
+            .font(.system(size: 13))
+            .foregroundStyle(ForgeTheme.silver)
+            .scrollContentBackground(.hidden)
+            .background(.clear)
+            .frame(minHeight: 20, maxHeight: 88)
+
+        if #available(macOS 14.0, *) {
+            editor.onKeyPress(keys: [.return], phases: .down) { press in
+                // Shift+Return inserts a newline; plain Return sends.
+                if press.modifiers.contains(.shift) { return .ignored }
+                sendMessage()
+                return .handled
+            }
+        } else {
+            // macOS 13: no onKeyPress — ⌘Return still sends via the button shortcut.
+            editor
+        }
     }
 
     // MARK: - Actions

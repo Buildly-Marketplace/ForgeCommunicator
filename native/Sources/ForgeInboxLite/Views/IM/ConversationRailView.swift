@@ -538,8 +538,8 @@ private struct RailConversationRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(conversation.name)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(ForgeTheme.white)
+                    .font(.system(size: 12, weight: conversation.unreadCount > 0 ? .bold : .medium))
+                    .foregroundColor(conversation.unreadCount > 0 ? .white : ForgeTheme.silver.opacity(0.85))
                     .lineLimit(1)
 
                 if let preview = conversation.lastMessage?.body, !preview.isEmpty {

@@ -181,13 +181,10 @@ final class NativeCommunicatorStore: ObservableObject {
         let totalUnread = nextConversations.reduce(0) { $0 + $1.unreadCount }
         try? await UNUserNotificationCenter.current().setBadgeCount(totalUnread)
 
-        if selectedConversationID == nil {
-            selectedConversationID = nextConversations.first?.channelID
-        }
-
-        if let conversation = selectedConversation {
-            try await loadMessages(for: conversation)
-        }
+        // Do NOT auto-select or auto-load messages here: the private
+        // loadMessages(for:) marks the conversation read on the server,
+        // which silently wiped unread state for the first conversation on
+        // every poll. Floating windows load and mark read explicitly.
     }
 
     func selectConversation(_ conversation: CommunicatorConversation) {
