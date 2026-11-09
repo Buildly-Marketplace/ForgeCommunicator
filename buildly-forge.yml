@@ -1,0 +1,132 @@
+slug: forgecommunicator
+name: ForgeCommunicator
+version: 1.0.0
+summary: >
+  AI-native team communication that turns conversations into software. Part Slack,
+  part AOL IM — open source, self-hosted, with AI summarization and task generation.
+description: |
+  ForgeCommunicator is a modern real-time team messaging platform built with FastAPI,
+  HTMX, and WebSockets. Features Slack-like channels, message threading, multi-workspace
+  support, white-label branding, dark mode, and deep Buildly Labs integration.
+  You own the data, you control the features and integrations.
+  An Apple Universal App is coming to the App Store soon.
+
+license: BSL-1.1
+repo_url: https://github.com/buildly-marketplace/ForgeCommunicator
+repo_owner: buildly-marketplace
+repo_name: ForgeCommunicator
+
+price: "$49.99"
+
+categories:
+  - productivity
+  - development
+  - communications
+  - ai-tools
+
+targets:
+  - docker
+  - python
+
+key_benefits:
+  - "Real-time messaging with WebSocket support — no polling, no lag"
+  - "AI summarization and task generation from conversation threads"
+  - "Full white-label branding — custom colors, logos, and themes per workspace"
+  - "Multi-workspace architecture — users belong to multiple workspaces"
+  - "Open source and self-hosted — you own every message and every byte"
+
+use_cases:
+  - "Teams replacing Slack with a self-hosted, privacy-first alternative"
+  - "Agencies deploying white-labeled communication tools for clients"
+  - "Developers building on top of an extensible messaging foundation"
+  - "Enterprises needing on-premise or private-cloud messaging"
+
+tech_stack:
+  - FastAPI
+  - HTMX
+  - WebSockets
+  - PostgreSQL
+  - Redis
+  - Python
+  - Docker
+
+company_sizes:
+  - startup
+  - smb
+  - enterprise
+
+target_industries:
+  - software
+  - consulting
+  - enterprise
+  - agency
+
+ai_workflows:
+  - name: Thread Summarizer
+    description: >
+      AI reads active threads and generates concise summaries so latecomers
+      can catch up without scrolling through hundreds of messages.
+    models:
+      - GPT-4
+      - Ollama (local)
+  - name: Task Generator
+    description: >
+      Detects action items in conversations and automatically creates tasks
+      in Buildly Labs with assignees and due dates.
+    models:
+      - GPT-4
+      - Ollama (local)
+  - name: Conversation Intelligence
+    description: >
+      Surfaces insights, recurring topics, and decision points across channels
+      to help team leads stay informed without micromanaging.
+    models:
+      - GPT-4
+
+buildly_integrations:
+  - service: Buildly Labs
+    description: Sync products and artifacts directly from chat threads
+  - service: Google SSO
+    description: OAuth login with Google accounts
+  - service: Web Push
+    description: Native web push notifications via VAPID
+
+support_plans:
+  - name: Community
+    price: "$0"
+    billing: monthly
+    description: GitHub issues and community forum
+    response_time: best-effort
+    sort_order: 1
+  - name: Standard
+    price: "$99"
+    billing: monthly
+    description: Email support, 48h response SLA, up to 500 users
+    response_time: 48h
+    sort_order: 2
+  - name: Enterprise
+    price: "$0"
+    billing: monthly
+    description: Dedicated support, custom SLA, unlimited users
+    response_time: custom
+    sort_order: 3
+
+hosting_plans:
+  - name: Self-hosted
+    price: "$0"
+    billing: one-time
+    description: Deploy with Docker Compose on any VPS or cloud
+    deployment_target: docker
+    sort_order: 1
+  - name: Managed Cloud
+    price: "$49"
+    billing: monthly
+    description: Hosted, managed, and monitored on DigitalOcean
+    deployment_target: digitalocean
+    sort_order: 2
+  - name: Enterprise Cloud
+    price: "$0"
+    billing: monthly
+    description: Dedicated cluster, custom SLA, volume pricing
+    deployment_target: custom
+    sort_order: 3
