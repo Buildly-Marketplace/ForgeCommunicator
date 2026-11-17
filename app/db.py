@@ -122,6 +122,7 @@ async def init_db() -> None:
                     agent_integration,
                     api_token,
                     artifact,
+                    capture_entitlement,
                     channel,
                     idea,
                     membership,

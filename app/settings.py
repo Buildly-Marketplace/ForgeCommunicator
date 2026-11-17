@@ -236,6 +236,18 @@ class Settings(BaseSettings):
     idea_ai_api_key: str | None = None
     idea_ai_model: str = "claude-sonnet-5-5"
 
+    # Capture app paywall. Jotting notes on the phone is free; saving to the server,
+    # AI estimates and sending to Labs need a subscription or one-time purchase made
+    # through the App Store / Google Play via RevenueCat. Set False for self-hosted
+    # installs that should give every member access.
+    capture_paywall_enabled: bool = True
+    revenuecat_secret_api_key: str | None = None  # RevenueCat secret key (sk_...), server only
+    revenuecat_webhook_auth: str | None = None  # Must match the webhook's Authorization header
+    revenuecat_entitlement_id: str = "capture_pro"  # Entitlement unlocked by every Capture product
+    revenuecat_app_user_prefix: str = "forge"  # App user id = "<prefix>_<user id>"
+    revenuecat_api_url: str = "https://api.revenuecat.com"
+    capture_free_emails: str = ""  # Comma-separated emails that always have access (team, testers)
+
     # File storage (S3-compatible - works with AWS S3 or DigitalOcean Spaces)
     # For DigitalOcean Spaces: endpoint is https://<region>.digitaloceanspaces.com
     storage_endpoint: str | None = None  # e.g. "https://nyc3.digitaloceanspaces.com"
@@ -320,6 +332,11 @@ class Settings(BaseSettings):
             return []
         return [e.strip().lower() for e in self.platform_admin_emails.split(",") if e.strip()]
     
+    def has_free_capture_access(self, email: str) -> bool:
+        """Emails comped for the Capture app (plus platform admins via is_admin_email)."""
+        free = {e.strip().lower() for e in self.capture_free_emails.split(",") if e.strip()}
+        return email.lower() in free or self.is_admin_email(email)
+
     def is_admin_email(self, email: str) -> bool:
         """Check if email is a platform admin."""
         return email.lower() in self.admin_emails_list

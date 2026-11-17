@@ -16,9 +16,9 @@ Auth: same Bearer session token as the rest of /mobile/v1.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -29,10 +29,11 @@ from app.models.artifact import Artifact, ArtifactType
 from app.models.idea import Idea, IdeaKind, IdeaStatus
 from app.models.membership import Membership
 from app.models.product import Product
+from app.models.user import User
 from app.models.workspace import Workspace
 from app.routers.mobile_api import MobileUser
 from app.routers.sync import get_workspace_labs_token
-from app.services import idea_refiner
+from app.services import capture_billing, idea_refiner
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -166,6 +167,23 @@ class SubmitResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def require_capture_access(user: MobileUser, db: DBSession) -> User:
+    """Saving, estimating and sending need a subscription or one-time purchase."""
+    access = await capture_billing.get_access(db, user)
+    if not access.active:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "code": "subscription_required",
+                "message": "Saving ideas, AI estimates and sending to Labs need Forge Capture Pro.",
+            },
+        )
+    return user
+
+
+PaidUser = Annotated[User, Depends(require_capture_access)]
 
 
 async def _require_member(db, workspace_id: int, user_id: int) -> Membership:
@@ -414,7 +432,7 @@ async def list_agents(workspace_id: int, user: MobileUser, db: DBSession):
 
 @router.post("/ideas", response_model=IdeaOut, status_code=201)
 async def create_idea(
-    user: MobileUser,
+    user: PaidUser,
     db: DBSession,
     workspace_id: int = Form(...),
     body: str = Form(default=""),
@@ -492,7 +510,7 @@ async def get_idea(idea_id: int, user: MobileUser, db: DBSession):
 
 
 @router.patch("/ideas/{idea_id}", response_model=IdeaOut)
-async def update_idea(idea_id: int, patch: IdeaPatch, user: MobileUser, db: DBSession):
+async def update_idea(idea_id: int, patch: IdeaPatch, user: PaidUser, db: DBSession):
     idea = await _get_idea(db, idea_id, user.id)
     if idea.status == IdeaStatus.SUBMITTED.value:
         raise HTTPException(status_code=409, detail="Already submitted to Labs")
@@ -526,7 +544,7 @@ async def delete_idea(idea_id: int, user: MobileUser, db: DBSession):
 
 
 @router.post("/ideas/{idea_id}/refine", response_model=IdeaOut)
-async def refine_idea(idea_id: int, user: MobileUser, db: DBSession):
+async def refine_idea(idea_id: int, user: PaidUser, db: DBSession):
     """Run the AI breakdown (features/issues + dev/AI estimates). Safe to re-run."""
     idea = await _get_idea(db, idea_id, user.id)
     if idea.status == IdeaStatus.SUBMITTED.value:
@@ -557,7 +575,7 @@ ARTIFACT_TYPE = {"feature": ArtifactType.FEATURE, "issue": ArtifactType.ISSUE, "
 
 
 @router.post("/ideas/{idea_id}/submit", response_model=SubmitResult)
-async def submit_idea(idea_id: int, req: SubmitRequest, user: MobileUser, db: DBSession):
+async def submit_idea(idea_id: int, req: SubmitRequest, user: PaidUser, db: DBSession):
     """Create Forge artifacts (and Labs backlog items) from the selected breakdown items."""
     idea = await _get_idea(db, idea_id, user.id)
     await _require_member(db, idea.workspace_id, user.id)

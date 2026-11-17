@@ -144,6 +144,7 @@ def seeded(client):
     from app.models.membership import Membership, MembershipRole
     from app.models.product import Product
     from app.models.workspace import Workspace
+    from app.services import capture_billing
 
     suffix = os.urandom(4).hex()
     email = f"capture-{suffix}@example.com"
@@ -164,6 +165,8 @@ def seeded(client):
             await db.flush()
             product = Product(workspace_id=ws.id, name="Labs Web", buildly_product_uuid="11111111-2222-3333-4444-555555555555")
             db.add(product)
+            # The capture flow is paid; give this user access (see test_capture_billing.py)
+            await capture_billing.grant(db, user_id, None, "test")
             await db.commit()
             return ws.id, other.id, product.id
 

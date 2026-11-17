@@ -286,6 +286,8 @@ app.include_router(mobile_api.router)
 # Forge Capture mobile app: quick ideas -> AI-estimated features/issues -> Labs
 from app.routers import capture_api
 app.include_router(capture_api.router)
+from app.routers import billing_api
+app.include_router(billing_api.router)
 
 # Import and include integrations router
 from app.routers import integrations
