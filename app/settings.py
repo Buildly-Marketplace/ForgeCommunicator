@@ -229,6 +229,13 @@ class Settings(BaseSettings):
     labs_error_product_uuid: str | None = None  # Labs product UUID for error tracking
     # Note: labs_api_url and labs_api_key are already defined above
     
+    # Capture app: AI that turns quick ideas into features/issues with estimates.
+    # If unset, the workspace's first active AI agent is used; if there is none,
+    # a simple non-AI breakdown is produced so the flow still works.
+    idea_ai_provider: str | None = None  # "anthropic" | "openai"
+    idea_ai_api_key: str | None = None
+    idea_ai_model: str = "claude-sonnet-5-5"
+
     # File storage (S3-compatible - works with AWS S3 or DigitalOcean Spaces)
     # For DigitalOcean Spaces: endpoint is https://<region>.digitaloceanspaces.com
     storage_endpoint: str | None = None  # e.g. "https://nyc3.digitaloceanspaces.com"

@@ -283,6 +283,10 @@ app.include_router(api.router)  # DRF-compatible API for CollabHub
 from app.routers import mobile_api
 app.include_router(mobile_api.router)
 
+# Forge Capture mobile app: quick ideas -> AI-estimated features/issues -> Labs
+from app.routers import capture_api
+app.include_router(capture_api.router)
+
 # Import and include integrations router
 from app.routers import integrations
 app.include_router(integrations.router)
@@ -306,6 +310,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Handle all HTTP exceptions with proper responses for PWA, HTMX, and API."""
     status_code = exc.status_code
     detail = exc.detail if hasattr(exc, 'detail') else str(exc)
+
+    # Native app APIs always speak JSON — never redirect them to an HTML login page
+    if request.url.path.startswith("/mobile/") and status_code < 500:
+        return JSONResponse({"detail": detail}, status_code=status_code,
+                            headers=getattr(exc, "headers", None))
     
     # For 401 Unauthorized - redirect to login
     if status_code == 401:

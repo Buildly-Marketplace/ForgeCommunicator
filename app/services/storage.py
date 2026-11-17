@@ -34,15 +34,17 @@ class StorageService:
         self.bucket = settings.storage_bucket
         self.public_url = settings.storage_public_url
     
-    def _generate_storage_key(self, channel_id: int, filename: str) -> str:
+    def _generate_storage_key(self, channel_id: int, filename: str, prefix: str | None = None) -> str:
         """Generate a unique storage key for a file.
         
         Format: channels/{channel_id}/{date}/{uuid}_{filename}
+        (or {prefix}/{date}/{uuid}_{filename} when a prefix is given)
         """
         date_path = datetime.utcnow().strftime('%Y/%m')
         unique_id = uuid.uuid4().hex[:8]
         safe_filename = "".join(c for c in filename if c.isalnum() or c in '._-')
-        return f"channels/{channel_id}/{date_path}/{unique_id}_{safe_filename}"
+        base = prefix or f"channels/{channel_id}"
+        return f"{base}/{date_path}/{unique_id}_{safe_filename}"
     
     def upload_file(
         self,
@@ -50,6 +52,7 @@ class StorageService:
         filename: str,
         content_type: str | None,
         channel_id: int,
+        prefix: str | None = None,
     ) -> tuple[str, str, int]:
         """Upload a file to storage.
         
@@ -76,7 +79,7 @@ class StorageService:
             content_type = content_type or 'application/octet-stream'
         
         # Generate storage key
-        storage_key = self._generate_storage_key(channel_id, filename)
+        storage_key = self._generate_storage_key(channel_id, filename, prefix)
         
         # Get file size
         file.seek(0, 2)  # Seek to end

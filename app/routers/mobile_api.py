@@ -268,9 +268,9 @@ async def mobile_register(request: Request, body: RegisterRequest, db: DBSession
     if result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    errors = validate_password(body.password)
-    if errors:
-        raise HTTPException(status_code=422, detail="; ".join(errors))
+    is_valid, password_error = validate_password(body.password)
+    if not is_valid:
+        raise HTTPException(status_code=422, detail=password_error)
 
     # Check approval settings
     from app.routers.auth import get_approval_defaults
@@ -332,8 +332,17 @@ class OAuthTokenRequest(BaseModel):
     redirect_uri: str
 
 
+# Native apps allowed to receive the OAuth hand-back via custom URL scheme.
+# "forge" = macOS/iOS messenger, "forgecapture" = Forge Capture (iOS/Android).
+MOBILE_APP_SCHEMES = {"forge", "forgecapture"}
+
+
 @router.get("/auth/oauth/{provider}/start", response_model=OAuthStartResponse)
-async def mobile_oauth_start(request: Request, provider: str):
+async def mobile_oauth_start(
+    request: Request,
+    provider: str,
+    app_scheme: str = Query(default="forge"),
+):
     """Return the OAuth authorization URL for the native app to open in a browser."""
     from app.services.auth_providers import get_oauth_provider
     from urllib.parse import urlencode
@@ -343,7 +352,11 @@ async def mobile_oauth_start(request: Request, provider: str):
     if not oauth_provider:
         raise HTTPException(status_code=400, detail=f"OAuth provider '{provider}' not available")
 
-    state = secrets.token_urlsafe(32)
+    if app_scheme not in MOBILE_APP_SCHEMES:
+        raise HTTPException(status_code=400, detail="Unknown app scheme")
+    # The state round-trips through the provider; prefix it with the app scheme
+    # so the callback knows which app to hand the token back to.
+    state = f"{app_scheme}.{secrets.token_urlsafe(32)}"
     # Use settings.base_url so the URI is correct even behind a reverse proxy.
     # request.base_url would return http://localhost:8000 in that case.
     redirect_uri = settings.base_url.rstrip("/") + f"/mobile/v1/auth/oauth/{provider}/callback"
@@ -385,6 +398,7 @@ async def mobile_oauth_callback(
         tokens = await oauth_provider.exchange_code(code, redirect_uri=redirect_uri)
         access_token = tokens["access_token"]
         refresh_token = tokens.get("refresh_token")
+        expires_in = tokens.get("expires_in", 3600)
         user_info = await oauth_provider.get_user_info(access_token)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"OAuth exchange failed: {e}")
@@ -424,6 +438,18 @@ async def mobile_oauth_callback(
         db.add(user)
         await db.flush()
 
+    if provider == "buildly":
+        # Keep the Labs token so the Capture app can browse products and push backlog items
+        from datetime import timedelta
+        user.labs_access_token = access_token
+        user.labs_refresh_token = refresh_token
+        user.labs_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
+        if user_info.extra:
+            if user_info.extra.get("labs_user_id"):
+                user.labs_user_id = user_info.extra["labs_user_id"]
+            if user_info.extra.get("organization_uuid"):
+                user.labs_org_uuid = user_info.extra["organization_uuid"]
+
     session = UserSession.create_session(user_id=user.id, request=request, is_pwa=False)
     session.device_type = "mobile"
     session.device_name = "Native App"
@@ -436,8 +462,11 @@ async def mobile_oauth_callback(
     from fastapi.responses import RedirectResponse as FastRedirect
     from urllib.parse import quote
     token = session.session_token
+    scheme = state.split(".", 1)[0] if "." in state else "forge"
+    if scheme not in MOBILE_APP_SCHEMES:
+        scheme = "forge"
     return FastRedirect(
-        url=f"forge://oauth?token={quote(token, safe='')}",
+        url=f"{scheme}://oauth?token={quote(token, safe='')}",
         status_code=302,
     )
 

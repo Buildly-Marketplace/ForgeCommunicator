@@ -454,10 +454,10 @@ async def push_artifact_to_labs(
     # 2. Artifact's channel's product
     # 3. Workspace default product
     product_uuid = None
-    if artifact.product and artifact.product.labs_product_uuid:
-        product_uuid = artifact.product.labs_product_uuid
-    elif artifact.channel and artifact.channel.product and artifact.channel.product.labs_product_uuid:
-        product_uuid = artifact.channel.product.labs_product_uuid
+    if artifact.product and artifact.product.buildly_product_uuid:
+        product_uuid = artifact.product.buildly_product_uuid
+    elif artifact.channel and artifact.channel.product and artifact.channel.product.buildly_product_uuid:
+        product_uuid = artifact.channel.product.buildly_product_uuid
     elif workspace.labs_default_product_uuid:
         product_uuid = workspace.labs_default_product_uuid
     

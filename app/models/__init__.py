@@ -23,6 +23,7 @@ from app.models.reaction import MessageReaction
 from app.models.api_token import APIToken
 from app.models.agent_integration import AgentIntegration
 from app.models.agent_handoff import AgentHandoff, HandoffStatus
+from app.models.idea import Idea, IdeaKind, IdeaStatus
 from app.models.ai_agent import (
     AIAgent,
     AIConversation,
@@ -33,6 +34,9 @@ from app.models.ai_agent import (
 )
 
 __all__ = [
+    "Idea",
+    "IdeaKind",
+    "IdeaStatus",
     "Base",
     "User",
     "AuthProvider", 

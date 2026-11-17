@@ -123,6 +123,7 @@ async def init_db() -> None:
                     api_token,
                     artifact,
                     channel,
+                    idea,
                     membership,
                     message,
                     product,
