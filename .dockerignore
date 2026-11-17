@@ -29,3 +29,5 @@ tests/
 forge/
 *.ini
 !alembic.ini
+mobile/
+native/

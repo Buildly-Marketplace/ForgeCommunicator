@@ -16,6 +16,7 @@ A modern, real-time team communication platform built with FastAPI, HTMX, and We
 - **Buildly Labs Integration** - Sync products and artifacts
 - **Push notifications** - Web push via VAPID
 - **Search** - Full-text search across messages
+- **Forge Capture mobile app** - iOS/Android app for jotting down ideas, bugs and screenshots that AI turns into estimated features/issues in Buildly Labs (see [`mobile/`](mobile/README.md))
 
 ## Quick Start
 

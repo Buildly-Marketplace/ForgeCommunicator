@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Forge Capture",
+    "slug": "forge-capture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.buildly.forgecapture"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1020",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "io.buildly.forgecapture"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach screenshots and photos to your ideas and bug reports.",
+          "cameraPermission": "Take photos of whiteboards, sketches and bugs to attach to your ideas."
+        }
+      ]
+    ],
+    "scheme": "forgecapture",
+    "extra": {
+      "defaultServerUrl": "https://comms.buildly.io"
+    }
+  }
+}
