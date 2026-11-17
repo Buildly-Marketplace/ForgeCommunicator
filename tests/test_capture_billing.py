@@ -113,6 +113,7 @@ def register(client):  # noqa: F811
 def workspace_for(client, user_id):  # noqa: F811
     from app.db import async_session_maker
     from app.models.membership import Membership, MembershipRole
+    from app.models.product import Product
     from app.models.workspace import Workspace
 
     async def seed():
@@ -122,8 +123,10 @@ def workspace_for(client, user_id):  # noqa: F811
             db.add(ws)
             await db.flush()
             db.add(Membership(workspace_id=ws.id, user_id=user_id, role=MembershipRole.OWNER))
+            product = Product(workspace_id=ws.id, name="P")
+            db.add(product)
             await db.commit()
-            return ws.id
+            return ws.id, product.id
 
     return client.portal.call(seed)
 
@@ -136,13 +139,13 @@ LIFETIME = subscriber({"expires_date": None, "product_identifier": "capture_life
 class TestPaywallAPI:
     def test_unpaid_user_can_browse_but_not_save(self, client):  # noqa: F811
         headers, user = register(client)
-        ws = workspace_for(client, user["id"])
+        ws, product = workspace_for(client, user["id"])
 
         status = client.get("/mobile/v1/billing/status", headers=headers).json()
         assert status["required"] is True and status["active"] is False
         assert status["app_user_id"] == f"forge_{user['id']}"
 
-        r = client.post("/mobile/v1/ideas", headers=headers, data={"workspace_id": ws, "body": "x"})
+        r = client.post("/mobile/v1/ideas", headers=headers, data={"workspace_id": ws, "product_id": product, "body": "x"})
         assert r.status_code == 402
         assert r.json()["detail"]["code"] == "subscription_required"
         assert client.get("/mobile/v1/ideas", headers=headers).status_code == 200
@@ -150,14 +153,14 @@ class TestPaywallAPI:
 
     def test_purchase_sync_unlocks(self, client):  # noqa: F811
         headers, user = register(client)
-        ws = workspace_for(client, user["id"])
+        ws, product = workspace_for(client, user["id"])
         with patch.object(settings, "revenuecat_secret_api_key", "sk_test"), \
              patch.object(capture_billing, "fetch_subscriber", AsyncMock(return_value=LIFETIME)) as fetch:
             r = client.post("/mobile/v1/billing/sync", headers=headers)
         assert r.status_code == 200, r.text
         assert fetch.await_args.args[0] == f"forge_{user['id']}"
         assert r.json()["active"] is True and r.json()["kind"] == "lifetime"
-        r = client.post("/mobile/v1/ideas", headers=headers, data={"workspace_id": ws, "body": "now paid"})
+        r = client.post("/mobile/v1/ideas", headers=headers, data={"workspace_id": ws, "product_id": product, "body": "now paid"})
         assert r.status_code == 201
 
     def test_sync_without_revenuecat_configured(self, client):  # noqa: F811

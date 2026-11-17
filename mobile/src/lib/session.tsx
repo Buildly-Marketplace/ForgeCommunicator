@@ -45,7 +45,7 @@ interface SessionState {
   saveJotting(c: PendingCapture): Promise<void>;
   deleteJotting(clientId: string): Promise<void>;
   /** Move a free note to the server (Pro only). */
-  uploadJotting(clientId: string): Promise<Idea | null>;
+  uploadJotting(clientId: string, productId?: number): Promise<Idea | null>;
   flush(): Promise<number>;
 }
 
@@ -205,11 +205,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const uploadJotting = useCallback(
-    async (clientId: string) => {
+    async (clientId: string, productId?: number) => {
       const jotting = jottings.find((j) => j.clientId === clientId);
       if (!jotting || !isPro || !workspace) return null;
+      const chosenProduct = productId ?? jotting.productId;
+      if (chosenProduct == null) throw new Error('Pick a product for this note first');
       setJottings(await remove(AsyncStorage, clientId, JOTTINGS_KEY));
-      const outcome = await send({ ...jotting, workspaceId: jotting.workspaceId ?? workspace.id });
+      const outcome = await send({
+        ...jotting,
+        productId: chosenProduct,
+        // a product picked now belongs to the current workspace
+        workspaceId: productId != null ? workspace.id : (jotting.workspaceId ?? workspace.id),
+      });
       if (outcome.kind === 'uploaded') {
         deletePhotos(clientId);
         return outcome.idea;

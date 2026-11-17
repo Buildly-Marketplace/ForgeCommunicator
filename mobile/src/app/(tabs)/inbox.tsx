@@ -46,6 +46,11 @@ export default function Inbox() {
       router.push('/paywall');
       return;
     }
+    if (j.productId == null) {
+      // Ideas belong to a product: ask which one before uploading
+      router.push({ pathname: '/choose-product', params: { clientId: j.clientId } });
+      return;
+    }
     setUploading(j.clientId);
     setError(null);
     try {

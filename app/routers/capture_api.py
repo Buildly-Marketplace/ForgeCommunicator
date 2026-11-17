@@ -438,7 +438,7 @@ async def create_idea(
     body: str = Form(default=""),
     kind: Literal["idea", "bug", "feedback"] = Form(default="idea"),
     title: str | None = Form(default=None, max_length=200),
-    product_id: int | None = Form(default=None),
+    product_id: int = Form(..., description="Every idea belongs to a product"),
     client_id: str | None = Form(default=None, max_length=64),
     context: str | None = Form(default=None),
     files: list[UploadFile] = File(default=[]),
@@ -523,6 +523,8 @@ async def update_idea(idea_id: int, patch: IdeaPatch, user: PaidUser, db: DBSess
     if "kind" in fields and patch.kind:
         idea.kind = patch.kind
     if "product_id" in fields:
+        if patch.product_id is None:
+            raise HTTPException(status_code=422, detail="An idea must belong to a product")
         await _check_product(db, patch.product_id, idea.workspace_id)
         idea.product_id = patch.product_id
     if patch.items:

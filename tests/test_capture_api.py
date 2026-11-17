@@ -192,12 +192,22 @@ class TestCaptureAPI:
 
     def test_cannot_capture_into_foreign_workspace(self, client, seeded):
         r = client.post("/mobile/v1/ideas", headers=seeded.headers,
-                        data={"workspace_id": seeded.other_ws_id, "body": "nope"})
+                        data={"workspace_id": seeded.other_ws_id, "product_id": seeded.product_id, "body": "nope"})
         assert r.status_code == 403
 
     def test_empty_capture_rejected(self, client, seeded):
         r = client.post("/mobile/v1/ideas", headers=seeded.headers,
-                        data={"workspace_id": seeded.ws_id, "body": "  "})
+                        data={"workspace_id": seeded.ws_id, "product_id": seeded.product_id, "body": "  "})
+        assert r.status_code == 422
+
+    def test_product_is_required(self, client, seeded):
+        r = client.post("/mobile/v1/ideas", headers=seeded.headers,
+                        data={"workspace_id": seeded.ws_id, "body": "no product"})
+        assert r.status_code == 422
+        r = client.post("/mobile/v1/ideas", headers=seeded.headers,
+                        data={"workspace_id": seeded.ws_id, "product_id": seeded.product_id, "body": "ok"})
+        assert r.status_code == 201
+        r = client.patch(f"/mobile/v1/ideas/{r.json()['id']}", headers=seeded.headers, json={"product_id": None})
         assert r.status_code == 422
 
     def test_full_flow_refine_edit_submit(self, client, seeded):
@@ -276,7 +286,8 @@ class TestCaptureAPI:
 
     def test_one_tap_submit_without_ai_or_labs(self, client, seeded):
         r = client.post("/mobile/v1/ideas", headers=seeded.headers,
-                        data={"workspace_id": seeded.ws_id, "kind": "bug", "body": "Login button does nothing"})
+                        data={"workspace_id": seeded.ws_id, "product_id": seeded.product_id, "kind": "bug",
+                              "body": "Login button does nothing"})
         idea_id = r.json()["id"]
         with patch.object(idea_refiner, "_resolve_provider", AsyncMock(return_value=(None, "heuristic"))), \
              patch("app.routers.capture_api.get_workspace_labs_token", AsyncMock(return_value=(None, "none"))):
@@ -293,7 +304,7 @@ class TestCaptureAPI:
                               "password": "Sup3r-secret-pw!", "display_name": "Other"})
         other = {"Authorization": f"Bearer {r.json()['token']}"}
         r = client.post("/mobile/v1/ideas", headers=seeded.headers,
-                        data={"workspace_id": seeded.ws_id, "body": "secret idea"})
+                        data={"workspace_id": seeded.ws_id, "product_id": seeded.product_id, "body": "secret idea"})
         assert client.get(f"/mobile/v1/ideas/{r.json()['id']}", headers=other).status_code == 404
 
     def test_oauth_start_scheme(self, client):

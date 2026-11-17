@@ -48,7 +48,10 @@ export default function CaptureScreen() {
         .products(workspace.id)
         .then((list) => {
           setProducts(list);
-          setProductId((cur) => (cur && list.some((p) => p.id === cur) ? cur : null));
+          // Keep the current pick if still valid; with a single product, pick it automatically
+          setProductId((cur) =>
+            cur && list.some((p) => p.id === cur) ? cur : list.length === 1 ? list[0].id : null,
+          );
         })
         .catch(() => undefined); // offline: keep last list
     }, [api, workspace, token]),
@@ -83,6 +86,15 @@ export default function CaptureScreen() {
   async function submit(estimate: boolean) {
     if (!body.trim() && photos.length === 0) {
       setNotice({ text: 'Write something or add a photo first.', tone: 'warn' });
+      return;
+    }
+    if (isPro && productId === null) {
+      setNotice({
+        text: products.length
+          ? 'Pick the product this is for first.'
+          : 'Sync your products from Labs (Products tab), then pick one.',
+        tone: 'warn',
+      });
       return;
     }
     setNotice(null);
@@ -201,10 +213,9 @@ export default function CaptureScreen() {
 
           {workspace ? (
             <View style={{ gap: 8 }}>
-              <Label>Product · {workspace.name}</Label>
+              <Label>Product{isPro ? ' (required)' : ''} · {workspace.name}</Label>
               {products.length ? (
                 <Row>
-                  <Chip label="Not sure" active={productId === null} onPress={() => setProductId(null)} />
                   {products.map((p) => (
                     <Chip key={p.id} label={p.name} active={productId === p.id} onPress={() => setProductId(p.id)} />
                   ))}

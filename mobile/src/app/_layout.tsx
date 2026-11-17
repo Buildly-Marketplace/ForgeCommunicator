@@ -23,6 +23,7 @@ function RootStack() {
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="idea/[id]" options={{ title: 'Idea' }} />
         <Stack.Screen name="product/[id]" options={{ title: 'Product' }} />
+        <Stack.Screen name="choose-product" options={{ presentation: 'modal', title: 'Choose product' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" options={{ presentation: 'modal', title: 'Sign in' }} />
