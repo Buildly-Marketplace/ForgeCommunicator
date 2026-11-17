@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
 import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
@@ -71,7 +72,8 @@ export default function Login() {
           <View style={{ gap: 6, marginBottom: 8 }}>
             <Title>Forge Capture</Title>
             <Body muted>
-              Jot down ideas and bugs in seconds. We turn them into features, issues and estimates in Buildly Labs.
+              Sign in to save your notes, get AI estimates and send them to Buildly Labs. Jotting notes on this phone
+              works without an account.
             </Body>
           </View>
 
@@ -113,6 +115,8 @@ export default function Login() {
             title={mode === 'login' ? 'New here? Create an account' : 'Have an account? Sign in'}
             onPress={() => setMode(mode === 'login' ? 'register' : 'login')}
           />
+
+          <Button variant="ghost" title="Not now" onPress={() => router.back()} />
 
           <Pressable onPress={() => setShowServer(!showServer)} accessibilityRole="button">
             <Body muted style={{ textAlign: 'center', fontSize: 13 }}>

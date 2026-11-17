@@ -37,7 +37,11 @@
     ],
     "scheme": "forgecapture",
     "extra": {
-      "defaultServerUrl": "https://comms.buildly.io"
+      "defaultServerUrl": "https://comms.buildly.io",
+      "revenuecatIosKey": "",
+      "revenuecatAndroidKey": "",
+      "termsUrl": "",
+      "privacyUrl": ""
     }
   }
 }

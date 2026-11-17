@@ -8,11 +8,14 @@ export interface KeyValueStore {
   setItem(key: string, value: string): Promise<void>;
 }
 
-const KEY = 'forgecapture.outbox.v1';
+/** Pro captures waiting to upload. */
+export const OUTBOX_KEY = 'forgecapture.outbox.v1';
+/** Free notes kept only on this phone. */
+export const JOTTINGS_KEY = 'forgecapture.jottings.v1';
 
-export async function readOutbox(store: KeyValueStore): Promise<PendingCapture[]> {
+export async function readOutbox(store: KeyValueStore, key: string = OUTBOX_KEY): Promise<PendingCapture[]> {
   try {
-    const raw = await store.getItem(KEY);
+    const raw = await store.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -20,14 +23,28 @@ export async function readOutbox(store: KeyValueStore): Promise<PendingCapture[]
   }
 }
 
-export async function writeOutbox(store: KeyValueStore, items: PendingCapture[]): Promise<void> {
-  await store.setItem(KEY, JSON.stringify(items));
+export async function writeOutbox(
+  store: KeyValueStore,
+  items: PendingCapture[],
+  key: string = OUTBOX_KEY,
+): Promise<void> {
+  await store.setItem(key, JSON.stringify(items));
 }
 
-export async function enqueue(store: KeyValueStore, capture: PendingCapture): Promise<PendingCapture[]> {
-  const items = (await readOutbox(store)).filter((c) => c.clientId !== capture.clientId);
+export async function enqueue(
+  store: KeyValueStore,
+  capture: PendingCapture,
+  key: string = OUTBOX_KEY,
+): Promise<PendingCapture[]> {
+  const items = (await readOutbox(store, key)).filter((c) => c.clientId !== capture.clientId);
   items.push(capture);
-  await writeOutbox(store, items);
+  await writeOutbox(store, items, key);
+  return items;
+}
+
+export async function remove(store: KeyValueStore, clientId: string, key: string): Promise<PendingCapture[]> {
+  const items = (await readOutbox(store, key)).filter((c) => c.clientId !== clientId);
+  await writeOutbox(store, items, key);
   return items;
 }
 
@@ -60,7 +77,12 @@ export async function flushOutbox<T>(
       sent.push({ capture, result: await send(capture) });
     } catch (e) {
       offline = isNetworkError(e);
-      remaining.push({ ...capture, lastError: e instanceof Error ? e.message : String(e) });
+      const status = (e as { status?: unknown }).status;
+      remaining.push({
+        ...capture,
+        lastError: e instanceof Error ? e.message : String(e),
+        lastErrorStatus: typeof status === 'number' ? status : undefined,
+      });
     }
   }
   await writeOutbox(store, remaining);

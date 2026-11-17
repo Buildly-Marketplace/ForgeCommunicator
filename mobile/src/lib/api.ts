@@ -1,5 +1,6 @@
 import type {
   Agent,
+  BillingStatus,
   BacklogItem,
   Bootstrap,
   Builder,
@@ -15,8 +16,14 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    /** Machine-readable code from the server, e.g. "subscription_required" */
+    public code?: string,
   ) {
     super(message);
+  }
+  /** Saving/estimating needs Forge Capture Pro (HTTP 402). */
+  get needsSubscription() {
+    return this.status === 402;
   }
   /** True when the request never got a response (offline, DNS, timeout). */
   get isNetwork() {
@@ -30,14 +37,18 @@ export function normalizeServerUrl(raw: string): string {
   return url;
 }
 
-function errorMessage(body: unknown, status: number): string {
+function errorDetail(body: unknown, status: number): { message: string; code?: string } {
   if (body && typeof body === 'object' && 'detail' in body) {
     const detail = (body as { detail: unknown }).detail;
-    if (typeof detail === 'string') return detail;
+    if (typeof detail === 'string') return { message: detail };
+    if (detail && typeof detail === 'object' && 'message' in detail) {
+      const d = detail as { message: unknown; code?: unknown };
+      return { message: String(d.message), code: typeof d.code === 'string' ? d.code : undefined };
+    }
     // FastAPI validation errors: [{loc, msg}]
-    if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg);
+    if (Array.isArray(detail) && detail[0]?.msg) return { message: String(detail[0].msg) };
   }
-  return `Request failed (${status})`;
+  return { message: `Request failed (${status})` };
 }
 
 export class Api {
@@ -73,7 +84,10 @@ export class Api {
     } catch {
       body = null;
     }
-    if (!res.ok) throw new ApiError(errorMessage(body, res.status), res.status);
+    if (!res.ok) {
+      const { message, code } = errorDetail(body, res.status);
+      throw new ApiError(message, res.status, code);
+    }
     return body as T;
   }
 
@@ -102,6 +116,15 @@ export class Api {
     return this.request<void>('/auth/logout', { method: 'POST' });
   }
 
+  // Billing ----------------------------------------------------------------
+  billingStatus() {
+    return this.request<BillingStatus>('/billing/status');
+  }
+  /** Ask the server to confirm a purchase/restore with RevenueCat. */
+  billingSync() {
+    return this.request<BillingStatus>('/billing/sync', { method: 'POST' });
+  }
+
   // Labs / products --------------------------------------------------------
   bootstrap() {
     return this.request<Bootstrap>('/capture/bootstrap');
@@ -121,6 +144,7 @@ export class Api {
 
   // Ideas ------------------------------------------------------------------
   createIdea(capture: PendingCapture) {
+    if (capture.workspaceId == null) throw new ApiError('Pick a workspace first', 400);
     const form = new FormData();
     form.append('workspace_id', String(capture.workspaceId));
     form.append('kind', capture.kind);

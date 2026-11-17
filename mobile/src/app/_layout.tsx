@@ -17,13 +17,15 @@ function RootStack() {
   const signedIn = !!token;
   return (
     <Stack>
+      {/* Jotting works without an account; server features need sign-in (and Pro) */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="paywall" options={{ presentation: 'modal', title: 'Go Pro' }} />
       <Stack.Protected guard={signedIn}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="idea/[id]" options={{ title: 'Idea' }} />
         <Stack.Screen name="product/[id]" options={{ title: 'Product' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ presentation: 'modal', title: 'Sign in' }} />
       </Stack.Protected>
     </Stack>
   );

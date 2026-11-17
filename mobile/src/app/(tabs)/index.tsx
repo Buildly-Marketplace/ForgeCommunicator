@@ -28,7 +28,7 @@ function toPhoto(asset: ImagePicker.ImagePickerAsset, i: number): Photo {
 
 export default function CaptureScreen() {
   const c = useColors();
-  const { api, workspace, bootstrap, capture, pending } = useSession();
+  const { api, token, workspace, bootstrap, capture, pending, isPro } = useSession();
   const [kind, setKind] = useState<IdeaKind>('idea');
   const [body, setBody] = useState('');
   const [appName, setAppName] = useState('');
@@ -38,11 +38,12 @@ export default function CaptureScreen() {
   const [busy, setBusy] = useState<'save' | 'estimate' | null>(null);
   const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'warn' | 'danger' } | null>(null);
 
-  const uploadsEnabled = bootstrap?.uploads_enabled ?? true;
+  // Free notes keep photos on the phone; Pro uploads need server storage
+  const uploadsEnabled = !isPro || (bootstrap?.uploads_enabled ?? true);
 
   useFocusEffect(
     useCallback(() => {
-      if (!workspace) return;
+      if (!workspace || !token) return;
       api
         .products(workspace.id)
         .then((list) => {
@@ -50,7 +51,7 @@ export default function CaptureScreen() {
           setProductId((cur) => (cur && list.some((p) => p.id === cur) ? cur : null));
         })
         .catch(() => undefined); // offline: keep last list
-    }, [api, workspace]),
+    }, [api, workspace, token]),
   );
 
   async function addPhotos(source: 'camera' | 'library') {
@@ -80,7 +81,6 @@ export default function CaptureScreen() {
   }
 
   async function submit(estimate: boolean) {
-    if (!workspace) return;
     if (!body.trim() && photos.length === 0) {
       setNotice({ text: 'Write something or add a photo first.', tone: 'warn' });
       return;
@@ -96,7 +96,7 @@ export default function CaptureScreen() {
 
     const item: PendingCapture = {
       clientId: Crypto.randomUUID(),
-      workspaceId: workspace.id,
+      workspaceId: workspace?.id ?? null,
       productId,
       kind,
       body: body.trim(),
@@ -105,15 +105,16 @@ export default function CaptureScreen() {
       createdAt: new Date().toISOString(),
     };
     try {
-      const idea = await capture(item);
+      const outcome = await capture(item);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       reset();
-      if (!idea) {
-        setNotice({ text: 'Saved on this phone. It will upload when you’re back online.', tone: 'warn' });
-        return;
-      }
-      if (estimate) {
-        router.push({ pathname: '/idea/[id]', params: { id: String(idea.id), refine: '1' } });
+      if (outcome.kind === 'local') {
+        setNotice({ text: 'Saved on this phone. Find it under My ideas.', tone: 'success' });
+        if (estimate) router.push('/paywall');
+      } else if (outcome.kind === 'queued') {
+        setNotice({ text: 'Saved. It will upload when you’re back online.', tone: 'warn' });
+      } else if (estimate) {
+        router.push({ pathname: '/idea/[id]', params: { id: String(outcome.idea.id), refine: '1' } });
       } else {
         setNotice({ text: 'Captured! Find it under My ideas.', tone: 'success' });
       }
@@ -122,14 +123,6 @@ export default function CaptureScreen() {
     } finally {
       setBusy(null);
     }
-  }
-
-  if (!workspace) {
-    return (
-      <Screen style={{ padding: 24, justifyContent: 'center' }}>
-        <Banner text="You’re not in any workspace yet. Ask an admin to invite you, or create one on the web, then pull to refresh in Settings." />
-      </Screen>
-    );
   }
 
   const kindMeta = KINDS.find((k) => k.kind === kind)!;
@@ -206,36 +199,63 @@ export default function CaptureScreen() {
             ) : null}
           </View>
 
-          <View style={{ gap: 8 }}>
-            <Label>Product · {workspace.name}</Label>
-            {products.length ? (
-              <Row>
-                <Chip label="Not sure" active={productId === null} onPress={() => setProductId(null)} />
-                {products.map((p) => (
-                  <Chip key={p.id} label={p.name} active={productId === p.id} onPress={() => setProductId(p.id)} />
-                ))}
-              </Row>
-            ) : (
-              <Body muted>No products yet — sync them from Labs on the Products tab.</Body>
-            )}
-          </View>
+          {workspace ? (
+            <View style={{ gap: 8 }}>
+              <Label>Product · {workspace.name}</Label>
+              {products.length ? (
+                <Row>
+                  <Chip label="Not sure" active={productId === null} onPress={() => setProductId(null)} />
+                  {products.map((p) => (
+                    <Chip key={p.id} label={p.name} active={productId === p.id} onPress={() => setProductId(p.id)} />
+                  ))}
+                </Row>
+              ) : (
+                <Body muted>No products yet — sync them from Labs on the Products tab.</Body>
+              )}
+            </View>
+          ) : null}
 
           {notice ? <Banner text={notice.text} tone={notice.tone} /> : null}
           {pending.length ? (
             <Body muted>{pending.length} capture(s) waiting to upload.</Body>
           ) : null}
 
-          <Button
-            title="✨ Capture & estimate"
-            onPress={() => submit(true)}
-            loading={busy === 'estimate'}
-            disabled={!!busy}
-          />
-          <Button title="Just save it" variant="secondary" onPress={() => submit(false)} loading={busy === 'save'} disabled={!!busy} />
-          <Body muted style={{ textAlign: 'center', fontSize: 13, color: c.muted }}>
-            Estimating turns your note into features & issues with developer and AI time estimates. Nothing goes to
-            Labs until you review it.
-          </Body>
+          {isPro ? (
+            <>
+              <Button
+                title="✨ Capture & estimate"
+                onPress={() => submit(true)}
+                loading={busy === 'estimate'}
+                disabled={!!busy}
+              />
+              <Button
+                title="Just save it"
+                variant="secondary"
+                onPress={() => submit(false)}
+                loading={busy === 'save'}
+                disabled={!!busy}
+              />
+              <Body muted style={{ textAlign: 'center', fontSize: 13, color: c.muted }}>
+                Estimating turns your note into features & issues with developer and AI time estimates. Nothing goes
+                to Labs until you review it.
+              </Body>
+            </>
+          ) : (
+            <>
+              <Button title="Save note" onPress={() => submit(false)} loading={busy === 'save'} disabled={!!busy} />
+              <Button
+                title="✨ Estimate & send to Labs · Pro"
+                variant="secondary"
+                onPress={() => submit(true)}
+                loading={busy === 'estimate'}
+                disabled={!!busy}
+              />
+              <Body muted style={{ textAlign: 'center', fontSize: 13, color: c.muted }}>
+                Notes are free and stay on this phone. Pro saves them to your account, breaks them into features &
+                issues with developer and AI estimates, and sends them to Buildly Labs.
+              </Body>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

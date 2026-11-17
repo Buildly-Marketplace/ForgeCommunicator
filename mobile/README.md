@@ -10,6 +10,25 @@ real, estimated work in **Buildly Labs**.
                     dev hours and AI-agent hours   AI+Dev per item        AI items → coding agent
 ```
 
+## Free vs. Pro
+
+| | Free | Pro (subscription or one-time) |
+|---|---|---|
+| Jot notes, photos & screenshots | ✅ kept on this phone, no account needed | ✅ |
+| Save & sync to your account | – | ✅ |
+| AI breakdown into features/issues + estimates | – | ✅ |
+| Send to Buildly Labs / hand off to coding agents | – | ✅ |
+| Browse Labs products & backlog | ✅ with a free account | ✅ |
+
+Free notes can be uploaded and estimated later, one tap each, after going Pro.
+Purchases are tied to the Forge account (not the device), so they work on every phone the
+user signs in on, and can be restored.
+
+**Enforcement is server-side.** `POST /ideas`, `/refine`, `/submit` and `PATCH /ideas` return
+`402 subscription_required` without an active entitlement. The server learns about purchases only
+from RevenueCat's API (after a purchase via `/billing/sync`, and from webhooks for renewals,
+cancellations, refunds and expirations), never from the app's own claims.
+
 ## What it does
 
 - **Capture** – type a note, snap a photo (whiteboard, sketch) or attach screenshots. Tag it as an
@@ -37,6 +56,8 @@ the user’s session token (kept in the iOS Keychain / Android Keystore via `exp
 | AI breakdown + estimates (and non-AI fallback) | `app/services/idea_refiner.py` |
 | `Idea` model | `app/models/idea.py` |
 | Sign-in (email / Buildly Labs OAuth) | `app/routers/mobile_api.py` |
+| Paywall: status, purchase sync, RevenueCat webhook, admin grants | `app/routers/billing_api.py` |
+| Entitlement logic + RevenueCat client | `app/services/capture_billing.py` |
 
 App layout (Expo Router, routes in `src/app/`):
 
@@ -48,8 +69,9 @@ App layout (Expo Router, routes in `src/app/`):
 | `src/app/(tabs)/products.tsx` | Labs products |
 | `src/app/(tabs)/settings.tsx` | Workspace switcher, connections, sign out |
 | `src/app/idea/[id].tsx` | Breakdown review & send to Labs |
+| `src/app/paywall.tsx` | Plans (prices from the stores), buy, restore, manage |
 | `src/app/product/[id].tsx` | Product backlog |
-| `src/lib/` | API client, session, offline outbox |
+| `src/lib/` | API client, session, offline outbox, free notes, RevenueCat wrapper |
 
 ## Server setup
 
@@ -64,6 +86,38 @@ On the ForgeCommunicator server:
    product for the workspace, or pick a product when capturing.
 4. **Labs OAuth redirect** – the Labs OAuth client must allow
    `<BASE_URL>/mobile/v1/auth/oauth/buildly/callback` as a redirect URI.
+
+## Payments setup (App Store, Google Play, RevenueCat)
+
+Apple and Google require their own in-app billing for unlocking app features, so purchases go
+through the stores. [RevenueCat](https://www.revenuecat.com) wraps both stores, validates receipts
+and tells our server what each user owns.
+
+1. **Create the products** in App Store Connect and Google Play Console, for example:
+   - `capture_pro_monthly`: auto-renewing subscription
+   - `capture_pro_yearly`: auto-renewing subscription
+   - `capture_pro_lifetime`: one-time, non-consumable purchase
+
+   You set prices in the store consoles. The app shows whatever the stores return, with no
+   prices in code.
+2. **In RevenueCat:** add both apps, create the entitlement `capture_pro` and attach all three
+   products. Then create an offering marked **current** with Monthly / Annual / Lifetime packages.
+3. **Server env:**
+   - `REVENUECAT_SECRET_API_KEY`: the secret key.
+   - `REVENUECAT_WEBHOOK_AUTH`: a random string.
+   - `REVENUECAT_ENTITLEMENT_ID`: only if you didn't name it `capture_pro`.
+4. **RevenueCat webhook:** URL `<BASE_URL>/mobile/v1/billing/revenuecat/webhook`, with the
+   Authorization header set to the same `REVENUECAT_WEBHOOK_AUTH` value.
+5. **App config** (`app.json` → `expo.extra`):
+   - `revenuecatIosKey` / `revenuecatAndroidKey`: the *public* SDK keys, safe to ship.
+   - `termsUrl` / `privacyUrl`: required by Apple for subscriptions, and shown on the paywall.
+6. **Comps & self-hosting:**
+   - Platform admins and `CAPTURE_FREE_EMAILS` always have access.
+   - Admins can grant access with `POST /mobile/v1/billing/grants {"email": ...}`.
+   - Self-hosted installs that don't sell the app can set `CAPTURE_PAYWALL_ENABLED=false`.
+
+Real purchases need a development or store build (`eas build`), because Expo Go can't make
+store purchases. Test with App Store sandbox accounts and Play license testers.
 
 ## Run it
 

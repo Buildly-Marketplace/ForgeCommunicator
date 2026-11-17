@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, View } from 'react-native';
 
 import { BUILDER_LABEL, Banner, Body, Button, Card, Chip, Label, Row, STATUS_LABEL, Screen, useColors } from '../../components/ui';
+import { ApiError } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import type { Agent, Builder, BreakdownItem, Idea, SubmitResult } from '../../lib/types';
 
@@ -73,10 +74,20 @@ function ItemCard({
   );
 }
 
+/** Show the error, or open the paywall if the server says Pro is needed. */
+function handleError(e: unknown, setError: (m: string) => void, refreshAccess: () => Promise<unknown>) {
+  if (e instanceof ApiError && e.needsSubscription) {
+    refreshAccess().catch(() => undefined);
+    router.push('/paywall');
+    return;
+  }
+  setError(e instanceof Error ? e.message : String(e));
+}
+
 export default function IdeaDetail() {
   const c = useColors();
   const { id, refine } = useLocalSearchParams<{ id: string; refine?: string }>();
-  const { api } = useSession();
+  const { api, refreshAccess } = useSession();
   const [idea, setIdea] = useState<Idea | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState<number | null>(null);
@@ -91,11 +102,11 @@ export default function IdeaDetail() {
     try {
       setIdea(await api.refineIdea(Number(id)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      handleError(e, setError, refreshAccess);
     } finally {
       setBusy(null);
     }
-  }, [api, id]);
+  }, [api, id, refreshAccess]);
 
   useEffect(() => {
     (async () => {
@@ -121,7 +132,7 @@ export default function IdeaDetail() {
     try {
       setIdea(await api.updateIdea(idea.id, { items: [{ id: itemId, ...patch }] }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      handleError(e, setError, refreshAccess);
     }
   }
 
@@ -134,7 +145,7 @@ export default function IdeaDetail() {
       setResult(res);
       setIdea(res.idea);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      handleError(e, setError, refreshAccess);
     } finally {
       setBusy(null);
     }

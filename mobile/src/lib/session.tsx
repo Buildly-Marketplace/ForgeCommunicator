@@ -4,8 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { Api, ApiError, normalizeServerUrl } from './api';
-import { enqueue, flushOutbox, readOutbox } from './outbox';
-import type { Bootstrap, CaptureWorkspace, Idea, PendingCapture, User } from './types';
+import { JOTTINGS_KEY, OUTBOX_KEY, enqueue, flushOutbox, readOutbox, remove } from './outbox';
+import { deletePhotos, persistPhotos } from './photos';
+import * as purchases from './purchases';
+import type { BillingStatus, Bootstrap, CaptureWorkspace, Idea, PendingCapture, User } from './types';
 
 const TOKEN_KEY = 'forgecapture.token';
 const SERVER_KEY = 'forgecapture.server';
@@ -14,6 +16,11 @@ const WORKSPACE_KEY = 'forgecapture.workspace';
 export const DEFAULT_SERVER_URL: string =
   (Constants.expoConfig?.extra?.defaultServerUrl as string | undefined) ?? 'https://comms.buildly.io';
 
+export type CaptureOutcome =
+  | { kind: 'uploaded'; idea: Idea }
+  | { kind: 'queued' } // Pro, but offline — will upload later
+  | { kind: 'local' }; // free note kept on this phone
+
 interface SessionState {
   ready: boolean;
   serverUrl: string;
@@ -21,19 +28,29 @@ interface SessionState {
   user: User | null;
   bootstrap: Bootstrap | null;
   workspace: CaptureWorkspace | null;
+  access: BillingStatus | null;
+  /** Can save to the server / estimate / send to Labs */
+  isPro: boolean;
   pending: PendingCapture[];
+  jottings: PendingCapture[];
   api: Api;
   signIn(serverUrl: string, token: string): Promise<void>;
   signOut(): Promise<void>;
   setServerUrl(url: string): Promise<void>;
   selectWorkspace(id: number): Promise<void>;
   refreshBootstrap(): Promise<void>;
-  /** Save locally, then try to send. Returns the server Idea if it went through. */
-  capture(c: PendingCapture): Promise<Idea | null>;
+  refreshAccess(sync?: boolean): Promise<BillingStatus | null>;
+  /** Pro: upload (or queue). Free: keep it on the phone. */
+  capture(c: PendingCapture): Promise<CaptureOutcome>;
+  saveJotting(c: PendingCapture): Promise<void>;
+  deleteJotting(clientId: string): Promise<void>;
+  /** Move a free note to the server (Pro only). */
+  uploadJotting(clientId: string): Promise<Idea | null>;
   flush(): Promise<number>;
 }
 
 const SessionContext = createContext<SessionState | null>(null);
+const isNetworkError = (e: unknown) => e instanceof ApiError && e.isNetwork;
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -41,24 +58,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
+  const [access, setAccess] = useState<BillingStatus | null>(null);
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingCapture[]>([]);
+  const [jottings, setJottings] = useState<PendingCapture[]>([]);
 
   const api = useMemo(() => new Api(serverUrl, token), [serverUrl, token]);
+  const isPro = !!token && !!access?.active;
 
-  const loadBootstrap = useCallback(
-    async (client: Api) => {
-      const [me, boot] = await Promise.all([client.me(), client.bootstrap()]);
-      setUser(me);
-      setBootstrap(boot);
-      const saved = Number(await AsyncStorage.getItem(WORKSPACE_KEY));
-      const ws = boot.workspaces.find((w) => w.id === saved) ?? boot.workspaces[0];
-      setWorkspaceId(ws?.id ?? null);
-    },
-    [],
-  );
+  const loadAccount = useCallback(async (client: Api) => {
+    const [me, boot, billing] = await Promise.all([client.me(), client.bootstrap(), client.billingStatus()]);
+    setUser(me);
+    setBootstrap(boot);
+    setAccess(billing);
+    purchases.identify(billing.app_user_id);
+    const saved = Number(await AsyncStorage.getItem(WORKSPACE_KEY));
+    const ws = boot.workspaces.find((w) => w.id === saved) ?? boot.workspaces[0];
+    setWorkspaceId(ws?.id ?? null);
+  }, []);
 
-  // Restore session on launch
+  // Restore session on launch. Signing in is optional: free notes work without an account.
   useEffect(() => {
     (async () => {
       const [savedToken, savedServer] = await Promise.all([
@@ -67,22 +86,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ]);
       const url = savedServer || DEFAULT_SERVER_URL;
       setServer(url);
-      setPending(await readOutbox(AsyncStorage));
+      setPending(await readOutbox(AsyncStorage, OUTBOX_KEY));
+      setJottings(await readOutbox(AsyncStorage, JOTTINGS_KEY));
       if (savedToken) {
         setToken(savedToken);
         try {
-          await loadBootstrap(new Api(url, savedToken));
+          await loadAccount(new Api(url, savedToken));
         } catch (e) {
           if (e instanceof ApiError && e.status === 401) {
             await SecureStore.deleteItemAsync(TOKEN_KEY);
             setToken(null);
           }
-          // Offline: stay signed in so captures still work and queue up
+          // Offline: stay signed in; captures queue up
         }
       }
       setReady(true);
     })();
-  }, [loadBootstrap]);
+  }, [loadAccount]);
 
   const signIn = useCallback(
     async (url: string, newToken: string) => {
@@ -91,9 +111,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(SERVER_KEY, normalized);
       setServer(normalized);
       setToken(newToken);
-      await loadBootstrap(new Api(normalized, newToken));
+      await loadAccount(new Api(normalized, newToken));
     },
-    [loadBootstrap],
+    [loadAccount],
   );
 
   const signOut = useCallback(async () => {
@@ -102,10 +122,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       // token may already be invalid; sign out locally regardless
     }
+    await purchases.forget();
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     setToken(null);
     setUser(null);
     setBootstrap(null);
+    setAccess(null);
   }, [api]);
 
   const setServerUrl = useCallback(async (url: string) => {
@@ -119,40 +141,89 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setWorkspaceId(id);
   }, []);
 
-  const refreshBootstrap = useCallback(() => loadBootstrap(api), [api, loadBootstrap]);
+  const refreshBootstrap = useCallback(() => loadAccount(api), [api, loadAccount]);
+
+  const refreshAccess = useCallback(
+    async (sync = false) => {
+      if (!token) return null;
+      const status = sync ? await api.billingSync() : await api.billingStatus();
+      setAccess(status);
+      return status;
+    },
+    [api, token],
+  );
+
+  const workspace = bootstrap?.workspaces.find((w) => w.id === workspaceId) ?? null;
 
   const flush = useCallback(async () => {
     if (!token) return 0;
-    const { sent, remaining } = await flushOutbox(
-      AsyncStorage,
-      (c) => api.createIdea(c),
-      (e) => e instanceof ApiError && e.isNetwork,
-    );
+    const { sent, remaining } = await flushOutbox(AsyncStorage, (c) => api.createIdea(c), isNetworkError);
     setPending(remaining);
+    if (remaining.some((c) => c.lastErrorStatus === 402)) refreshAccess().catch(() => undefined);
     return sent.length;
-  }, [api, token]);
+  }, [api, token, refreshAccess]);
+
+  const saveJotting = useCallback(async (c: PendingCapture) => {
+    const photos = await persistPhotos(c.clientId, c.photos);
+    setJottings(await enqueue(AsyncStorage, { ...c, photos }, JOTTINGS_KEY));
+  }, []);
+
+  const deleteJotting = useCallback(async (clientId: string) => {
+    setJottings(await remove(AsyncStorage, clientId, JOTTINGS_KEY));
+    deletePhotos(clientId);
+  }, []);
+
+  const send = useCallback(
+    async (c: PendingCapture): Promise<CaptureOutcome> => {
+      setPending(await enqueue(AsyncStorage, c, OUTBOX_KEY));
+      const { sent, remaining } = await flushOutbox(AsyncStorage, (item) => api.createIdea(item), isNetworkError);
+      setPending(remaining);
+      const idea = sent.find((s) => s.capture.clientId === c.clientId)?.result;
+      if (idea) return { kind: 'uploaded', idea };
+      const failed = remaining.find((r) => r.clientId === c.clientId);
+      if (failed?.lastErrorStatus === 402) {
+        // Subscription lapsed server-side: keep it as a free note instead
+        setPending(await remove(AsyncStorage, c.clientId, OUTBOX_KEY));
+        await saveJotting({ ...c, lastError: undefined, lastErrorStatus: undefined });
+        refreshAccess().catch(() => undefined);
+        return { kind: 'local' };
+      }
+      return { kind: 'queued' };
+    },
+    [api, refreshAccess, saveJotting],
+  );
 
   const capture = useCallback(
-    async (c: PendingCapture) => {
-      setPending(await enqueue(AsyncStorage, c));
-      const { sent, remaining } = await flushOutbox(
-        AsyncStorage,
-        (item) => api.createIdea(item),
-        (e) => e instanceof ApiError && e.isNetwork,
-      );
-      setPending(remaining);
-      return sent.find((s) => s.capture.clientId === c.clientId)?.result ?? null;
+    async (c: PendingCapture): Promise<CaptureOutcome> => {
+      if (!isPro || c.workspaceId == null) {
+        await saveJotting(c);
+        return { kind: 'local' };
+      }
+      return send(c);
     },
-    [api],
+    [isPro, saveJotting, send],
+  );
+
+  const uploadJotting = useCallback(
+    async (clientId: string) => {
+      const jotting = jottings.find((j) => j.clientId === clientId);
+      if (!jotting || !isPro || !workspace) return null;
+      setJottings(await remove(AsyncStorage, clientId, JOTTINGS_KEY));
+      const outcome = await send({ ...jotting, workspaceId: jotting.workspaceId ?? workspace.id });
+      if (outcome.kind === 'uploaded') {
+        deletePhotos(clientId);
+        return outcome.idea;
+      }
+      return null;
+    },
+    [jottings, isPro, workspace, send],
   );
 
   // Opportunistically flush anything queued while offline
   useEffect(() => {
-    if (token && pending.length) flush().catch(() => undefined);
+    if (isPro && pending.length) flush().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  const workspace = bootstrap?.workspaces.find((w) => w.id === workspaceId) ?? null;
+  }, [isPro]);
 
   const value: SessionState = {
     ready,
@@ -161,14 +232,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     user,
     bootstrap,
     workspace,
+    access,
+    isPro,
     pending,
+    jottings,
     api,
     signIn,
     signOut,
     setServerUrl,
     selectWorkspace,
     refreshBootstrap,
+    refreshAccess,
     capture,
+    saveJotting,
+    deleteJotting,
+    uploadJotting,
     flush,
   };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

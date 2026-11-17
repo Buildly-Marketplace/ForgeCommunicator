@@ -7,7 +7,7 @@ import { useSession } from '../../lib/session';
 import type { Product } from '../../lib/types';
 
 export default function Products() {
-  const { api, workspace } = useSession();
+  const { api, token, workspace } = useSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -44,6 +44,18 @@ export default function Products() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  if (!token) {
+    return (
+      <Screen style={{ padding: 16, gap: 12 }}>
+        <Card>
+          <Body style={{ fontWeight: '700' }}>Your Buildly Labs products</Body>
+          <Body muted>Sign in to browse your products, their features and open issues.</Body>
+          <Button title="Sign in" onPress={() => router.push('/login')} />
+        </Card>
+      </Screen>
+    );
   }
 
   return (

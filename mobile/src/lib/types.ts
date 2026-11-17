@@ -130,10 +130,27 @@ export interface SubmitResult {
   warnings: string[];
 }
 
-/** A capture that hasn't reached the server yet (offline / server error). */
+export interface BillingStatus {
+  required: boolean;
+  active: boolean;
+  source?: string | null;
+  kind?: 'subscription' | 'lifetime' | 'grant' | 'complimentary' | null;
+  product_id?: string | null;
+  expires_at?: string | null;
+  will_renew?: boolean | null;
+  management_url?: string | null;
+  app_user_id: string;
+  entitlement_id: string;
+  purchases_enabled: boolean;
+}
+
+/**
+ * A capture that hasn't reached the server: either a free note kept on the phone
+ * ("jotting", workspaceId may be null) or a Pro capture waiting to upload (outbox).
+ */
 export interface PendingCapture {
   clientId: string;
-  workspaceId: number;
+  workspaceId: number | null;
   productId?: number | null;
   kind: IdeaKind;
   title?: string;
@@ -142,4 +159,6 @@ export interface PendingCapture {
   photos: { uri: string; name: string; type: string }[];
   createdAt: string;
   lastError?: string;
+  /** HTTP status of the last failure (402 = needs Pro, 0 = offline) */
+  lastErrorStatus?: number;
 }

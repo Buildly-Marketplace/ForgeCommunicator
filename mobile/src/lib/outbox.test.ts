@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { enqueue, flushOutbox, readOutbox, type KeyValueStore } from './outbox.ts';
+import { JOTTINGS_KEY, enqueue, flushOutbox, readOutbox, remove, type KeyValueStore } from './outbox.ts';
 import type { PendingCapture } from './types.ts';
 
 function memoryStore(): KeyValueStore & { data: Map<string, string> } {
@@ -57,7 +57,7 @@ test('server error skips to next item; network error stops the flush', async () 
   const res = await flushOutbox(
     store,
     async (c) => {
-      if (c.clientId === 'a') throw new Error('422 bad');
+      if (c.clientId === 'a') throw Object.assign(new Error('422 bad'), { status: 422 });
       if (c.clientId === 'c') throw netErr;
       return c.clientId;
     },
@@ -67,5 +67,16 @@ test('server error skips to next item; network error stops the flush', async () 
   const left = await readOutbox(store);
   assert.deepEqual(left.map((c) => c.clientId), ['a', 'c', 'd']);
   assert.equal(left[0].lastError, '422 bad');
+  assert.equal(left[0].lastErrorStatus, 422);
   assert.equal(left[2].lastError, undefined); // never attempted
+});
+
+test('jottings live under their own key and can be removed', async () => {
+  const store = memoryStore();
+  await enqueue(store, { ...capture('j1'), workspaceId: null }, JOTTINGS_KEY);
+  await enqueue(store, capture('o1'));
+  assert.deepEqual((await readOutbox(store, JOTTINGS_KEY)).map((c) => c.clientId), ['j1']);
+  assert.deepEqual((await readOutbox(store)).map((c) => c.clientId), ['o1']);
+  await remove(store, 'j1', JOTTINGS_KEY);
+  assert.deepEqual(await readOutbox(store, JOTTINGS_KEY), []);
 });
